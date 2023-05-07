@@ -157,6 +157,7 @@ def login():
 
             if validate_paswd:
                 print(user)
+                print(user)
                 login_user(user)#logs in user
                 return redirect(url_for("get_all_posts"))
             flash('Wrong password. Please try again')
