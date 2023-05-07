@@ -26,7 +26,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ayblog.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-
 ##CONFIGURE TABLES
 
 class Users(UserMixin,db.Model):
