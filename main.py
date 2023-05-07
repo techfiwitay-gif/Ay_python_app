@@ -1,9 +1,8 @@
-import re
+
 from flask import Flask, render_template, redirect, url_for, flash,request,send_from_directory
 from flask_bootstrap import Bootstrap
 from flask_ckeditor import CKEditor
 from datetime import date
-from sqlalchemy import ForeignKey
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship
@@ -15,7 +14,7 @@ from functools import wraps
 from flask import abort
 import os
 from smtplib import SMTP
-from bs4 import BeautifulSoup
+
 
 app = Flask(__name__, static_url_path='/static')
 app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
@@ -175,9 +174,6 @@ def logout():
     logout_user()
     return redirect(url_for('get_all_posts'))
 
-
-import re
-
 @app.route("/post/<int:post_id>", methods=['GET', 'POST'])
 def show_post(post_id):
     requested_post = BlogPost.query.get(post_id)
@@ -203,7 +199,6 @@ def show_post(post_id):
                            logged_in=current_user.is_authenticated,
                            form=comment_data,
                            gravatar=gravatar)
-
 
 @app.route('/about')
 def about():
