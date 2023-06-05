@@ -1,0 +1,67 @@
+Ayotunde Website Application
+This is a Website application built using Flask, a Python web framework. The application allows users to register, log in, create blog posts, view posts, add comments, and perform other related actions.
+
+Features
+User registration and authentication
+Create, edit, and delete blog posts
+View and comment on blog posts
+User session management
+Contact form to send messages to the site owner
+Prerequisites
+Python 3.9 or above
+SQLite database
+SMTP server (e.g., Gmail) for email functionality
+Installation
+Clone the repository:
+
+bash
+Copy code
+git clone https://github.com/ay1ncode/Ay_python_app
+Navigate to the project directory: Starting+Files+-+blog-with-users-start
+
+bash
+Copy code
+cd Starting+Files+-+blog-with-users-start
+Create and activate a virtual environment:
+
+bash
+Copy code
+virtualenv venv
+source venv/bin/activate
+Install the required dependencies:
+
+Copy code
+pip install -r requirements.txt
+Set up the database:
+
+csharp
+Copy code
+flask db init
+flask db migrate
+flask db upgrade
+Configure the SMTP server:
+
+Open app.py in a text editor.
+Replace my_email variable with your email address.
+Replace password variable with your email password.
+Update SMTP server settings if necessary (e.g., host, port).
+Start the application:
+
+arduino
+Copy code
+flask run
+Open your web browser and visit http://localhost:5000 to access the application.
+
+Usage
+Register a new account or log in with existing credentials.
+Create blog posts with a title, subtitle, body content, and an optional image URL.
+View existing blog posts and add comments.
+Edit or delete your own blog posts.
+Logout from the application when done.
+Contributing
+Contributions are welcome! If you find any issues or have suggestions for improvements, please open an issue or submit a pull request.
+
+License
+This project is licensed under the MIT License. Feel free to use and modify the code according to your needs.
+
+Please note that this is a basic template for the README file, and you may want to customize it further based on your specific project requirements.
