@@ -283,7 +283,7 @@ def delete_post(post_id):
     return redirect(url_for('get_all_posts'))
 @app.route('/download')
 def download():
-    return send_from_directory('static', filename='education/Ayotunde Oyeniyi.pdf')
+    return send_from_directory('static', filename='education/Ayotunde_Oyeniyi.pdf')
 
 if __name__ == "__main__":
     app.run(debug=True)
