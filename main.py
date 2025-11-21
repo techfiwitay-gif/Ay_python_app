@@ -8,7 +8,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship
 from flask_login import UserMixin, login_user, LoginManager, login_required, current_user, logout_user
 from forms import CreatePostForm
-from flask_gravatar import Gravatar
+
 from forms import RegisterForm,LoginForm,CommentForm
 from functools import wraps
 from flask import abort
@@ -17,7 +17,7 @@ from smtplib import SMTP
 from flask_migrate import Migrate
 
 app = Flask(__name__, static_url_path='/static')
-app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
+app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "8BYkEfBA6O6donzWlSihBXox7C0sKR6b")
 ckeditor = CKEditor(app)
 Bootstrap(app)
 
@@ -89,16 +89,16 @@ class Comment(db.Model):
         self.parent_post = parent_post
 
 
-# db.create_all()
+with app.app_context():
+    db.create_all()
 
-gravatar = Gravatar(app,
-                    size=100,
-                    rating='g',
-                    default='retro',
-                    force_default=False,
-                    force_lower=False,
-                    use_ssl=False,
-                    base_url=None)
+import hashlib
+
+def gravatar_url(email, size=100, rating='g', default='retro', force_default=False):
+    hash_value = hashlib.md5(email.lower().encode('utf-8')).hexdigest()
+    return f"https://www.gravatar.com/avatar/{hash_value}?s={size}&d={default}&r={rating}"
+
+app.jinja_env.filters['gravatar'] = gravatar_url
 
 
 def  admin_only(f):
