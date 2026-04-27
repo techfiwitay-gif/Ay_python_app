@@ -1,36 +1,76 @@
-{% extends 'bootstrap/base.html' %}
-{% import "bootstrap/wtf.html" as wtf %}
-
-{% block content %}
+{% set page_title = "Post Editor | AyNcode" %}
+{% set hero_title = "Post Editor" %}
+{% set hero_subtitle = "Draft, polish, and publish from one focused workspace." %}
+{% set hero_kicker = "Admin" %}
+{% set hero_image = url_for('static', filename='img/edit-bg.jpg') %}
+{% set compact_hero = true %}
 {% include "header.html" %}
-  <!-- Page Header -->
-  <header class="masthead" style="background-image: url('{{ url_for('static', filename='img/home-image.jpg')}}')">
-    <div class="overlay"></div>
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 col-md-10 mx-auto">
-          <div class="page-heading">
-            {% if is_edit: %}
-            <h1>Edit Post</h1>
-            {% else: %}
-            <h1>New Post</h1>
-            {% endif %}
-            <span class="subheading">Summary</span>
-          </div>
+
+<main class="container">
+  <section class="editor-shell">
+    <div class="editor-intro">
+      <div>
+        <p class="section-kicker">Publishing workspace</p>
+        <h2>Shape the article before it goes live.</h2>
+      </div>
+      <span class="status-pill">Draft mode</span>
+    </div>
+
+    {{ ckeditor.load() }}
+
+    <form class="editor-form" method="post" novalidate>
+      {{ form.hidden_tag() }}
+
+      <div class="field-grid">
+        <div class="field-block field-block--wide">
+          {{ form.title.label }}
+          {{ form.title(class_="form-control", placeholder="A clear, specific title") }}
+          {% for error in form.title.errors %}
+          <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="field-block field-block--wide">
+          {{ form.subtitle.label }}
+          {{ form.subtitle(class_="form-control", placeholder="One sentence that frames the post") }}
+          {% for error in form.subtitle.errors %}
+          <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="field-block field-block--wide">
+          {{ form.img_url.label }}
+          {{ form.img_url(class_="form-control", placeholder="https://example.com/cover-image.jpg") }}
+          <p class="field-hint">Use a wide image for the hero and post card preview.</p>
+          {% for error in form.img_url.errors %}
+          <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="field-block">
+          {{ form.author.label }}
+          {{ form.author(class_="form-control", placeholder="Author name") }}
+          {% for error in form.author.errors %}
+          <p class="field-error">{{ error }}</p>
+          {% endfor %}
         </div>
       </div>
-    </div>
-  </header>
 
-  <div class="container">
-    <div class="row">
-      <div class="col-lg-8 col-md-10 mx-auto">
-        {{ ckeditor.load() }}
-        {{ ckeditor.config(name='body') }}
-        {{ wtf.quick_form(form, novalidate=True, button_map={"submit": "primary"}) }}
+      <div class="field-block editor-body-field">
+        {{ form.body.label }}
+        {{ form.body(class_="form-control editor-textarea") }}
+        {{ ckeditor.config(name='body', custom_config="versionCheck: false, height: 420, resize_enabled: false, removePlugins: 'elementspath'") }}
+        {% for error in form.body.errors %}
+        <p class="field-error">{{ error }}</p>
+        {% endfor %}
       </div>
-    </div>
-  </div>
+
+      <div class="form-actions">
+        <a class="btn btn-secondary" href="{{ url_for('get_all_posts') }}">Cancel</a>
+        {{ form.submit(class_="btn btn-primary") }}
+      </div>
+    </form>
+  </section>
+</main>
 
 {% include "footer.html" %}
-{% endblock %}

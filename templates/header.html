@@ -7,7 +7,7 @@
   <meta name="description" content="">
   <meta name="author" content="">
 
-  <title>Ayotunde's Blog</title>
+  <title>{{ page_title|default("AyNcode") }}</title>
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,7 +28,10 @@
   <!-- Navigation -->
   <nav class="navbar">
     <div class="navbar-container">
-      <a class="navbar-brand" href="{{ url_for('get_all_posts') }}">Ayotunde's Blog</a>
+      <a class="navbar-brand" href="{{ url_for('get_all_posts') }}">
+        <span class="brand-mark">A</span>
+        <span>AyNcode</span>
+      </a>
       <ul class="navbar-nav">
         <li class="nav-item">
           <a class="nav-link" href="{{ url_for('get_all_posts') }}">Home</a>
@@ -38,6 +41,12 @@
         </li>
         <li class="nav-item">
           <a class="nav-link" href="{{ url_for('contact') }}">Contact</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('openclaw') }}">OpenClaw</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="https://ayncode.com" target="_blank" rel="noopener noreferrer">OpenClaw Web</a>
         </li>
         {% if not logged_in: %}
         <li class="nav-item">
@@ -56,9 +65,11 @@
   </nav>
 
   <!-- Page Header -->
-  <header class="hero-header">
+  <header class="hero-header{% if compact_hero|default(false) %} hero-header--compact{% endif %}"
+    style="background-image: linear-gradient(90deg, rgba(5, 25, 23, 0.92) 0%, rgba(5, 25, 23, 0.72) 44%, rgba(5, 25, 23, 0.25) 100%), url('{{ hero_image|default(url_for('static', filename='img/home-image.jpg')) }}');">
     <div class="container">
-      <h1 class="hero-title">Ayotunde's Blog</h1>
-      <p class="hero-subtitle">A collection of thoughts, tutorials, and experiences.</p>
+      <p class="hero-kicker">{{ hero_kicker|default("Personal notes, code, and ideas") }}</p>
+      <h1 class="hero-title">{{ hero_title|default("AyNcode") }}</h1>
+      <p class="hero-subtitle">{{ hero_subtitle|default("Practical notes on code, projects, and the craft of building better software.") }}</p>
     </div>
   </header>

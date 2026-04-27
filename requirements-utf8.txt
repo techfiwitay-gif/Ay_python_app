@@ -28,4 +28,3 @@ visitor
 Werkzeug
 WTForms
 email_validator
-pytest

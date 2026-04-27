@@ -1,60 +1,55 @@
 {% import "bootstrap/wtf.html" as wtf %}
+{% set page_title = post.title ~ " | AyNcode" %}
+{% set hero_title = post.title %}
+{% set hero_subtitle = post.subtitle %}
+{% set hero_kicker = "Article by " ~ post.author.name ~ " on " ~ post.date %}
+{% set hero_image = post.img_url %}
+{% set compact_hero = true %}
 {% include "header.html" %}
 
-<!-- Page Header -->
-<!-- Note: We override the default header for the post page to show the post title -->
-<style>
-  .hero-header {
-    display: none;
-  }
-</style>
+<article class="container">
+  <div class="article-shell">
+    <div class="article-meta">
+      <span>Posted by {{ post.author.name }}</span>
+      <span>{{ post.date }}</span>
+    </div>
 
-<header class="post-detail-header"
-  style="background-image: url('{{post.img_url}}'); background-size: cover; background-position: center; padding: 8rem 0; position: relative; color: white;">
-  <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5);"></div>
-  <div class="container" style="position: relative; z-index: 1;">
-    <h1 class="post-detail-title">{{ post.title }}</h1>
-    <h2 class="subheading" style="font-weight: 300; margin-bottom: 1rem;">{{ post.subtitle }}</h2>
-    <span class="post-detail-meta">Posted by {{ post.author.name }} on {{ post.date }}</span>
-  </div>
-</header>
-
-<!-- Post Content -->
-<article>
-  <div class="container">
     <div class="post-body">
       {{ post.body|safe }}
     </div>
 
-    <hr>
-
     {% if current_user.id == 1: %}
-    <div class="clearfix">
-      <a class="btn btn-primary float-right" href="{{url_for('edit_post', post_id=post.id)}}">Edit Post</a>
+    <div class="article-actions">
+      <a class="btn btn-primary" href="{{ url_for('edit_post', post_id=post.id) }}">Edit Post</a>
     </div>
     {% endif %}
 
-    <!-- Comments Area -->
-    <div class="comments-area" style="margin-top: 4rem;">
-      {{ ckeditor.load() }}
-      {{ ckeditor.config(name='comment_text') }}
-      {{ wtf.quick_form(form, novalidate=True, button_map={"submit": "primary"}) }}
+    <section class="comments-area">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Discussion</p>
+          <h2>Comments</h2>
+        </div>
+      </div>
 
-      <div class="comment-list" style="margin-top: 2rem;">
+      {{ ckeditor.load() }}
+      {{ wtf.quick_form(form, novalidate=True, button_map={"submit": "primary"}) }}
+      {{ ckeditor.config(name='body', custom_config="versionCheck: false, height: 220, resize_enabled: false, removePlugins: 'elementspath'") }}
+
+      <div class="comment-list">
         {% for comment in post.comments: %}
-        <div class="comment" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="comment">
           <div class="commenter-image">
-            <img src="{{ comment.comment_author.email | gravatar }}" style="border-radius: 50%; width: 50px;" />
+            <img src="{{ comment.comment_author.email | gravatar }}" alt="{{ comment.comment_author.name }}">
           </div>
           <div class="comment-text">
-            <p style="margin-bottom: 0.25rem;">{{comment.text|safe}}</p>
-            <span class="date sub-text"
-              style="font-size: 0.875rem; color: var(--text-secondary);">{{comment.comment_author.name}}</span>
+            <p>{{ comment.text|safe }}</p>
+            <span class="date sub-text">{{ comment.comment_author.name }}</span>
           </div>
         </div>
         {% endfor %}
       </div>
-    </div>
+    </section>
   </div>
 </article>
 

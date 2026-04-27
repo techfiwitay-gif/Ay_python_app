@@ -1,41 +1,24 @@
-{% extends 'bootstrap/base.html' %}
 {% import "bootstrap/wtf.html" as wtf %}
-
-{% block content %}
+{% set page_title = "Register | AyNcode" %}
+{% set hero_title = "Create Account" %}
+{% set hero_subtitle = "Join the conversation and start contributing." %}
+{% set hero_kicker = "Account" %}
+{% set compact_hero = true %}
 {% include "header.html" %}
 
-  <!-- Page Header -->
-  <header class="masthead" style="background-image: url('{{ url_for('static', filename='img/home-image.jpg')}}')">
-    <div class="overlay"></div>
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 col-md-10 mx-auto">
-          <div class="page-heading">
-            <h1>Register</h1>
-            <span class="subheading">Start Contributing to the Blog!</span>
-          </div>
-        </div>
-      </div>
+<main class="container">
+  <section class="form-shell">
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="alert alert-warning" role="alert">
+      {% for message in messages %}
+      <p>{{ message }}</p>
+      {% endfor %}
     </div>
-  </header>
-
-  <div class="container">
-    <div class="row">
-      <div class="col-lg-8 col-md-10 mx-auto">
-        {% with error = get_flashed_messages() %}
-        {% if error %}
-        <ul class=flashes>
-        {% for message in error %}
-        <p style="color:red;">{{ message }}</p>
-        {% endfor %}
-        </ul>
-        {% endif %}
-        {% endwith %}
-       {{ wtf.quick_form(form, novalidate=True, button_map={"sign_up": "primary"}) }}
-
-      </div>
-    </div>
-  </div>
+    {% endif %}
+    {% endwith %}
+    {{ wtf.quick_form(form, novalidate=True, button_map={"sign_up": "primary"}) }}
+  </section>
+</main>
 
 {% include "footer.html" %}
-{% endblock %}

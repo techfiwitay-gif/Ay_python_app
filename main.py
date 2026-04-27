@@ -1,92 +1,31 @@
 
-from flask import Flask, render_template, redirect, url_for, flash,request,send_from_directory
+from flask import Flask, abort, flash, redirect, render_template, request, send_from_directory, url_for
 from flask_bootstrap import Bootstrap
 from flask_ckeditor import CKEditor
 from datetime import date
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import relationship
-from flask_login import UserMixin, login_user, LoginManager, login_required, current_user, logout_user
-from forms import CreatePostForm
-
-from forms import RegisterForm,LoginForm,CommentForm
+from flask_login import login_user, LoginManager, login_required, current_user, logout_user
+from forms import CommentForm, CreatePostForm, LoginForm, RegisterForm
 from functools import wraps
-from flask import abort
+from models import BlogPost, Comment, Users, db
+from sqlalchemy import or_
 import os
+import re
 from smtplib import SMTP
-from flask_migrate import Migrate
 
 app = Flask(__name__, static_url_path='/static')
-app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "8BYkEfBA6O6donzWlSihBXox7C0sKR6b")
+database_url = os.environ.get("DATABASE_URL", "sqlite:///ayblog.db")
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+app.config.from_mapping(
+    SECRET_KEY=os.environ.get("SECRET_KEY", "dev-secret-key"),
+    SQLALCHEMY_DATABASE_URI=database_url,
+    SQLALCHEMY_TRACK_MODIFICATIONS=False,
+)
 ckeditor = CKEditor(app)
 Bootstrap(app)
-
-##CONNECT TO DB
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL","sqlite:///ayblog.db")
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
-
-
-##CONFIGURE TABLES
-
-class Users(UserMixin,db.Model):
-    __tablename__ = "users"
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(250),unique=True ,nullable=False)
-    password = db.Column(db.String(250),  nullable=False)
-    name = db.Column(db.String(250), nullable=False)
-    # This will act like a List of BlogPost objects attached to each User.
-    # The "author" refers to the author property in the BlogPost class.
-    posts = relationship("BlogPost", back_populates="author")
-
-    comments = relationship("Comment",back_populates="comment_author")
-
-    def __init__(self, email, password, name):
-        self.email = email
-        self.password = password
-        self.name = name
-
-
-class BlogPost(db.Model):
-    __tablename__ = "blog_posts"
-    id = db.Column(db.Integer, primary_key=True)
-
-    # Create Foreign Key, "users.id" the users refers to the tablename of User.
-    author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    # Create reference to the User object, the "posts" refers to the posts protperty in the User class.
-    author = relationship("Users", back_populates="posts")
-    title = db.Column(db.String(250), unique=True, nullable=False)
-    subtitle = db.Column(db.String(250), nullable=False)
-    date = db.Column(db.String(250), nullable=False)
-    body = db.Column(db.Text, nullable=False)
-    img_url = db.Column(db.String(250), nullable=False)
-
-    # ***************Parent Relationship*************#
-    comments = relationship("Comment", back_populates="parent_post")
-
-    def __init__(self, title, subtitle, body,img_url,author,date):
-        self.title = title
-        self.subtitle = subtitle
-        self.body = body
-        self.img_url = img_url
-        self.author = author
-        self.date = date
-
-class Comment(db.Model):
-    __tablename__ = "comments"
-    id = db.Column(db.Integer, primary_key=True)
-    author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    comment_author = relationship("Users", back_populates="comments")
-
-
-    #***************Child Relationship*************#
-    post_id = db.Column(db.Integer, db.ForeignKey("blog_posts.id"))
-    parent_post = relationship("BlogPost", back_populates="comments")
-    text = db.Column(db.Text, nullable=False)
-    def __init__(self, text,comment_author,parent_post):
-        self.text = text
-        self.comment_author = comment_author  # set the author_id to the current user's id
-        self.parent_post = parent_post
+db.init_app(app)
 
 
 with app.app_context():
@@ -94,18 +33,45 @@ with app.app_context():
 
 import hashlib
 
-def gravatar_url(email, size=100, rating='g', default='retro', force_default=False):
-    hash_value = hashlib.md5(email.lower().encode('utf-8')).hexdigest()
+
+def is_safe_redirect_url(target):
+    return bool(target) and target.startswith("/") and not target.startswith("//")
+
+
+def text_word_count(html):
+    text = re.sub(r"<[^>]+>", " ", html or "")
+    return len(re.findall(r"\b\w+\b", text))
+
+
+def reading_time_minutes(html):
+    return max(1, round(text_word_count(html) / 220))
+
+
+def decorate_posts(posts):
+    for post in posts:
+        post.word_count = text_word_count(post.body)
+        post.reading_time = reading_time_minutes(post.body)
+        post.comment_count = len(post.comments)
+    return posts
+
+
+def gravatar_url(email, size=100, rating='g', default='retro'):
+    hash_value = hashlib.md5(email.strip().lower().encode('utf-8')).hexdigest()
     return f"https://www.gravatar.com/avatar/{hash_value}?s={size}&d={default}&r={rating}"
 
 app.jinja_env.filters['gravatar'] = gravatar_url
 
 
-def  admin_only(f):
+@app.context_processor
+def inject_template_globals():
+    return {"date": date.today().year}
+
+
+def admin_only(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         # If id is not 1 then return abort with 403 error
-        if current_user.id != 1:
+        if not current_user.is_authenticated or current_user.id != 1:
             abort(403, "You do not have permission to access this resource.")
         # Otherwise continue with the route function
         return f(*args, **kwargs)
@@ -116,13 +82,36 @@ login_manager.init_app(app)
 
 @login_manager.user_loader
 def load_user(user_id):#This callback is used to reload the user object from the user ID stored in the session
-    return Users.query.get(int(user_id))
+    return db.session.get(Users, int(user_id))
 
 @app.route('/')
 
 def get_all_posts():
-    posts = BlogPost.query.all()
-    return render_template("index.html", all_posts=posts,logged_in=current_user.is_authenticated)
+    query = request.args.get("q", "").strip()
+    posts_query = BlogPost.query
+    if query:
+        like_query = f"%{query}%"
+        posts_query = posts_query.filter(
+            or_(
+                BlogPost.title.ilike(like_query),
+                BlogPost.subtitle.ilike(like_query),
+                BlogPost.body.ilike(like_query),
+            )
+        )
+
+    posts = decorate_posts(posts_query.order_by(BlogPost.id.desc()).all())
+    stats = {
+        "posts": BlogPost.query.count(),
+        "comments": Comment.query.count(),
+        "minutes": sum(post.reading_time for post in posts),
+    }
+    return render_template(
+        "index.html",
+        all_posts=posts,
+        logged_in=current_user.is_authenticated,
+        query=query,
+        stats=stats,
+    )
 
 
 @app.route('/register',methods=['GET', 'POST'])
@@ -141,13 +130,16 @@ def register():
             login_user(user)
             return redirect(url_for("get_all_posts"))
         flash("Email already exist.Please login")
-        return redirect('login')
+        return redirect(url_for("login"))
     return render_template("register.html",form=form)
 
 
 
 @app.route('/login',methods=['GET','POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for("get_all_posts"))
+
     form = LoginForm()
     if form.validate_on_submit():
         email = form.email.data
@@ -157,8 +149,10 @@ def login():
             validate_paswd = check_password_hash(user.password,password)
 
             if validate_paswd:
-                print(user)
                 login_user(user)#logs in user
+                next_url = request.args.get("next")
+                if is_safe_redirect_url(next_url):
+                    return redirect(next_url)
                 return redirect(url_for("get_all_posts"))
             flash('Wrong password. Please try again')
         else:
@@ -176,7 +170,7 @@ def logout():
 
 @app.route("/post/<int:post_id>", methods=['GET', 'POST'])
 def show_post(post_id):
-    requested_post = BlogPost.query.get(post_id)
+    requested_post = db.get_or_404(BlogPost, post_id)
     comment_data = CommentForm()
 
     if comment_data.validate_on_submit():
@@ -197,8 +191,25 @@ def show_post(post_id):
 
     return render_template("post.html", post=requested_post,
                            logged_in=current_user.is_authenticated,
-                           form=comment_data,
-                           gravatar=gravatar)
+                           form=comment_data)
+
+
+
+@app.route('/openclaw')
+@app.route('/openclaw/')
+@app.route('/open-claw')
+@app.route('/openclawweb')
+@app.route('/open-claw-web')
+@app.route('/OpenClaw')
+@app.route('/claw')
+@app.route('/ayncode')
+def openclaw():
+    openclaw_url = os.environ.get('OPENCLAW_URL', 'https://ayncode.com')
+    return render_template(
+        'openclaw.html',
+        logged_in=current_user.is_authenticated,
+        openclaw_url=openclaw_url,
+    )
 
 @app.route('/about')
 def about():
@@ -208,23 +219,26 @@ def about():
 @app.route('/contact',methods=['GET','POST'])
 def contact():
     confirm = False
-    if request.method == 'POST':#checks the value of method dependin on method responds accordingly
-        name = request.form.get("name")
-        email = request.form.get("email")
-        num = request.form.get("phone")
-        msg = request.form.get("message")
-        print(email)
-        print(name)
+    if request.method == 'POST':
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip()
+        num = request.form.get("phone", "").strip()
+        msg = request.form.get("message", "").strip()
         password = os.environ.get('GMAIL_PASSWORD')
-        # opens an smtp sever for gmail
-        my_email = "ayncode@gmail.com"
-        to_email = my_email
+        my_email = os.environ.get('CONTACT_EMAIL', 'ayncode@gmail.com')
+
+        if not password:
+            flash('Contact service is temporarily unavailable. Please try again later.')
+            return render_template("contact.html", logged_in=current_user.is_authenticated, confirm=False)
 
         with SMTP('smtp.gmail.com', 587) as smtp:
             smtp.starttls()
             smtp.login(my_email, password)
-            smtp.sendmail(my_email, to_email, msg=f"Subject:{name}\n\nNumber:{num}\n\nEmail from :{email}\n\n\n{msg}")
-            smtp.close()
+            smtp.sendmail(
+                my_email,
+                my_email,
+                msg=f"Subject:{name or 'Website Contact'}\n\nNumber:{num}\n\nEmail from: {email}\n\n{msg}",
+            )
         confirm = True
     return render_template("contact.html",logged_in=current_user.is_authenticated,confirm=confirm)
 
@@ -253,7 +267,7 @@ def add_new_post():
 @login_required
 @admin_only
 def edit_post(post_id):
-    post = BlogPost.query.get(post_id)
+    post = db.get_or_404(BlogPost, post_id)
     edit_form = CreatePostForm(
         title=post.title,
         subtitle=post.subtitle,
@@ -265,7 +279,7 @@ def edit_post(post_id):
         post.title = edit_form.title.data
         post.subtitle = edit_form.subtitle.data
         post.img_url = edit_form.img_url.data
-        post.author = Users.query.get(edit_form.author.data)
+        post.author = current_user
         post.body = edit_form.body.data
         db.session.commit()
         return redirect(url_for("show_post", post_id=post.id))
@@ -277,13 +291,18 @@ def edit_post(post_id):
 @login_required
 @admin_only
 def delete_post(post_id):
-    post_to_delete = BlogPost.query.get(post_id)
+    post_to_delete = db.get_or_404(BlogPost, post_id)
     db.session.delete(post_to_delete)
     db.session.commit()
     return redirect(url_for('get_all_posts'))
 @app.route('/download')
 def download():
-    return send_from_directory('static', filename='edu/Ayotunde_Oyeniyi.pdf')
+    return send_from_directory(
+        os.path.join(app.root_path, "static", "edu"),
+        "Ayotunde_Oyeniyi.pdf",
+        as_attachment=True,
+        download_name="Ayotunde_Oyeniyi.pdf",
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)

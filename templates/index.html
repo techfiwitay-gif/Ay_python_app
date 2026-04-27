@@ -2,11 +2,68 @@
 
 <!-- Main Content -->
 <div class="container">
+  {% if not query and all_posts|length == 0 %}
+  <section class="empty-state">
+    <div class="empty-state-icon"><i class="fas fa-feather-alt"></i></div>
+    <h2>Your blog is ready</h2>
+    <p>There are no posts yet. Publish your first article to bring this page to life.</p>
+    {% if current_user.is_authenticated and current_user.id == 1 %}
+    <a class="btn btn-primary" href="{{ url_for('add_new_post') }}">Write your first post</a>
+    {% else %}
+    <a class="btn btn-primary" href="{{ url_for('register') }}">Create an account</a>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="section-heading">
+    <div>
+      <p class="section-kicker">Latest posts</p>
+      <h2>{% if query %}Search results for "{{ query }}"{% else %}Fresh from the blog{% endif %}</h2>
+    </div>
+    {% if current_user.is_authenticated and current_user.id == 1 %}
+    <a class="btn btn-secondary" href="{{ url_for('add_new_post') }}">New post</a>
+    {% endif %}
+  </section>
+
+  <form class="search-panel" action="{{ url_for('get_all_posts') }}" method="get">
+    <label class="sr-only" for="search">Search posts</label>
+    <input id="search" name="q" type="search" value="{{ query }}" placeholder="Search posts, tutorials, or ideas">
+    <button class="btn btn-primary" type="submit">Search</button>
+    {% if query %}
+    <a class="btn btn-secondary" href="{{ url_for('get_all_posts') }}">Clear</a>
+    {% endif %}
+  </form>
+
+  <section class="stats-grid" aria-label="Blog statistics">
+    <div class="stat-item">
+      <strong>{{ stats.posts }}</strong>
+      <span>Posts</span>
+    </div>
+    <div class="stat-item">
+      <strong>{{ stats.comments }}</strong>
+      <span>Comments</span>
+    </div>
+    <div class="stat-item">
+      <strong>{{ stats.minutes }}</strong>
+      <span>Minutes to read</span>
+    </div>
+  </section>
+
+  {% if query and all_posts|length == 0 %}
+  <section class="empty-state">
+    <div class="empty-state-icon"><i class="fas fa-search"></i></div>
+    <h2>No matching posts</h2>
+    <p>Try a different search term or clear the search to see every post.</p>
+    <a class="btn btn-primary" href="{{ url_for('get_all_posts') }}">View all posts</a>
+  </section>
+  {% endif %}
+
   <div class="post-grid">
     {% for post in all_posts %}
     <article class="post-card">
       <img class="post-image" src="{{ post.img_url }}" alt="{{ post.title }}">
       <div class="post-content">
+        <p class="post-kicker">Article</p>
         <h2 class="post-title">
           <a href="{{ url_for('show_post', post_id=post.id) }}">{{ post.title }}</a>
         </h2>
@@ -15,19 +72,18 @@
           <span>Posted by {{ post.author.name }}</span>
           <span>{{ post.date }}</span>
         </div>
+        <div class="post-stats">
+          <span>{{ post.reading_time }} min read</span>
+          <span>{{ post.comment_count }} comments</span>
+        </div>
         {% if current_user.id == 1: %}
-        <div class="admin-actions" style="margin-top: 1rem;">
-          <a href="{{ url_for('delete_post', post_id=post.id) }}" class="btn-delete">✘</a>
+        <div class="admin-actions">
+          <a href="{{ url_for('delete_post', post_id=post.id) }}" class="btn-delete" aria-label="Delete {{ post.title }}">Delete</a>
         </div>
         {% endif %}
       </div>
     </article>
     {% endfor %}
-  </div>
-
-  <!-- Pager -->
-  <div class="clearfix" style="text-align: center; margin-bottom: 4rem;">
-    <a class="btn btn-primary" href="#">Older Posts &rarr;</a>
   </div>
 </div>
 

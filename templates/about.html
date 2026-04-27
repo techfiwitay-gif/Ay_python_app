@@ -1,26 +1,21 @@
+{% set page_title = "About | AyNcode" %}
+{% set hero_title = "About Me" %}
+{% set hero_subtitle = "Builder, learner, and practical software tinkerer." %}
+{% set hero_kicker = "Profile" %}
+{% set hero_image = url_for('static', filename='img/about-bg.jpg') %}
+{% set compact_hero = true %}
 {% include "header.html" %}
 
-<!-- Page Header -->
-<header class="hero-header"
-  style="background-image: url('{{ url_for('static', filename='img/about-bg.jpg') }}'); background-size: cover; background-position: center; color: white; position: relative;">
-  <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5);"></div>
-  <div class="container" style="position: relative; z-index: 1;">
-    <h1 class="hero-title" style="color: white; -webkit-text-fill-color: white;">About Me</h1>
-    <p class="hero-subtitle" style="color: rgba(255,255,255,0.9);">This is what I do.</p>
-  </div>
-</header>
-
-<!-- Main Content -->
-<div class="container">
-  <div class="post-body">
-    <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Saepe nostrum ullam eveniet pariatur voluptates odit,
-      fuga atque ea nobis sit soluta odio, adipisci quas excepturi maxime quae totam ducimus consectetur?</p>
-    <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Eius praesentium recusandae illo eaque architecto
-      error, repellendus iusto reprehenderit, doloribus, minus sunt. Numquam at quae voluptatum in officia voluptas
-      voluptatibus, minus!</p>
-    <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Aut consequuntur magnam, excepturi aliquid ex itaque
-      esse est vero natus quae optio aperiam soluta voluptatibus corporis atque iste neque sit tempora!</p>
-  </div>
-</div>
+<main class="container">
+  <section class="content-panel">
+    <p class="section-kicker">What this space is for</p>
+    <h2>Notes from building, learning, and shipping.</h2>
+    <div class="post-body">
+      <p>Welcome to my corner of the web. This blog collects practical notes on software projects, experiments, and the lessons that show up while turning ideas into working tools.</p>
+      <p>I write about the parts of development that are useful after the tutorial ends: debugging decisions, product thinking, deployment notes, and small improvements that make an app feel better to use.</p>
+      <p>When I am not writing here, I am usually exploring new code ideas, refining OpenClaw, or learning a cleaner way to solve the next problem.</p>
+    </div>
+  </section>
+</main>
 
 {% include "footer.html" %}

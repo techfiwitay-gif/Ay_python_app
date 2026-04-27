@@ -1,0 +1,33 @@
+{% set page_title = "OpenClaw | AyNcode" %}
+{% set hero_title = "OpenClaw" %}
+{% set hero_subtitle = "A connected launch point for the OpenClaw web app." %}
+{% set hero_kicker = "Project" %}
+{% set compact_hero = true %}
+{% include "header.html" %}
+
+<main class="container">
+  <article class="feature-panel">
+    <div class="post-content">
+      <h2 class="post-title">OpenClaw</h2>
+      <h3 class="post-subtitle">Powered by ayncode.com</h3>
+      <p>
+        This OpenClaw section is connected to your OpenClaw web app at
+        <strong>ayncode.com</strong>.
+      </p>
+      <div class="button-row">
+        <a class="btn btn-primary" href="{{ openclaw_url }}" target="_blank" rel="noopener noreferrer">Open OpenClaw Website</a>
+        <a class="btn btn-secondary" href="{{ url_for('get_all_posts') }}">Go to AyNcode</a>
+      </div>
+
+      <div class="iframe-shell">
+        <iframe
+          src="{{ openclaw_url }}"
+          title="OpenClaw Website"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"></iframe>
+      </div>
+    </div>
+  </article>
+</main>
+
+{% include "footer.html" %}
