@@ -5,13 +5,17 @@ from flask_ckeditor import CKEditor
 from datetime import date
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, LoginManager, login_required, current_user, logout_user
-from forms import CommentForm, CreatePostForm, LoginForm, RegisterForm
+from forms import CommentForm, CreatePostForm, GenerateArticleForm, LoginForm, RegisterForm
 from functools import wraps
 from models import BlogPost, Comment, Users, db
 from sqlalchemy import or_
 import os
 import re
 from smtplib import SMTP
+from html import escape
+from urllib.parse import quote_plus
+from urllib.request import Request, urlopen
+import xml.etree.ElementTree as ET
 
 app = Flask(__name__, static_url_path='/static')
 database_url = os.environ.get("DATABASE_URL", "sqlite:///ayblog.db")
@@ -53,6 +57,134 @@ def decorate_posts(posts):
         post.reading_time = reading_time_minutes(post.body)
         post.comment_count = len(post.comments)
     return posts
+
+
+def title_case_topic(topic):
+    small_words = {"a", "an", "and", "as", "at", "for", "from", "in", "of", "on", "or", "the", "to", "with"}
+    words = re.findall(r"[A-Za-z0-9']+|[^A-Za-z0-9']+", topic.strip())
+    titled = []
+    word_index = 0
+    for part in words:
+        if re.match(r"[A-Za-z0-9']+", part):
+            lower = part.lower()
+            if word_index > 0 and lower in small_words:
+                titled.append(lower)
+            else:
+                titled.append(part[:1].upper() + part[1:].lower())
+            word_index += 1
+        else:
+            titled.append(part)
+    return "".join(titled).strip()
+
+
+def unique_post_title(title):
+    candidate = title
+    counter = 2
+    while BlogPost.query.filter_by(title=candidate).first():
+        candidate = f"{title} ({counter})"
+        counter += 1
+    return candidate
+
+
+def fetch_recent_events(query, limit=4):
+    search_query = quote_plus(query.strip())
+    feed_url = f"https://news.google.com/rss/search?q={search_query}&hl=en-US&gl=US&ceid=US:en"
+    request_obj = Request(feed_url, headers={"User-Agent": "AyNcodeArticleGenerator/1.0"})
+    with urlopen(request_obj, timeout=8) as response:
+        feed = response.read()
+
+    root = ET.fromstring(feed)
+    events = []
+    for item in root.findall("./channel/item")[:limit]:
+        title = item.findtext("title", "").strip()
+        link = item.findtext("link", "").strip()
+        published = item.findtext("pubDate", "").strip()
+        source = item.findtext("source", "").strip()
+        if title and link:
+            events.append(
+                {
+                    "title": title,
+                    "link": link,
+                    "published": published,
+                    "source": source or "Google News",
+                }
+            )
+    return events
+
+
+def render_event_section(events):
+    if not events:
+        return ""
+
+    event_items = []
+    for event in events:
+        source = escape(event["source"])
+        title = escape(event["title"])
+        link = escape(event["link"], quote=True)
+        published = escape(event["published"])
+        event_items.append(
+            f'<li><a href="{link}" target="_blank" rel="noopener noreferrer">{title}</a>'
+            f' <span>({source}{", " + published if published else ""})</span></li>'
+        )
+
+    return f"""
+<h2>Recent real-world context</h2>
+<p>The points below are grounded in recent public headlines related to this topic. They should be reviewed before publishing because live events can change quickly.</p>
+<ul>
+{''.join(event_items)}
+</ul>
+""".strip()
+
+
+def generate_article(topic, audience, angle, events=None):
+    clean_topic = re.sub(r"\s+", " ", topic).strip()
+    safe_topic = escape(clean_topic)
+    safe_topic_lower = escape(clean_topic.lower())
+    title_topic = title_case_topic(clean_topic)
+    title = unique_post_title(f"{title_topic}: A Practical Guide")
+    audience_labels = {
+        "developers": "developers who want practical steps",
+        "founders": "founders turning ideas into useful products",
+        "beginners": "beginners learning the fundamentals",
+        "general": "curious readers who want a clear overview",
+    }
+    audience_text = audience_labels.get(audience, audience_labels["general"])
+    angle_text = re.sub(r"\s+", " ", angle or "").strip()
+    angle_paragraph = ""
+    if angle_text:
+        angle_paragraph = f"<p>This article focuses on {escape(angle_text)}. Use that lens to decide what matters, what can wait, and what should be measured after launch.</p>"
+
+    subtitle = f"A clear, useful breakdown of {clean_topic} for {audience_text}."
+    event_section = render_event_section(events or [])
+    event_reference = ""
+    if events:
+        event_reference = "<p>Recent headlines show that this topic is not theoretical. The linked examples below give the article a real-world starting point, while the analysis focuses on practical lessons rather than guessing at facts not shown in the sources.</p>"
+
+    body = f"""
+<p>{safe_topic} is easier to understand when it is treated as a practical workflow instead of a vague idea. The goal is not to chase every tool or trend, but to make steady decisions that improve the way people build, learn, and ship.</p>
+
+<h2>Why it matters</h2>
+<p>For {audience_text}, {safe_topic_lower} matters because it connects daily execution with long-term progress. A good process reduces guesswork, makes tradeoffs visible, and helps teams move from scattered effort to repeatable outcomes.</p>
+
+{event_reference}
+
+{event_section}
+
+{angle_paragraph}
+
+<h2>Start with the problem</h2>
+<p>Before choosing a solution, define the problem in plain language. Ask what is slow, confusing, risky, or expensive today. A strong article, product, or technical plan usually starts with one specific pain point and builds outward from there.</p>
+
+<h2>Build a simple first version</h2>
+<p>The first version should prove the core idea with the fewest moving parts. Keep the scope small, document what changed, and make sure the result can be tested by a real person. This makes improvement easier because feedback arrives early.</p>
+
+<h2>Measure what improves</h2>
+<p>Useful progress needs evidence. Track whether the work saves time, improves clarity, reduces errors, or creates a better experience for users. When the result is measurable, it becomes easier to decide what to keep, remove, or refine.</p>
+
+<h2>Final thought</h2>
+<p>{safe_topic} works best when it stays grounded in real needs. Start with a focused problem, ship a small improvement, and use what you learn to guide the next version.</p>
+""".strip()
+    return title, subtitle, body
 
 
 def gravatar_url(email, size=100, rating='g', default='retro'):
@@ -171,6 +303,7 @@ def logout():
 @app.route("/post/<int:post_id>", methods=['GET', 'POST'])
 def show_post(post_id):
     requested_post = db.get_or_404(BlogPost, post_id)
+    decorate_posts([requested_post])
     comment_data = CommentForm()
 
     if comment_data.validate_on_submit():
@@ -261,6 +394,40 @@ def add_new_post():
         db.session.commit()
         return redirect(url_for("get_all_posts"))
     return render_template("make-post.html", form=form,logged_in=current_user.is_authenticated)
+
+
+@app.route("/generate-post", methods=["GET", "POST"])
+@login_required
+@admin_only
+def generate_post():
+    form = GenerateArticleForm()
+    if form.validate_on_submit():
+        events = []
+        if form.use_real_events.data:
+            event_query = form.event_query.data or form.topic.data
+            try:
+                events = fetch_recent_events(event_query)
+            except Exception:
+                flash("Could not fetch live events right now. Generated a general article draft instead.")
+
+        title, subtitle, body = generate_article(
+            form.topic.data,
+            form.audience.data,
+            form.angle.data,
+            events=events,
+        )
+        new_post = BlogPost(
+            title=title,
+            subtitle=subtitle,
+            body=body,
+            img_url=form.img_url.data or form.img_url.default,
+            author=current_user,
+            date=date.today().strftime("%B %d, %Y")
+        )
+        db.session.add(new_post)
+        db.session.commit()
+        return redirect(url_for("show_post", post_id=new_post.id))
+    return render_template("generate-post.html", form=form, logged_in=current_user.is_authenticated)
 
 
 @app.route("/edit-post/<int:post_id>",methods=["GET", "POST"])

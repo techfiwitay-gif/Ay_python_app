@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import PasswordField, StringField, SubmitField
-from wtforms.validators import DataRequired, Email, Length, URL
+from wtforms import BooleanField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms.validators import DataRequired, Email, Length, Optional, URL
 from flask_ckeditor import CKEditorField
 
 ##WTForm
@@ -11,6 +11,37 @@ class CreatePostForm(FlaskForm):
     author = StringField('Author', validators=[DataRequired(), Length(max=250)])
     body = CKEditorField("Blog Content", validators=[DataRequired()])
     submit = SubmitField("Submit Post")
+
+
+class GenerateArticleForm(FlaskForm):
+    topic = StringField("Article Topic", validators=[DataRequired(), Length(max=180)])
+    audience = SelectField(
+        "Audience",
+        choices=[
+            ("developers", "Developers"),
+            ("founders", "Founders"),
+            ("beginners", "Beginners"),
+            ("general", "General readers"),
+        ],
+        default="developers",
+    )
+    angle = TextAreaField(
+        "Article Direction",
+        validators=[Optional(), Length(max=600)],
+        description="Optional notes, keywords, or points you want included.",
+    )
+    event_query = StringField(
+        "Real Event Search",
+        validators=[Optional(), Length(max=180)],
+        description="Optional search phrase for current news. Defaults to the article topic.",
+    )
+    use_real_events = BooleanField("Use recent real-world events", default=True)
+    img_url = StringField(
+        "Cover Image URL",
+        validators=[Optional(), URL(), Length(max=250)],
+        default="https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1400&q=80",
+    )
+    submit = SubmitField("Generate Article")
 
 
 class RegisterForm(FlaskForm):

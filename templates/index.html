@@ -1,53 +1,61 @@
 {% include "header.html" %}
 
-<!-- Main Content -->
-<div class="container">
+<main class="container page-stack">
+  <section class="overview-strip" aria-label="Site overview">
+    <div class="overview-item">
+      <span>{{ stats.posts }}</span>
+      <p>Published posts</p>
+    </div>
+    <div class="overview-item">
+      <span>{{ stats.comments }}</span>
+      <p>Reader comments</p>
+    </div>
+    <div class="overview-item">
+      <span>{{ stats.minutes }}</span>
+      <p>Minutes of insight</p>
+    </div>
+  </section>
+
+  {% if current_user.is_authenticated and current_user.id == 1 %}
+  <section class="admin-command">
+    <div>
+      <p class="section-kicker">Creator tools</p>
+      <h2>Publish faster with guided drafting.</h2>
+    </div>
+    <div class="button-row">
+      <a class="btn btn-primary" href="{{ url_for('generate_post') }}">Generate article</a>
+      <a class="btn btn-secondary" href="{{ url_for('add_new_post') }}">New post</a>
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="content-toolbar">
+    <div>
+      <p class="section-kicker">Latest writing</p>
+      <h2>{% if query %}Search results for "{{ query }}"{% else %}Fresh from AyNcode{% endif %}</h2>
+    </div>
+    <form class="search-panel" action="{{ url_for('get_all_posts') }}" method="get">
+      <label class="sr-only" for="search">Search posts</label>
+      <input id="search" name="q" type="search" value="{{ query }}" placeholder="Search posts, tutorials, or ideas">
+      <button class="btn btn-primary" type="submit">Search</button>
+      {% if query %}
+      <a class="btn btn-secondary" href="{{ url_for('get_all_posts') }}">Clear</a>
+      {% endif %}
+    </form>
+  </section>
+
   {% if not query and all_posts|length == 0 %}
   <section class="empty-state">
-    <div class="empty-state-icon"><i class="fas fa-feather-alt"></i></div>
-    <h2>Your blog is ready</h2>
-    <p>There are no posts yet. Publish your first article to bring this page to life.</p>
+    <div class="empty-state-icon"><i class="fas fa-pen-nib"></i></div>
+    <h2>Your publishing space is ready</h2>
+    <p>Create the first article to bring AyNcode to life.</p>
     {% if current_user.is_authenticated and current_user.id == 1 %}
-    <a class="btn btn-primary" href="{{ url_for('add_new_post') }}">Write your first post</a>
+    <a class="btn btn-primary" href="{{ url_for('generate_post') }}">Generate first article</a>
     {% else %}
     <a class="btn btn-primary" href="{{ url_for('register') }}">Create an account</a>
     {% endif %}
   </section>
   {% endif %}
-
-  <section class="section-heading">
-    <div>
-      <p class="section-kicker">Latest posts</p>
-      <h2>{% if query %}Search results for "{{ query }}"{% else %}Fresh from the blog{% endif %}</h2>
-    </div>
-    {% if current_user.is_authenticated and current_user.id == 1 %}
-    <a class="btn btn-secondary" href="{{ url_for('add_new_post') }}">New post</a>
-    {% endif %}
-  </section>
-
-  <form class="search-panel" action="{{ url_for('get_all_posts') }}" method="get">
-    <label class="sr-only" for="search">Search posts</label>
-    <input id="search" name="q" type="search" value="{{ query }}" placeholder="Search posts, tutorials, or ideas">
-    <button class="btn btn-primary" type="submit">Search</button>
-    {% if query %}
-    <a class="btn btn-secondary" href="{{ url_for('get_all_posts') }}">Clear</a>
-    {% endif %}
-  </form>
-
-  <section class="stats-grid" aria-label="Blog statistics">
-    <div class="stat-item">
-      <strong>{{ stats.posts }}</strong>
-      <span>Posts</span>
-    </div>
-    <div class="stat-item">
-      <strong>{{ stats.comments }}</strong>
-      <span>Comments</span>
-    </div>
-    <div class="stat-item">
-      <strong>{{ stats.minutes }}</strong>
-      <span>Minutes to read</span>
-    </div>
-  </section>
 
   {% if query and all_posts|length == 0 %}
   <section class="empty-state">
@@ -58,18 +66,42 @@
   </section>
   {% endif %}
 
+  {% if all_posts|length > 0 %}
+  {% set featured = all_posts[0] %}
+  {% if not query %}
+  <article class="featured-post">
+    <a class="featured-media" href="{{ url_for('show_post', post_id=featured.id) }}">
+      <img src="{{ featured.img_url }}" alt="{{ featured.title }}">
+    </a>
+    <div class="featured-content">
+      <p class="section-kicker">Featured article</p>
+      <h2><a href="{{ url_for('show_post', post_id=featured.id) }}">{{ featured.title }}</a></h2>
+      <p>{{ featured.subtitle }}</p>
+      <div class="post-stats">
+        <span>{{ featured.reading_time }} min read</span>
+        <span>{{ featured.comment_count }} comments</span>
+        <span>{{ featured.date }}</span>
+      </div>
+      <a class="btn btn-primary" href="{{ url_for('show_post', post_id=featured.id) }}">Read article</a>
+    </div>
+  </article>
+  {% endif %}
+
   <div class="post-grid">
     {% for post in all_posts %}
+    {% if query or loop.index > 1 %}
     <article class="post-card">
-      <img class="post-image" src="{{ post.img_url }}" alt="{{ post.title }}">
+      <a href="{{ url_for('show_post', post_id=post.id) }}">
+        <img class="post-image" src="{{ post.img_url }}" alt="{{ post.title }}">
+      </a>
       <div class="post-content">
         <p class="post-kicker">Article</p>
         <h2 class="post-title">
           <a href="{{ url_for('show_post', post_id=post.id) }}">{{ post.title }}</a>
         </h2>
-        <h3 class="post-subtitle">{{ post.subtitle }}</h3>
+        <p class="post-subtitle">{{ post.subtitle }}</p>
         <div class="post-meta">
-          <span>Posted by {{ post.author.name }}</span>
+          <span>{{ post.author.name }}</span>
           <span>{{ post.date }}</span>
         </div>
         <div class="post-stats">
@@ -83,8 +115,10 @@
         {% endif %}
       </div>
     </article>
+    {% endif %}
     {% endfor %}
   </div>
-</div>
+  {% endif %}
+</main>
 
 {% include "footer.html" %}

@@ -1,14 +1,15 @@
 {% set page_title = "Contact | AyNcode" %}
-{% set hero_title = "Contact Me" %}
-{% set hero_subtitle = "Questions, project notes, or a useful idea? Send it over." %}
+{% set hero_title = "Contact" %}
+{% set hero_subtitle = "Send a project note, question, or collaboration idea." %}
 {% set hero_kicker = "Contact" %}
 {% set hero_image = url_for('static', filename='img/contact-bg.jpg') %}
 {% set compact_hero = true %}
 {% include "header.html" %}
 
-<main class="container">
+<main class="container auth-layout">
   <section class="form-shell">
-    <p>Want to get in touch? Fill out the form below to send me a message and I will get back to you as soon as possible.</p>
+    <p class="section-kicker">Message</p>
+    <h2>Start the conversation.</h2>
 
     {% with messages = get_flashed_messages() %}
     {% if messages %}
@@ -22,30 +23,38 @@
 
     {% if confirm: %}
     <div class="alert alert-success" role="alert">
-      Message sent successfully!
+      Message sent successfully.
     </div>
     {% endif %}
 
     <form name="sentMessage" id="contactForm" action="{{ url_for('contact') }}" method="post" novalidate>
       <div class="form-group">
         <label for="name">Name</label>
-        <input type="text" class="form-control" placeholder="Name" id="name" name="name" required>
+        <input type="text" class="form-control" placeholder="Your name" id="name" name="name" required>
       </div>
       <div class="form-group">
         <label for="email">Email Address</label>
-        <input type="email" class="form-control" placeholder="Email Address" id="email" name="email" required>
+        <input type="email" class="form-control" placeholder="you@example.com" id="email" name="email" required>
       </div>
       <div class="form-group">
         <label for="phone">Phone Number</label>
-        <input type="tel" class="form-control" placeholder="Phone Number" id="phone" name="phone" required>
+        <input type="tel" class="form-control" placeholder="Optional phone number" id="phone" name="phone" required>
       </div>
       <div class="form-group">
         <label for="message">Message</label>
-        <textarea rows="5" class="form-control" placeholder="Message" id="message" name="message" required></textarea>
+        <textarea rows="5" class="form-control" placeholder="What would you like to discuss?" id="message" name="message" required></textarea>
       </div>
-      <button type="submit" class="btn btn-primary" id="sendMessageButton">Send Message</button>
+      <div class="form-actions form-actions--compact">
+        <button type="submit" class="btn btn-primary" id="sendMessageButton">Send Message</button>
+      </div>
     </form>
   </section>
+
+  <aside class="side-panel">
+    <p class="section-kicker">Response focus</p>
+    <h2>Good messages include context.</h2>
+    <p>Share what you are building, what you tried, and what outcome you want. That makes it easier to respond with something useful.</p>
+  </aside>
 </main>
 
 {% include "footer.html" %}

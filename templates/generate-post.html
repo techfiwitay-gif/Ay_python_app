@@ -1,0 +1,92 @@
+{% set page_title = "Generate Article | AyNcode" %}
+{% set hero_title = "Generate Article" %}
+{% set hero_subtitle = "Turn a topic into a publish-ready blog post draft." %}
+{% set hero_kicker = "Admin" %}
+{% set hero_image = url_for('static', filename='img/edit-bg.jpg') %}
+{% set compact_hero = true %}
+{% include "header.html" %}
+
+<main class="container">
+  <section class="editor-shell">
+    <div class="editor-intro">
+      <div>
+        <p class="section-kicker">Article generator</p>
+        <h2>Create a structured post from a topic.</h2>
+      </div>
+      <span class="status-pill">Auto draft</span>
+    </div>
+
+    <form class="editor-form" method="post" novalidate>
+      {{ form.hidden_tag() }}
+
+      {% with messages = get_flashed_messages() %}
+      {% if messages %}
+      <div class="alert alert-warning" role="alert">
+        {% for message in messages %}
+        <p>{{ message }}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endwith %}
+
+      <div class="field-grid">
+        <div class="field-block field-block--wide">
+          {{ form.topic.label }}
+          {{ form.topic(class_="form-control", placeholder="Example: How AI automation helps small businesses") }}
+          {% for error in form.topic.errors %}
+          <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="field-block">
+          {{ form.audience.label }}
+          {{ form.audience(class_="form-control") }}
+          {% for error in form.audience.errors %}
+          <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="field-block">
+          <label class="checkbox-field">
+            {{ form.use_real_events() }}
+            <span>{{ form.use_real_events.label.text }}</span>
+          </label>
+          <p class="field-hint">Pulls recent related headlines from Google News RSS and cites them in the article.</p>
+        </div>
+
+        <div class="field-block field-block--wide">
+          {{ form.event_query.label }}
+          {{ form.event_query(class_="form-control", placeholder="Optional: refine the live event search") }}
+          <p class="field-hint">Leave blank to search using the article topic.</p>
+          {% for error in form.event_query.errors %}
+          <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="field-block field-block--wide">
+          {{ form.img_url.label }}
+          {{ form.img_url(class_="form-control", placeholder="https://example.com/cover-image.jpg") }}
+          <p class="field-hint">Leave the default image or paste a custom cover image URL.</p>
+          {% for error in form.img_url.errors %}
+          <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="field-block field-block--wide">
+          {{ form.angle.label }}
+          {{ form.angle(class_="form-control", rows="5", placeholder="Optional: mention tools, examples, keywords, or the angle you want.") }}
+          {% for error in form.angle.errors %}
+          <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a class="btn btn-secondary" href="{{ url_for('get_all_posts') }}">Cancel</a>
+        {{ form.submit(class_="btn btn-primary") }}
+      </div>
+    </form>
+  </section>
+</main>
+
+{% include "footer.html" %}

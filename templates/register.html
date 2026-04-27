@@ -1,13 +1,15 @@
-{% import "bootstrap/wtf.html" as wtf %}
 {% set page_title = "Register | AyNcode" %}
 {% set hero_title = "Create Account" %}
-{% set hero_subtitle = "Join the conversation and start contributing." %}
+{% set hero_subtitle = "Join the conversation and follow new ideas." %}
 {% set hero_kicker = "Account" %}
 {% set compact_hero = true %}
 {% include "header.html" %}
 
-<main class="container">
+<main class="container auth-layout">
   <section class="form-shell">
+    <p class="section-kicker">New account</p>
+    <h2>Start with AyNcode</h2>
+
     {% with messages = get_flashed_messages() %}
     {% if messages %}
     <div class="alert alert-warning" role="alert">
@@ -17,8 +19,41 @@
     </div>
     {% endif %}
     {% endwith %}
-    {{ wtf.quick_form(form, novalidate=True, button_map={"sign_up": "primary"}) }}
+
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      <div class="form-group">
+        {{ form.name.label }}
+        {{ form.name(class_="form-control", placeholder="Your name") }}
+        {% for error in form.name.errors %}
+        <p class="field-error">{{ error }}</p>
+        {% endfor %}
+      </div>
+      <div class="form-group">
+        {{ form.email.label }}
+        {{ form.email(class_="form-control", placeholder="you@example.com") }}
+        {% for error in form.email.errors %}
+        <p class="field-error">{{ error }}</p>
+        {% endfor %}
+      </div>
+      <div class="form-group">
+        {{ form.password.label }}
+        {{ form.password(class_="form-control", placeholder="At least 8 characters") }}
+        {% for error in form.password.errors %}
+        <p class="field-error">{{ error }}</p>
+        {% endfor %}
+      </div>
+      <div class="form-actions form-actions--compact">
+        {{ form.sign_up(class_="btn btn-primary") }}
+      </div>
+    </form>
   </section>
+
+  <aside class="side-panel">
+    <p class="section-kicker">Reader profile</p>
+    <h2>Comment on posts and stay close to new work.</h2>
+    <p>AyNcode is built for practical writing on software, automation, and product thinking.</p>
+  </aside>
 </main>
 
 {% include "footer.html" %}

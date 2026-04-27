@@ -1,4 +1,3 @@
-{% import "bootstrap/wtf.html" as wtf %}
 {% set page_title = post.title ~ " | AyNcode" %}
 {% set hero_title = post.title %}
 {% set hero_subtitle = post.subtitle %}
@@ -7,11 +6,14 @@
 {% set compact_hero = true %}
 {% include "header.html" %}
 
-<article class="container">
-  <div class="article-shell">
+<main class="container">
+  <article class="article-shell">
     <div class="article-meta">
-      <span>Posted by {{ post.author.name }}</span>
-      <span>{{ post.date }}</span>
+      <span><i class="fas fa-user"></i> {{ post.author.name }}</span>
+      <span><i class="far fa-calendar"></i> {{ post.date }}</span>
+      {% if post.reading_time %}
+      <span><i class="far fa-clock"></i> {{ post.reading_time }} min read</span>
+      {% endif %}
     </div>
 
     <div class="post-body">
@@ -20,7 +22,8 @@
 
     {% if current_user.id == 1: %}
     <div class="article-actions">
-      <a class="btn btn-primary" href="{{ url_for('edit_post', post_id=post.id) }}">Edit Post</a>
+      <a class="btn btn-secondary" href="{{ url_for('edit_post', post_id=post.id) }}">Edit post</a>
+      <a class="btn btn-primary" href="{{ url_for('generate_post') }}">Generate another</a>
     </div>
     {% endif %}
 
@@ -28,13 +31,25 @@
       <div class="section-heading">
         <div>
           <p class="section-kicker">Discussion</p>
-          <h2>Comments</h2>
+          <h2>Join the conversation</h2>
         </div>
       </div>
 
       {{ ckeditor.load() }}
-      {{ wtf.quick_form(form, novalidate=True, button_map={"submit": "primary"}) }}
-      {{ ckeditor.config(name='body', custom_config="versionCheck: false, height: 220, resize_enabled: false, removePlugins: 'elementspath'") }}
+      <form class="comment-form" method="post" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="field-block">
+          {{ form.body.label }}
+          {{ form.body(class_="form-control editor-textarea") }}
+          {{ ckeditor.config(name='body', custom_config="versionCheck: false, height: 220, resize_enabled: false, removePlugins: 'elementspath'") }}
+          {% for error in form.body.errors %}
+          <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+        <div class="form-actions form-actions--compact">
+          {{ form.submit(class_="btn btn-primary") }}
+        </div>
+      </form>
 
       <div class="comment-list">
         {% for comment in post.comments: %}
@@ -50,7 +65,7 @@
         {% endfor %}
       </div>
     </section>
-  </div>
-</article>
+  </article>
+</main>
 
 {% include "footer.html" %}

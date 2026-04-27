@@ -1,6 +1,18 @@
-<!-- Footer -->
 <footer>
-  <div class="container">
+  <div class="container footer-grid">
+    <div>
+      <a class="footer-brand" href="{{ url_for('get_all_posts') }}">
+        <span class="brand-mark">A</span>
+        <span>AyNcode</span>
+      </a>
+      <p>Practical writing on software, automation, AI, and building useful tools.</p>
+    </div>
+    <div class="footer-links">
+      <a href="{{ url_for('get_all_posts') }}">Home</a>
+      <a href="{{ url_for('about') }}">About</a>
+      <a href="{{ url_for('contact') }}">Contact</a>
+      <a href="{{ url_for('openclaw') }}">OpenClaw</a>
+    </div>
     <div class="social-links">
       <a href="#" class="social-icon" aria-label="Twitter">
         <i class="fab fa-twitter"></i>
@@ -12,7 +24,9 @@
         <i class="fab fa-github"></i>
       </a>
     </div>
-    <p class="copyright">Copyright &copy; AyNcode {{ date }}</p>
+  </div>
+  <div class="container footer-bottom">
+    <p>Copyright &copy; AyNcode {{ date }}</p>
   </div>
 </footer>
 

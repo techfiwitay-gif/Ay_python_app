@@ -1,20 +1,39 @@
 {% set page_title = "About | AyNcode" %}
-{% set hero_title = "About Me" %}
-{% set hero_subtitle = "Builder, learner, and practical software tinkerer." %}
+{% set hero_title = "About AyNcode" %}
+{% set hero_subtitle = "A practical journal for software, automation, and builder lessons." %}
 {% set hero_kicker = "Profile" %}
 {% set hero_image = url_for('static', filename='img/about-bg.jpg') %}
 {% set compact_hero = true %}
 {% include "header.html" %}
 
-<main class="container">
-  <section class="content-panel">
-    <p class="section-kicker">What this space is for</p>
-    <h2>Notes from building, learning, and shipping.</h2>
-    <div class="post-body">
-      <p>Welcome to my corner of the web. This blog collects practical notes on software projects, experiments, and the lessons that show up while turning ideas into working tools.</p>
-      <p>I write about the parts of development that are useful after the tutorial ends: debugging decisions, product thinking, deployment notes, and small improvements that make an app feel better to use.</p>
-      <p>When I am not writing here, I am usually exploring new code ideas, refining OpenClaw, or learning a cleaner way to solve the next problem.</p>
+<main class="container page-stack">
+  <section class="split-panel">
+    <div>
+      <p class="section-kicker">What this space is for</p>
+      <h2>Clear notes from building, learning, and shipping.</h2>
     </div>
+    <div class="prose-block">
+      <p>AyNcode collects practical writing about software projects, automation, debugging decisions, and the product lessons that show up when ideas become real tools.</p>
+      <p>The goal is simple: make complex work easier to understand and easier to act on.</p>
+    </div>
+  </section>
+
+  <section class="value-grid">
+    <article>
+      <i class="fas fa-code"></i>
+      <h3>Software Notes</h3>
+      <p>Patterns, fixes, and technical decisions explained in plain language.</p>
+    </article>
+    <article>
+      <i class="fas fa-bolt"></i>
+      <h3>Automation</h3>
+      <p>Ideas for using tools and AI to reduce repetitive work and ship faster.</p>
+    </article>
+    <article>
+      <i class="fas fa-compass"></i>
+      <h3>Product Thinking</h3>
+      <p>Practical ways to decide what matters, what can wait, and what to improve next.</p>
+    </article>
   </section>
 </main>
 
