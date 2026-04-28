@@ -114,6 +114,66 @@ def unique_post_title(title):
     return candidate
 
 
+def safe_filename(value):
+    cleaned = re.sub(r"[^a-zA-Z0-9]+", "-", value.lower()).strip("-")
+    return cleaned[:60] or "article"
+
+
+def topic_initials(topic):
+    words = re.findall(r"[A-Za-z0-9]+", topic)
+    if not words:
+        return "A"
+    return "".join(word[0].upper() for word in words[:3])
+
+
+def generate_topic_cover(topic, audience):
+    generated_dir = os.path.join(app.root_path, "static", "generated")
+    os.makedirs(generated_dir, exist_ok=True)
+
+    digest = hashlib.sha256(f"{topic}|{audience}".encode("utf-8")).hexdigest()
+    filename = f"{safe_filename(topic)}-{digest[:10]}.svg"
+    file_path = os.path.join(generated_dir, filename)
+
+    if not os.path.exists(file_path):
+        palettes = [
+            ("#0f766e", "#123c69", "#d98921"),
+            ("#255f85", "#101623", "#e25544"),
+            ("#4f46e5", "#0f172a", "#14b8a6"),
+            ("#0e7490", "#1e293b", "#f59e0b"),
+        ]
+        primary, secondary, accent = palettes[int(digest[:2], 16) % len(palettes)]
+        safe_topic_text = escape(title_case_topic(topic))
+        safe_audience = escape(audience.title())
+        initials = escape(topic_initials(topic))
+        svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="{primary}"/>
+      <stop offset="58%" stop-color="{secondary}"/>
+      <stop offset="100%" stop-color="#101623"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="78%" cy="22%" r="55%">
+      <stop offset="0%" stop-color="{accent}" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="{accent}" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="url(#glow)"/>
+  <circle cx="1240" cy="165" r="220" fill="#ffffff" opacity="0.08"/>
+  <circle cx="1375" cy="650" r="360" fill="#ffffff" opacity="0.055"/>
+  <path d="M0 705 C300 600 530 805 805 690 C1080 575 1270 585 1600 470 L1600 900 L0 900 Z" fill="#ffffff" opacity="0.08"/>
+  <rect x="112" y="112" width="1376" height="676" rx="32" fill="#ffffff" opacity="0.08" stroke="#ffffff" stroke-opacity="0.22"/>
+  <text x="150" y="200" fill="#ffffff" opacity="0.78" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="800" letter-spacing="6">AYNCODE / {safe_audience}</text>
+  <text x="150" y="440" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="86" font-weight="900">{safe_topic_text}</text>
+  <text x="150" y="535" fill="#ffffff" opacity="0.82" font-family="Inter, Arial, sans-serif" font-size="36" font-weight="600">Generated cover for a focused article draft</text>
+  <text x="1210" y="695" fill="#ffffff" opacity="0.9" font-family="Inter, Arial, sans-serif" font-size="148" font-weight="900">{initials}</text>
+</svg>'''
+        with open(file_path, "w", encoding="utf-8") as svg_file:
+            svg_file.write(svg)
+
+    return url_for("static", filename=f"generated/{filename}")
+
+
 def fetch_recent_events(query, limit=4):
     search_query = quote_plus(query.strip())
     feed_url = f"https://news.google.com/rss/search?q={search_query}&hl=en-US&gl=US&ceid=US:en"
@@ -470,7 +530,7 @@ def generate_post():
             title=title,
             subtitle=subtitle,
             body=body,
-            img_url=form.img_url.data or form.img_url.default,
+            img_url=form.img_url.data or generate_topic_cover(form.topic.data, form.audience.data),
             author=current_user,
             date=date.today().strftime("%B %d, %Y")
         )

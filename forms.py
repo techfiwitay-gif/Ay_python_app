@@ -39,7 +39,6 @@ class GenerateArticleForm(FlaskForm):
     img_url = StringField(
         "Cover Image URL",
         validators=[Optional(), URL(), Length(max=250)],
-        default="https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1400&q=80",
     )
     submit = SubmitField("Generate Article")
 

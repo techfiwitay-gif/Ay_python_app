@@ -66,7 +66,7 @@
         <div class="field-block field-block--wide">
           {{ form.img_url.label }}
           {{ form.img_url(class_="form-control", placeholder="https://example.com/cover-image.jpg") }}
-          <p class="field-hint">Leave the default image or paste a custom cover image URL.</p>
+          <p class="field-hint">Leave blank to generate a custom topic-based cover image automatically.</p>
           {% for error in form.img_url.errors %}
           <p class="field-error">{{ error }}</p>
           {% endfor %}
