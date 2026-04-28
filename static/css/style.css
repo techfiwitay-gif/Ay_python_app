@@ -919,9 +919,9 @@ footer a:hover {
 
 .footer-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(180px, 0.5fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 1.5rem;
-    align-items: start;
+    align-items: center;
 }
 
 .footer-brand {
@@ -929,15 +929,35 @@ footer a:hover {
     margin-bottom: 0.8rem;
 }
 
+.footer-actions,
 .footer-links,
 .social-links {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    align-items: center;
+}
+
+.footer-actions {
+    justify-content: flex-end;
+    gap: 1rem;
 }
 
 .footer-links {
-    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.footer-links a {
+    border-radius: var(--radius);
+    font-weight: 800;
+    padding: 0.45rem 0.65rem;
+}
+
+.footer-links a:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.social-links {
+    gap: 0.55rem;
 }
 
 .social-icon {
@@ -947,6 +967,11 @@ footer a:hover {
     place-items: center;
     border: 1px solid rgba(255, 255, 255, 0.16);
     border-radius: var(--radius);
+}
+
+.social-icon:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.32);
 }
 
 .footer-bottom {
@@ -1011,7 +1036,8 @@ footer a:hover {
 
     .button-row,
     .form-actions,
-    .article-actions {
+    .article-actions,
+    .footer-actions {
         justify-content: stretch;
     }
 
