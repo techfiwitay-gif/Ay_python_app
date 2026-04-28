@@ -453,7 +453,7 @@ def react_to_post(post_id, reaction):
 @app.route('/claw')
 @app.route('/ayncode')
 def openclaw():
-    openclaw_url = os.environ.get('OPENCLAW_URL', 'https://ayncode.com')
+    openclaw_url = os.environ.get('OPENCLAW_URL', 'https://clawflow-studio-site.vercel.app/')
     return render_template(
         'openclaw.html',
         logged_in=current_user.is_authenticated,
