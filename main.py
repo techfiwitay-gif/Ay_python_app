@@ -1,5 +1,5 @@
 
-from flask import Flask, abort, flash, redirect, render_template, request, send_from_directory, url_for
+from flask import Flask, Response, abort, flash, redirect, render_template, request, send_from_directory, url_for
 from flask_bootstrap import Bootstrap
 from flask_ckeditor import CKEditor
 from datetime import date
@@ -18,7 +18,8 @@ from urllib.request import Request, urlopen
 import xml.etree.ElementTree as ET
 
 app = Flask(__name__, static_url_path='/static')
-database_url = os.environ.get("DATABASE_URL", "sqlite:///ayblog.db")
+default_database_url = "sqlite:////tmp/ayblog.db" if os.environ.get("VERCEL") else "sqlite:///ayblog.db"
+database_url = os.environ.get("DATABASE_URL", default_database_url)
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
@@ -127,25 +128,27 @@ def topic_initials(topic):
 
 
 def generate_topic_cover(topic, audience):
-    generated_dir = os.path.join(app.root_path, "static", "generated")
-    os.makedirs(generated_dir, exist_ok=True)
-
     digest = hashlib.sha256(f"{topic}|{audience}".encode("utf-8")).hexdigest()
-    filename = f"{safe_filename(topic)}-{digest[:10]}.svg"
-    file_path = os.path.join(generated_dir, filename)
+    return url_for(
+        "generated_cover",
+        audience=safe_filename(audience),
+        slug=f"{safe_filename(topic)}-{digest[:10]}",
+    )
 
-    if not os.path.exists(file_path):
-        palettes = [
-            ("#0f766e", "#123c69", "#d98921"),
-            ("#255f85", "#101623", "#e25544"),
-            ("#4f46e5", "#0f172a", "#14b8a6"),
-            ("#0e7490", "#1e293b", "#f59e0b"),
-        ]
-        primary, secondary, accent = palettes[int(digest[:2], 16) % len(palettes)]
-        safe_topic_text = escape(title_case_topic(topic))
-        safe_audience = escape(audience.title())
-        initials = escape(topic_initials(topic))
-        svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+
+def render_topic_cover_svg(topic, audience):
+    digest = hashlib.sha256(f"{topic}|{audience}".encode("utf-8")).hexdigest()
+    palettes = [
+        ("#0f766e", "#123c69", "#d98921"),
+        ("#255f85", "#101623", "#e25544"),
+        ("#4f46e5", "#0f172a", "#14b8a6"),
+        ("#0e7490", "#1e293b", "#f59e0b"),
+    ]
+    primary, secondary, accent = palettes[int(digest[:2], 16) % len(palettes)]
+    safe_topic_text = escape(title_case_topic(topic.replace("-", " ")))
+    safe_audience = escape(audience.replace("-", " ").title())
+    initials = escape(topic_initials(topic))
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="{primary}"/>
@@ -168,10 +171,6 @@ def generate_topic_cover(topic, audience):
   <text x="150" y="535" fill="#ffffff" opacity="0.82" font-family="Inter, Arial, sans-serif" font-size="36" font-weight="600">Generated cover for a focused article draft</text>
   <text x="1210" y="695" fill="#ffffff" opacity="0.9" font-family="Inter, Arial, sans-serif" font-size="148" font-weight="900">{initials}</text>
 </svg>'''
-        with open(file_path, "w", encoding="utf-8") as svg_file:
-            svg_file.write(svg)
-
-    return url_for("static", filename=f"generated/{filename}")
 
 
 def fetch_recent_events(query, limit=4):
@@ -389,6 +388,13 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('get_all_posts'))
+
+
+@app.route("/generated-cover/<audience>/<path:slug>.svg")
+def generated_cover(audience, slug):
+    topic = re.sub(r"-[a-f0-9]{10}$", "", slug)
+    svg = render_topic_cover_svg(topic, audience)
+    return Response(svg, mimetype="image/svg+xml")
 
 @app.route("/post/<int:post_id>", methods=['GET', 'POST'])
 def show_post(post_id):
