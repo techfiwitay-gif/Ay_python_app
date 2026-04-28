@@ -714,10 +714,21 @@ textarea.form-control {
 }
 
 .comment-form {
-    background: var(--paper-2);
+    background:
+        linear-gradient(180deg, #ffffff, #f8fafc);
     border: 1px solid var(--line);
     border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
     padding: 1rem;
+}
+
+.comment-form .field-block {
+    margin-bottom: 0.75rem;
+}
+
+.comment-textarea {
+    min-height: 132px;
+    resize: vertical;
 }
 
 .comment-list {

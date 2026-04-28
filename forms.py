@@ -57,5 +57,5 @@ class LoginForm(FlaskForm):
 
 
 class CommentForm(FlaskForm):
-    body = CKEditorField("Blog comment", validators=[DataRequired(), Length(max=5000)])
+    body = TextAreaField("Comment", validators=[DataRequired(), Length(max=2000)])
     submit = SubmitField("Submit Comment")

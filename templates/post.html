@@ -35,13 +35,11 @@
         </div>
       </div>
 
-      {{ ckeditor.load() }}
       <form class="comment-form" method="post" novalidate>
         {{ form.hidden_tag() }}
         <div class="field-block">
           {{ form.body.label }}
-          {{ form.body(class_="form-control editor-textarea") }}
-          {{ ckeditor.config(name='body', custom_config="versionCheck: false, height: 220, resize_enabled: false, removePlugins: 'elementspath'") }}
+          {{ form.body(class_="form-control comment-textarea", placeholder="Share a thought, question, or useful note...") }}
           {% for error in form.body.errors %}
           <p class="field-error">{{ error }}</p>
           {% endfor %}
