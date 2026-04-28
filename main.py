@@ -8,7 +8,7 @@ from flask_login import login_user, LoginManager, login_required, current_user, 
 from forms import CommentForm, CreatePostForm, GenerateArticleForm, LoginForm, RegisterForm
 from functools import wraps
 from models import BlogPost, Comment, Users, db
-from sqlalchemy import or_
+from sqlalchemy import func, inspect, or_, text
 import os
 import re
 from smtplib import SMTP
@@ -32,10 +32,38 @@ Bootstrap(app)
 db.init_app(app)
 
 
+import hashlib
+
+
+def ensure_engagement_columns():
+    inspector = inspect(db.engine)
+    if not inspector.has_table("blog_posts"):
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("blog_posts")}
+    engagement_columns = {
+        "views": "INTEGER NOT NULL DEFAULT 0",
+        "likes": "INTEGER NOT NULL DEFAULT 0",
+        "upvotes": "INTEGER NOT NULL DEFAULT 0",
+        "downvotes": "INTEGER NOT NULL DEFAULT 0",
+    }
+
+    dialect = db.engine.dialect.name
+    with db.engine.begin() as connection:
+        for column_name, column_definition in engagement_columns.items():
+            if column_name in existing_columns:
+                continue
+            if dialect == "postgresql":
+                connection.execute(
+                    text(f"ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS {column_name} INTEGER NOT NULL DEFAULT 0")
+                )
+            else:
+                connection.execute(text(f"ALTER TABLE blog_posts ADD COLUMN {column_name} {column_definition}"))
+
+
 with app.app_context():
     db.create_all()
-
-import hashlib
+    ensure_engagement_columns()
 
 
 def is_safe_redirect_url(target):
@@ -235,6 +263,8 @@ def get_all_posts():
     stats = {
         "posts": BlogPost.query.count(),
         "comments": Comment.query.count(),
+        "views": db.session.query(func.coalesce(func.sum(BlogPost.views), 0)).scalar(),
+        "likes": db.session.query(func.coalesce(func.sum(BlogPost.likes), 0)).scalar(),
         "minutes": sum(post.reading_time for post in posts),
     }
     return render_template(
@@ -303,6 +333,9 @@ def logout():
 @app.route("/post/<int:post_id>", methods=['GET', 'POST'])
 def show_post(post_id):
     requested_post = db.get_or_404(BlogPost, post_id)
+    if request.method == "GET" and not request.args.get("reacted"):
+        requested_post.views = (requested_post.views or 0) + 1
+        db.session.commit()
     decorate_posts([requested_post])
     comment_data = CommentForm()
 
@@ -325,6 +358,23 @@ def show_post(post_id):
     return render_template("post.html", post=requested_post,
                            logged_in=current_user.is_authenticated,
                            form=comment_data)
+
+
+@app.route("/post/<int:post_id>/react/<reaction>", methods=["POST"])
+def react_to_post(post_id, reaction):
+    post = db.get_or_404(BlogPost, post_id)
+    reaction_fields = {
+        "like": "likes",
+        "upvote": "upvotes",
+        "downvote": "downvotes",
+    }
+    field = reaction_fields.get(reaction)
+    if not field:
+        abort(404)
+
+    setattr(post, field, (getattr(post, field) or 0) + 1)
+    db.session.commit()
+    return redirect(url_for("show_post", post_id=post.id, reacted=1))
 
 
 

@@ -4,15 +4,19 @@
   <section class="overview-strip" aria-label="Site overview">
     <div class="overview-item">
       <span>{{ stats.posts }}</span>
-      <p>Published posts</p>
+      <p>Posts</p>
     </div>
     <div class="overview-item">
       <span>{{ stats.comments }}</span>
-      <p>Reader comments</p>
+      <p>Comments</p>
     </div>
     <div class="overview-item">
-      <span>{{ stats.minutes }}</span>
-      <p>Minutes of insight</p>
+      <span>{{ stats.views }}</span>
+      <p>Views</p>
+    </div>
+    <div class="overview-item">
+      <span>{{ stats.likes }}</span>
+      <p>Likes</p>
     </div>
   </section>
 
@@ -47,7 +51,7 @@
   {% if not query and all_posts|length == 0 %}
   <section class="empty-state">
     <div class="empty-state-icon"><i class="fas fa-pen-nib"></i></div>
-    <h2>Your publishing space is ready</h2>
+    <h2>Your blog is ready</h2>
     <p>Create the first article to bring AyNcode to life.</p>
     {% if current_user.is_authenticated and current_user.id == 1 %}
     <a class="btn btn-primary" href="{{ url_for('generate_post') }}">Generate first article</a>
@@ -79,6 +83,9 @@
       <p>{{ featured.subtitle }}</p>
       <div class="post-stats">
         <span>{{ featured.reading_time }} min read</span>
+        <span>{{ featured.views or 0 }} views</span>
+        <span>{{ featured.likes or 0 }} likes</span>
+        <span>{{ featured.upvotes or 0 }} upvotes</span>
         <span>{{ featured.comment_count }} comments</span>
         <span>{{ featured.date }}</span>
       </div>
@@ -106,6 +113,9 @@
         </div>
         <div class="post-stats">
           <span>{{ post.reading_time }} min read</span>
+          <span>{{ post.views or 0 }} views</span>
+          <span>{{ post.likes or 0 }} likes</span>
+          <span>{{ post.upvotes or 0 }} upvotes</span>
           <span>{{ post.comment_count }} comments</span>
         </div>
         {% if current_user.id == 1: %}

@@ -33,6 +33,10 @@ class BlogPost(db.Model):
     date = db.Column(db.String(250), nullable=False)
     body = db.Column(db.Text, nullable=False)
     img_url = db.Column(db.String(250), nullable=False)
+    views = db.Column(db.Integer, nullable=False, default=0)
+    likes = db.Column(db.Integer, nullable=False, default=0)
+    upvotes = db.Column(db.Integer, nullable=False, default=0)
+    downvotes = db.Column(db.Integer, nullable=False, default=0)
     comments = relationship(
         "Comment",
         back_populates="parent_post",
@@ -46,6 +50,10 @@ class BlogPost(db.Model):
         self.img_url = img_url
         self.author = author
         self.date = date
+        self.views = 0
+        self.likes = 0
+        self.upvotes = 0
+        self.downvotes = 0
 
 
 class Comment(db.Model):

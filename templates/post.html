@@ -14,7 +14,32 @@
       {% if post.reading_time %}
       <span><i class="far fa-clock"></i> {{ post.reading_time }} min read</span>
       {% endif %}
+      <span><i class="far fa-eye"></i> {{ post.views or 0 }} views</span>
     </div>
+
+    <section class="engagement-panel" aria-label="Article engagement">
+      <div class="engagement-stat">
+        <strong>{{ post.likes or 0 }}</strong>
+        <span>Likes</span>
+      </div>
+      <div class="engagement-stat">
+        <strong>{{ post.upvotes or 0 }}</strong>
+        <span>Upvotes</span>
+      </div>
+      <div class="engagement-stat">
+        <strong>{{ post.downvotes or 0 }}</strong>
+        <span>Downvotes</span>
+      </div>
+      <form class="engagement-actions" method="post" action="{{ url_for('react_to_post', post_id=post.id, reaction='like') }}">
+        <button class="reaction-btn" type="submit"><i class="far fa-heart"></i> Like</button>
+      </form>
+      <form class="engagement-actions" method="post" action="{{ url_for('react_to_post', post_id=post.id, reaction='upvote') }}">
+        <button class="reaction-btn" type="submit"><i class="far fa-thumbs-up"></i> Upvote</button>
+      </form>
+      <form class="engagement-actions" method="post" action="{{ url_for('react_to_post', post_id=post.id, reaction='downvote') }}">
+        <button class="reaction-btn reaction-btn--muted" type="submit"><i class="far fa-thumbs-down"></i> Downvote</button>
+      </form>
+    </section>
 
     <div class="post-body">
       {{ post.body|safe }}

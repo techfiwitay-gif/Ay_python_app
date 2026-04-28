@@ -222,7 +222,7 @@ p {
 
 .overview-strip {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     overflow: hidden;
 }
 
@@ -674,8 +674,77 @@ textarea.form-control {
 .article-meta {
     justify-content: center;
     border-bottom: 1px solid var(--line);
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
     padding-bottom: 1rem;
+}
+
+.engagement-panel {
+    max-width: 780px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) repeat(3, auto);
+    align-items: center;
+    gap: 0.6rem;
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    margin: 0 auto 2rem;
+    padding: 0.75rem;
+}
+
+.engagement-stat {
+    border-right: 1px solid var(--line);
+    padding: 0.35rem 0.75rem;
+}
+
+.engagement-stat strong {
+    display: block;
+    color: var(--ink);
+    font-size: 1.15rem;
+    font-weight: 900;
+    line-height: 1;
+    margin-bottom: 0.2rem;
+}
+
+.engagement-stat span {
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.engagement-actions {
+    margin: 0;
+}
+
+.reaction-btn {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--ink);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.86rem;
+    font-weight: 900;
+    padding: 0.55rem 0.7rem;
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.reaction-btn:hover {
+    background: #eef8f6;
+    border-color: #b7d8d2;
+    color: var(--teal);
+    transform: translateY(-1px);
+}
+
+.reaction-btn--muted:hover {
+    background: #fff7ed;
+    border-color: #fed7aa;
+    color: #9a3412;
 }
 
 .post-body {
@@ -925,8 +994,19 @@ footer a:hover {
     }
 
     .search-panel,
+    .engagement-panel,
     .field-grid {
         grid-template-columns: 1fr;
+    }
+
+    .engagement-stat {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .engagement-actions,
+    .reaction-btn {
+        width: 100%;
     }
 
     .button-row,

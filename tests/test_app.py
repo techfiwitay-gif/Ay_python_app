@@ -127,6 +127,37 @@ def test_logged_in_user_can_comment(client, app_module):
     assert b"Nice write up" in response.data
 
 
+def test_post_view_increments_view_count(client, app_module):
+    with app_module.app.app_context():
+        author = create_user(app_module)
+        post = create_post(app_module, author)
+        post_id = post.id
+
+    response = client.get(f"/post/{post_id}")
+
+    assert response.status_code == 200
+    assert b"1 views" in response.data
+
+
+def test_post_reactions_increment_counts(client, app_module):
+    with app_module.app.app_context():
+        author = create_user(app_module)
+        post = create_post(app_module, author)
+        post_id = post.id
+
+    like_response = client.post(f"/post/{post_id}/react/like", follow_redirects=True)
+    upvote_response = client.post(f"/post/{post_id}/react/upvote", follow_redirects=True)
+    downvote_response = client.post(f"/post/{post_id}/react/downvote", follow_redirects=True)
+
+    assert like_response.status_code == 200
+    assert upvote_response.status_code == 200
+    assert downvote_response.status_code == 200
+    assert b"1</strong>" in downvote_response.data
+    assert b"Likes" in downvote_response.data
+    assert b"Upvotes" in downvote_response.data
+    assert b"Downvotes" in downvote_response.data
+
+
 def test_admin_routes_are_protected(client, app_module):
     with app_module.app.app_context():
         create_user(app_module, email="admin@example.com", name="Admin")
