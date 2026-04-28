@@ -41,11 +41,6 @@
         <li class="nav-item">
           <a class="nav-link" href="{{ url_for('contact') }}">Contact</a>
         </li>
-        {% if current_user.is_authenticated and current_user.id == 1 %}
-        <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('generate_post') }}">Generate</a>
-        </li>
-        {% endif %}
         <li class="nav-item">
           <a class="nav-link" href="{{ url_for('openclaw') }}">OpenClaw</a>
         </li>

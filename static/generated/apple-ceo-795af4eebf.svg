@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#255f85"/>
+      <stop offset="58%" stop-color="#101623"/>
+      <stop offset="100%" stop-color="#101623"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="78%" cy="22%" r="55%">
+      <stop offset="0%" stop-color="#e25544" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#e25544" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="url(#glow)"/>
+  <circle cx="1240" cy="165" r="220" fill="#ffffff" opacity="0.08"/>
+  <circle cx="1375" cy="650" r="360" fill="#ffffff" opacity="0.055"/>
+  <path d="M0 705 C300 600 530 805 805 690 C1080 575 1270 585 1600 470 L1600 900 L0 900 Z" fill="#ffffff" opacity="0.08"/>
+  <rect x="112" y="112" width="1376" height="676" rx="32" fill="#ffffff" opacity="0.08" stroke="#ffffff" stroke-opacity="0.22"/>
+  <text x="150" y="200" fill="#ffffff" opacity="0.78" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="800" letter-spacing="6">AYNCODE / Developers</text>
+  <text x="150" y="440" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="86" font-weight="900">Apple Ceo</text>
+  <text x="150" y="535" fill="#ffffff" opacity="0.82" font-family="Inter, Arial, sans-serif" font-size="36" font-weight="600">Generated cover for a focused article draft</text>
+  <text x="1210" y="695" fill="#ffffff" opacity="0.9" font-family="Inter, Arial, sans-serif" font-size="148" font-weight="900">AC</text>
+</svg>
