@@ -1,0 +1,37 @@
+name: Daily Blog Auto Publish
+
+on:
+  schedule:
+    - cron: '15 13 * * *'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      AUTO_POST_TOPIC: ${{ vars.AUTO_POST_TOPIC }}
+      AUTO_POST_AUDIENCE: ${{ vars.AUTO_POST_AUDIENCE }}
+      AUTO_POST_ANGLE: ${{ vars.AUTO_POST_ANGLE }}
+      AUTO_POST_IMAGE_URL: ${{ vars.AUTO_POST_IMAGE_URL }}
+      AUTO_POST_AUTHOR_EMAIL: ${{ vars.AUTO_POST_AUTHOR_EMAIL }}
+      AUTO_POST_USE_REAL_EVENTS: ${{ vars.AUTO_POST_USE_REAL_EVENTS }}
+      AUTO_POST_EVENT_QUERY: ${{ vars.AUTO_POST_EVENT_QUERY }}
+      AUTO_POST_MODE: ${{ vars.AUTO_POST_MODE }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Run daily auto publisher
+        run: python scripts/auto_publish.py
