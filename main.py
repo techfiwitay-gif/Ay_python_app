@@ -10,7 +10,9 @@ from functools import wraps
 from models import BlogPost, Comment, Users, db
 from sqlalchemy import func, inspect, or_, text
 import os
+import json
 import re
+from pathlib import Path
 from smtplib import SMTP
 from html import escape
 from urllib.parse import quote_plus
@@ -34,6 +36,10 @@ db.init_app(app)
 
 
 import hashlib
+
+CONTENT_POSTS_PATH = Path(app.root_path) / "content" / "generated_posts.json"
+DEFAULT_AUTOMATION_AUTHOR_EMAIL = "ayncode@gmail.com"
+DEFAULT_AUTOMATION_AUTHOR_NAME = "Ayotunde Oyeniyi"
 
 
 def ensure_engagement_columns():
@@ -62,9 +68,80 @@ def ensure_engagement_columns():
                 connection.execute(text(f"ALTER TABLE blog_posts ADD COLUMN {column_name} {column_definition}"))
 
 
+def load_generated_content_posts():
+    if not CONTENT_POSTS_PATH.exists():
+        return []
+
+    try:
+        with CONTENT_POSTS_PATH.open("r", encoding="utf-8") as content_file:
+            posts = json.load(content_file)
+    except (OSError, json.JSONDecodeError):
+        app.logger.warning("Could not load generated content posts from %s", CONTENT_POSTS_PATH)
+        return []
+
+    if not isinstance(posts, list):
+        app.logger.warning("Generated content posts file must contain a JSON list.")
+        return []
+
+    return [post for post in posts if isinstance(post, dict)]
+
+
+def get_or_create_automation_author():
+    email = os.environ.get("AUTO_POST_AUTHOR_EMAIL", DEFAULT_AUTOMATION_AUTHOR_EMAIL).strip()
+    name = os.environ.get("AUTO_POST_AUTHOR_NAME", DEFAULT_AUTOMATION_AUTHOR_NAME).strip()
+    author = Users.query.filter_by(email=email).first()
+    if author:
+        return author
+
+    password_seed = os.environ.get("AUTO_POST_AUTHOR_PASSWORD", os.urandom(24).hex())
+    author = Users(
+        email=email,
+        name=name or DEFAULT_AUTOMATION_AUTHOR_NAME,
+        password=generate_password_hash(password_seed, method="pbkdf2:sha256", salt_length=8),
+    )
+    db.session.add(author)
+    db.session.commit()
+    return author
+
+
+def sync_generated_content_posts():
+    posts = load_generated_content_posts()
+    if not posts:
+        return 0
+
+    author = get_or_create_automation_author()
+    imported_count = 0
+    required_fields = {"title", "subtitle", "body", "img_url", "date"}
+
+    for post_data in posts:
+        if not required_fields.issubset(post_data):
+            app.logger.warning("Skipping generated post with missing fields: %s", post_data.get("title", "Untitled"))
+            continue
+        if BlogPost.query.filter_by(title=post_data["title"]).first():
+            continue
+
+        db.session.add(
+            BlogPost(
+                title=post_data["title"],
+                subtitle=post_data["subtitle"],
+                body=post_data["body"],
+                img_url=post_data["img_url"],
+                author=author,
+                date=post_data["date"],
+            )
+        )
+        imported_count += 1
+
+    if imported_count:
+        db.session.commit()
+
+    return imported_count
+
+
 with app.app_context():
     db.create_all()
     ensure_engagement_columns()
+    sync_generated_content_posts()
 
 
 def is_safe_redirect_url(target):
@@ -129,11 +206,9 @@ def topic_initials(topic):
 
 def generate_topic_cover(topic, audience):
     digest = hashlib.sha256(f"{topic}|{audience}".encode("utf-8")).hexdigest()
-    return url_for(
-        "generated_cover",
-        audience=safe_filename(audience),
-        slug=f"{safe_filename(topic)}-{digest[:10]}",
-    )
+    audience_slug = safe_filename(audience)
+    topic_slug = safe_filename(topic)
+    return f"/generated-cover/{audience_slug}/{topic_slug}-{digest[:10]}.svg"
 
 
 def render_topic_cover_svg(topic, audience):

@@ -39,3 +39,6 @@ dependencies = [
 dev = [
     "pytest",
 ]
+
+[tool.setuptools]
+py-modules = ["main", "models", "forms", "db_create"]

@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
+import argparse
+import json
 import os
+import subprocess
 import sys
 from datetime import date
+from pathlib import Path
 
-from main import app, db, BlogPost, Users, fetch_recent_events, generate_article, generate_topic_cover
+from main import (
+    CONTENT_POSTS_PATH,
+    app,
+    fetch_recent_events,
+    generate_article,
+    generate_topic_cover,
+    safe_filename,
+)
 
 
 DEFAULT_TOPIC = "AI automation for everyday business workflows"
@@ -22,67 +33,157 @@ def build_today_title(topic: str) -> str:
     return f"{topic.strip()} ({date.today().isoformat()})"
 
 
+def build_post_slug(topic: str) -> str:
+    return f"{date.today().isoformat()}-{safe_filename(topic)}"
+
+
+def load_posts(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+
+    with path.open("r", encoding="utf-8") as content_file:
+        posts = json.load(content_file)
+
+    if not isinstance(posts, list):
+        raise ValueError(f"{path} must contain a JSON list.")
+
+    return posts
+
+
+def save_posts(path: Path, posts: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="\n") as content_file:
+        json.dump(posts, content_file, indent=2, ensure_ascii=False)
+        content_file.write("\n")
+
+
+def run_git_command(args: list[str]) -> subprocess.CompletedProcess:
+    return subprocess.run(args, cwd=app.root_path, text=True, capture_output=True, check=False)
+
+
+def git_has_changes(path: Path) -> bool:
+    result = run_git_command(["git", "status", "--short", "--", str(path.relative_to(app.root_path))])
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+    return bool(result.stdout.strip())
+
+
+def commit_and_push(path: Path, message: str, push: bool) -> None:
+    relative_path = str(path.relative_to(app.root_path))
+    commands = [
+        ["git", "config", "user.name", os.environ.get("GIT_AUTHOR_NAME", "AyNcode Bot")],
+        ["git", "config", "user.email", os.environ.get("GIT_AUTHOR_EMAIL", "ayncode-bot@example.com")],
+        ["git", "add", relative_path],
+        ["git", "commit", "-m", message],
+    ]
+
+    for command in commands:
+        result = run_git_command(command)
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+
+    if push:
+        result = run_git_command(["git", "push"])
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Generate a real-event blog post into repo-tracked content.")
+    parser.add_argument("--commit", action="store_true", help="Commit the generated content file when it changes.")
+    parser.add_argument("--push", action="store_true", help="Push after committing. This also enables --commit.")
+    return parser.parse_args()
+
+
 def main() -> int:
+    args = parse_args()
     topic = os.environ.get("AUTO_POST_TOPIC", DEFAULT_TOPIC).strip()
     audience = os.environ.get("AUTO_POST_AUDIENCE", DEFAULT_AUDIENCE).strip() or DEFAULT_AUDIENCE
     angle = os.environ.get("AUTO_POST_ANGLE", DEFAULT_ANGLE).strip()
     img_url = os.environ.get("AUTO_POST_IMAGE_URL", "").strip()
-    author_email = os.environ.get("AUTO_POST_AUTHOR_EMAIL", "ayncode@gmail.com").strip()
     use_real_events = env_bool("AUTO_POST_USE_REAL_EVENTS", True)
     event_query = os.environ.get("AUTO_POST_EVENT_QUERY", "").strip() or topic
     mode = os.environ.get("AUTO_POST_MODE", "skip").strip().lower()
+    should_commit = args.commit or args.push or env_bool("AUTO_POST_GIT_COMMIT", False)
+    should_push = args.push or env_bool("AUTO_POST_GIT_PUSH", False)
 
     if mode not in {"skip", "update"}:
         print("AUTO_POST_MODE must be 'skip' or 'update'", file=sys.stderr)
         return 2
 
+    events = []
+    if use_real_events:
+        try:
+            events = fetch_recent_events(event_query)
+        except Exception as exc:
+            print(f"Warning: could not fetch live events: {exc}")
+
     with app.app_context():
-        author = Users.query.filter_by(email=author_email).first()
-        if not author:
-            print(f"Author not found for AUTO_POST_AUTHOR_EMAIL={author_email}", file=sys.stderr)
-            return 3
-
-        dated_title = build_today_title(topic)
-        existing_post = BlogPost.query.filter_by(title=dated_title).first()
-        if existing_post and mode == "skip":
-            print(f"Post already exists for today, skipping: {dated_title}")
-            return 0
-
-        events = []
-        if use_real_events:
-            try:
-                events = fetch_recent_events(event_query)
-            except Exception as exc:
-                print(f"Warning: could not fetch live events: {exc}")
-
         generated_title, subtitle, body = generate_article(topic, audience, angle, events=events)
-        final_title = dated_title
-        final_img_url = img_url or generate_topic_cover(topic, audience)
-        today_label = date.today().strftime("%B %d, %Y")
 
-        if existing_post and mode == "update":
-            existing_post.title = final_title
-            existing_post.subtitle = subtitle
-            existing_post.body = body
-            existing_post.img_url = final_img_url
-            existing_post.author = author
-            existing_post.date = today_label
-            db.session.commit()
-            print(f"Updated existing post: {existing_post.id} {final_title}")
-            return 0
+    post_slug = build_post_slug(topic)
+    final_title = build_today_title(topic)
+    new_post = {
+        "slug": post_slug,
+        "title": final_title,
+        "generated_title": generated_title,
+        "subtitle": subtitle,
+        "date": date.today().strftime("%B %d, %Y"),
+        "topic": topic,
+        "audience": audience,
+        "event_query": event_query,
+        "img_url": img_url or generate_topic_cover(topic, audience),
+        "body": body,
+    }
 
-        post = BlogPost(
-            title=final_title,
-            subtitle=subtitle,
-            body=body,
-            img_url=final_img_url,
-            author=author,
-            date=today_label,
-        )
-        db.session.add(post)
-        db.session.commit()
-        print(f"Created post: {post.id} {final_title}")
+    try:
+        posts = load_posts(CONTENT_POSTS_PATH)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        print(f"Could not load {CONTENT_POSTS_PATH}: {exc}", file=sys.stderr)
+        return 3
+
+    existing_index = next(
+        (
+            index
+            for index, post in enumerate(posts)
+            if post.get("slug") == post_slug or post.get("title") == final_title
+        ),
+        None,
+    )
+
+    if existing_index is not None and mode == "skip":
+        print(f"Post already exists for today, skipping: {final_title}")
         return 0
+
+    if existing_index is None:
+        posts.append(new_post)
+        action = "Created"
+    else:
+        posts[existing_index] = {**posts[existing_index], **new_post}
+        action = "Updated"
+
+    posts.sort(key=lambda post: post.get("slug") or post.get("date", ""), reverse=True)
+    save_posts(CONTENT_POSTS_PATH, posts)
+    print(f"{action} repo content post: {final_title}")
+
+    if should_commit:
+        try:
+            if git_has_changes(CONTENT_POSTS_PATH):
+                commit_and_push(
+                    CONTENT_POSTS_PATH,
+                    f"Auto publish blog post for {date.today().isoformat()}",
+                    push=should_push,
+                )
+                print("Committed generated post content.")
+                if should_push:
+                    print("Pushed generated post content.")
+            else:
+                print("No repo content changes to commit.")
+        except RuntimeError as exc:
+            print(f"Git publish failed: {exc}", file=sys.stderr)
+            return 4
+
+    return 0
 
 
 if __name__ == "__main__":

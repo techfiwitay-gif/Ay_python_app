@@ -75,6 +75,38 @@ def test_homepage_shows_empty_state(client):
     assert b"Posts" in response.data
 
 
+def test_sync_generated_content_posts_imports_repo_content(client, app_module, monkeypatch, tmp_path):
+    content_path = tmp_path / "generated_posts.json"
+    content_path.write_text(
+        """
+[
+  {
+    "slug": "2026-04-28-ai-news",
+    "title": "AI News (2026-04-28)",
+    "subtitle": "A useful update.",
+    "date": "April 28, 2026",
+    "img_url": "/generated-cover/general/ai-news.svg",
+    "body": "<p>Recent AI news.</p>"
+  }
+]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(app_module, "CONTENT_POSTS_PATH", content_path)
+
+    with app_module.app.app_context():
+        imported_count = app_module.sync_generated_content_posts()
+        second_import_count = app_module.sync_generated_content_posts()
+        post = app_module.BlogPost.query.filter_by(title="AI News (2026-04-28)").first()
+        author_email = post.author.email if post else None
+
+    assert imported_count == 1
+    assert second_import_count == 0
+    assert post is not None
+    assert author_email == "ayncode@gmail.com"
+
+
 def test_homepage_search_filters_posts(client, app_module):
     with app_module.app.app_context():
         author = create_user(app_module)
