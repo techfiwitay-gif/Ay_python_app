@@ -32,14 +32,14 @@ AUTO_POST_USE_REAL_EVENTS="true"
 AUTO_POST_EVENT_QUERY="AI automation business news"
 AUTO_POST_EVENT_HOURS="24"
 AUTO_POST_USE_GENERATOR_COMMAND="true"
-AUTO_POST_GENERATOR_COMMAND="your-openclaw-codex-5.4-command"
+AUTO_POST_GENERATOR_COMMAND=".venv/bin/python scripts/openclaw_codex_article_generator.py"
 AUTO_POST_MODE="skip"
 AUTO_POST_BRANCH="main"
 ```
 
 `AUTO_POST_MODE=skip` creates one article per topic per day. Use `AUTO_POST_MODE=update` if you want the cron job to replace today's generated article when it runs again.
 
-`AUTO_POST_GENERATOR_COMMAND` should run an OpenClaw/Codex 5.4 writer. The publisher sends it JSON on stdin with the topic, audience, angle, 24-hour news events, and writing instructions. The command must print JSON to stdout in this shape:
+The publish wrapper sets `AUTO_POST_GENERATOR_COMMAND` to `.venv/bin/python scripts/openclaw_codex_article_generator.py` by default, so Linux cron hosts do not need a bare `python` command. The publisher sends that command JSON on stdin with the topic, audience, angle, 24-hour news events, and writing instructions. The command must print JSON to stdout in this shape:
 
 ```json
 {
