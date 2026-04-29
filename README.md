@@ -30,11 +30,26 @@ AUTO_POST_AUDIENCE="founders"
 AUTO_POST_ANGLE="Focus on practical tools, risks, and implementation steps."
 AUTO_POST_USE_REAL_EVENTS="true"
 AUTO_POST_EVENT_QUERY="AI automation business news"
+AUTO_POST_EVENT_HOURS="24"
+AUTO_POST_USE_GENERATOR_COMMAND="true"
+AUTO_POST_GENERATOR_COMMAND="your-openclaw-codex-5.4-command"
 AUTO_POST_MODE="skip"
 AUTO_POST_BRANCH="main"
 ```
 
 `AUTO_POST_MODE=skip` creates one article per topic per day. Use `AUTO_POST_MODE=update` if you want the cron job to replace today's generated article when it runs again.
+
+`AUTO_POST_GENERATOR_COMMAND` should run an OpenClaw/Codex 5.4 writer. The publisher sends it JSON on stdin with the topic, audience, angle, 24-hour news events, and writing instructions. The command must print JSON to stdout in this shape:
+
+```json
+{
+  "title": "Article title",
+  "subtitle": "One sentence subtitle.",
+  "body": "<p>Article body as clean HTML.</p>"
+}
+```
+
+If the command is not set or fails, the publisher falls back to the local template generator.
 
 Generated posts are stored in `content/generated_posts.json`. On Vercel startup, the app imports any posts from that file that are not already in the database.
 

@@ -61,6 +61,65 @@ def save_posts(path: Path, posts: list[dict]) -> None:
         content_file.write("\n")
 
 
+def event_context(events: list[dict]) -> str:
+    if not events:
+        return "No recent source headlines were found."
+
+    lines = []
+    for index, event in enumerate(events, start=1):
+        lines.append(
+            "\n".join(
+                [
+                    f"{index}. {event.get('title', '').strip()}",
+                    f"   Source: {event.get('source', 'Unknown')}",
+                    f"   Published: {event.get('published', 'Unknown')}",
+                    f"   URL: {event.get('link', '').strip()}",
+                ]
+            )
+        )
+    return "\n".join(lines)
+
+
+def article_generation_payload(topic: str, audience: str, angle: str, events: list[dict]) -> dict:
+    return {
+        "topic": topic,
+        "audience": audience,
+        "angle": angle,
+        "events": events,
+        "instructions": (
+            "Use OpenClaw's Codex 5.4 model to write one publish-ready AyNcode article. "
+            "Return JSON only with title, subtitle, and body. The body must be clean HTML. "
+            "Use only the provided event headlines for current-event claims. Do not invent facts, "
+            "numbers, quotes, or events. Include a short source-context section with links. "
+            "Target 700 to 1100 words and make the article practical for software builders."
+        ),
+    }
+
+
+def generate_article_with_command(topic: str, audience: str, angle: str, events: list[dict]) -> tuple[str, str, str]:
+    command = os.environ.get("AUTO_POST_GENERATOR_COMMAND", "").strip()
+    if not command:
+        raise RuntimeError("AUTO_POST_GENERATOR_COMMAND is not set.")
+
+    result = subprocess.run(
+        command,
+        cwd=app.root_path,
+        input=json.dumps(article_generation_payload(topic, audience, angle, events)),
+        text=True,
+        capture_output=True,
+        shell=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+
+    article = json.loads(result.stdout)
+    for field in ("title", "subtitle", "body"):
+        if not article.get(field):
+            raise RuntimeError(f"Generator response is missing '{field}'.")
+    return article["title"], article["subtitle"], article["body"]
+
+
 def run_git_command(args: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(args, cwd=app.root_path, text=True, capture_output=True, check=False)
 
@@ -106,8 +165,10 @@ def main() -> int:
     angle = os.environ.get("AUTO_POST_ANGLE", DEFAULT_ANGLE).strip()
     img_url = os.environ.get("AUTO_POST_IMAGE_URL", "").strip()
     use_real_events = env_bool("AUTO_POST_USE_REAL_EVENTS", True)
+    event_hours = int(os.environ.get("AUTO_POST_EVENT_HOURS", "24"))
     event_query = os.environ.get("AUTO_POST_EVENT_QUERY", "").strip() or topic
     mode = os.environ.get("AUTO_POST_MODE", "skip").strip().lower()
+    use_generator_command = env_bool("AUTO_POST_USE_GENERATOR_COMMAND", True)
     should_commit = args.commit or args.push or env_bool("AUTO_POST_GIT_COMMIT", False)
     should_push = args.push or env_bool("AUTO_POST_GIT_PUSH", False)
 
@@ -118,12 +179,21 @@ def main() -> int:
     events = []
     if use_real_events:
         try:
-            events = fetch_recent_events(event_query)
+            events = fetch_recent_events(event_query, hours=event_hours)
         except Exception as exc:
             print(f"Warning: could not fetch live events: {exc}")
 
-    with app.app_context():
-        generated_title, subtitle, body = generate_article(topic, audience, angle, events=events)
+    if use_generator_command:
+        try:
+            generated_title, subtitle, body = generate_article_with_command(topic, audience, angle, events)
+            print("Generated article with external generator command.")
+        except Exception as exc:
+            print(f"Warning: external generator unavailable, using local template generator: {exc}")
+            with app.app_context():
+                generated_title, subtitle, body = generate_article(topic, audience, angle, events=events)
+    else:
+        with app.app_context():
+            generated_title, subtitle, body = generate_article(topic, audience, angle, events=events)
 
     post_slug = build_post_slug(topic)
     final_title = build_today_title(topic)

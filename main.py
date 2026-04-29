@@ -2,7 +2,8 @@
 from flask import Flask, Response, abort, flash, redirect, render_template, request, send_from_directory, url_for
 from flask_bootstrap import Bootstrap
 from flask_ckeditor import CKEditor
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, LoginManager, login_required, current_user, logout_user
 from forms import CommentForm, CreatePostForm, GenerateArticleForm, LoginForm, RegisterForm
@@ -248,7 +249,7 @@ def render_topic_cover_svg(topic, audience):
 </svg>'''
 
 
-def fetch_recent_events(query, limit=4):
+def fetch_recent_events(query, limit=4, hours=None):
     search_query = quote_plus(query.strip())
     feed_url = f"https://news.google.com/rss/search?q={search_query}&hl=en-US&gl=US&ceid=US:en"
     request_obj = Request(feed_url, headers={"User-Agent": "AyNcodeArticleGenerator/1.0"})
@@ -257,11 +258,24 @@ def fetch_recent_events(query, limit=4):
 
     root = ET.fromstring(feed)
     events = []
-    for item in root.findall("./channel/item")[:limit]:
+    cutoff = None
+    if hours:
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+    for item in root.findall("./channel/item"):
         title = item.findtext("title", "").strip()
         link = item.findtext("link", "").strip()
         published = item.findtext("pubDate", "").strip()
         source = item.findtext("source", "").strip()
+        if cutoff and published:
+            try:
+                published_at = parsedate_to_datetime(published)
+                if published_at.tzinfo is None:
+                    published_at = published_at.replace(tzinfo=timezone.utc)
+                if published_at < cutoff:
+                    continue
+            except (TypeError, ValueError, IndexError, OverflowError):
+                continue
         if title and link:
             events.append(
                 {
@@ -271,6 +285,8 @@ def fetch_recent_events(query, limit=4):
                     "source": source or "Google News",
                 }
             )
+        if len(events) >= limit:
+            break
     return events
 
 
