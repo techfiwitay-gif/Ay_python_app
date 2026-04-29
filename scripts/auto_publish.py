@@ -7,6 +7,10 @@ import sys
 from datetime import date
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from main import (
     CONTENT_POSTS_PATH,
     app,
