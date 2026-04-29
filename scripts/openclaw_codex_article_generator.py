@@ -7,6 +7,8 @@ from typing import Any
 
 
 DEFAULT_MODEL = "openai-codex/gpt-5.4"
+TEXT_KEYS = ("output_text", "text", "content", "message", "completion", "response", "result", "stdout", "value")
+PRIORITY_CONTAINER_KEYS = ("outputs", "output", "data", "choices", "messages", "message", "result", "response")
 
 
 def read_payload() -> dict[str, Any]:
@@ -66,37 +68,80 @@ Recent events from the last 24 hours:
 """.strip()
 
 
+def first_text(value: Any) -> str:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+
+    if isinstance(value, list):
+        text_parts = []
+        for item in value:
+            text_value = first_text(item)
+            if text_value:
+                text_parts.append(text_value)
+        return "\n".join(text_parts).strip()
+
+    if isinstance(value, dict):
+        for key in PRIORITY_CONTAINER_KEYS:
+            if key in value:
+                text_value = first_text(value[key])
+                if text_value:
+                    return text_value
+
+        for key in TEXT_KEYS:
+            if key in value:
+                text_value = first_text(value[key])
+                if text_value:
+                    return text_value
+
+        for child_value in value.values():
+            text_value = first_text(child_value)
+            if text_value:
+                return text_value
+
+    return ""
+
+
+def response_shape(value: Any, depth: int = 0) -> Any:
+    if depth > 3:
+        return "..."
+    if isinstance(value, dict):
+        return {key: response_shape(child, depth + 1) for key, child in list(value.items())[:12]}
+    if isinstance(value, list):
+        return [response_shape(item, depth + 1) for item in value[:3]]
+    return type(value).__name__
+
+
 def extract_text(response: Any) -> str:
-    if isinstance(response, dict):
-        for key in ("output_text", "text", "content"):
-            value = response.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
+    text = first_text(response)
+    if text:
+        return text
 
-        output = response.get("output")
-        if isinstance(output, list):
-            text_parts = []
-            for item in output:
-                if isinstance(item, dict):
-                    content = item.get("content")
-                    if isinstance(content, list):
-                        for part in content:
-                            if isinstance(part, dict):
-                                text_value = part.get("text") or part.get("output_text")
-                                if isinstance(text_value, str) and text_value.strip():
-                                    text_parts.append(text_value.strip())
-                elif isinstance(item, str) and item.strip():
-                    text_parts.append(item.strip())
-            if text_parts:
-                return "\n".join(text_parts)
+    shape = json.dumps(response_shape(response), ensure_ascii=False)
+    raise RuntimeError(f"Could not extract model text from OpenClaw JSON response. Shape: {shape}")
 
-    if isinstance(response, list):
-        for item in response:
-            extracted = extract_text(item)
-            if extracted:
-                return extracted
 
-    raise RuntimeError("Could not extract model text from OpenClaw JSON response.")
+def parse_article_json(text_output: str) -> dict[str, Any]:
+    text = text_output.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+
+    try:
+        article = json.loads(text)
+    except json.JSONDecodeError:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            raise
+        article = json.loads(text[start:end + 1])
+
+    if not isinstance(article, dict):
+        raise RuntimeError("Generated article JSON must be an object.")
+    return article
 
 
 def main() -> int:
@@ -126,7 +171,7 @@ def main() -> int:
 
     envelope = json.loads(result.stdout)
     text_output = extract_text(envelope)
-    article = json.loads(text_output)
+    article = parse_article_json(text_output)
 
     for field in ("title", "subtitle", "body"):
         if not isinstance(article.get(field), str) or not article[field].strip():
