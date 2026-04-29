@@ -15,7 +15,8 @@ bash scripts/openclaw_publish.sh
 
 The wrapper will:
 - pull the latest `main`
-- install/update Python dependencies with `pip install .`
+- create/use a local `.venv`
+- install/update Python dependencies inside that `.venv`
 - generate or update today's article in `content/generated_posts.json`
 - commit the content change
 - push it to GitHub
