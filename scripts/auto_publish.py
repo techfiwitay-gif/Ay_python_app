@@ -47,13 +47,41 @@ def clean_event_topic(title: str) -> str:
     return cleaned[:140] or DEFAULT_TOPIC
 
 
-def choose_generation_topic(topic: str, events: list[dict]) -> str:
+def candidate_topics_from_events(events: list[dict]) -> list[str]:
+    candidates: list[str] = []
+    seen: set[str] = set()
+    for event in events:
+        topic = clean_event_topic(event.get("title", ""))
+        normalized = topic.casefold().strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        candidates.append(topic)
+    return candidates
+
+
+def choose_generation_topic(topic: str, events: list[dict], existing_posts: list[dict] | None = None) -> str:
     if not env_bool("AUTO_POST_DYNAMIC_TOPIC", True):
         return topic
     if not events:
         return topic
-    first_title = events[0].get("title", "")
-    return clean_event_topic(first_title) or topic
+
+    candidates = candidate_topics_from_events(events)
+    if not candidates:
+        return topic
+
+    existing_posts = existing_posts or []
+    existing_topics = {
+        str(post.get("topic", "")).casefold().strip()
+        for post in existing_posts
+        if isinstance(post, dict) and post.get("topic")
+    }
+
+    for candidate in candidates:
+        if candidate.casefold().strip() not in existing_topics:
+            return candidate
+
+    return candidates[0]
 
 
 def load_posts(path: Path) -> list[dict]:
@@ -192,6 +220,12 @@ def main() -> int:
         print("AUTO_POST_MODE must be 'skip' or 'update'", file=sys.stderr)
         return 2
 
+    try:
+        posts = load_posts(CONTENT_POSTS_PATH)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        print(f"Could not load {CONTENT_POSTS_PATH}: {exc}", file=sys.stderr)
+        return 3
+
     events = []
     if use_real_events:
         try:
@@ -199,7 +233,7 @@ def main() -> int:
         except Exception as exc:
             print(f"Warning: could not fetch live events: {exc}")
 
-    topic_for_generation = choose_generation_topic(topic, events)
+    topic_for_generation = choose_generation_topic(topic, events, existing_posts=posts)
     used_generator = False
     if use_generator_command:
         try:
@@ -232,12 +266,6 @@ def main() -> int:
         "img_url": img_url or generate_topic_cover(topic_for_generation, audience),
         "body": body,
     }
-
-    try:
-        posts = load_posts(CONTENT_POSTS_PATH)
-    except (OSError, json.JSONDecodeError, ValueError) as exc:
-        print(f"Could not load {CONTENT_POSTS_PATH}: {exc}", file=sys.stderr)
-        return 3
 
     existing_index = next(
         (

@@ -26,3 +26,17 @@ def test_choose_generation_topic_can_keep_static_topic(monkeypatch):
     )
 
     assert topic == "AI automation for small business"
+
+
+def test_choose_generation_topic_skips_topics_already_used(monkeypatch):
+    monkeypatch.delenv("AUTO_POST_DYNAMIC_TOPIC", raising=False)
+    topic = auto_publish.choose_generation_topic(
+        "AI automation for small business",
+        [
+            {"title": "Meta, Google, OpenAI staff leave to launch AI startups - CNBC"},
+            {"title": "Microsoft expands enterprise AI agents - The Verge"},
+        ],
+        existing_posts=[{"topic": "Meta, Google, OpenAI staff leave to launch AI startups"}],
+    )
+
+    assert topic == "Microsoft expands enterprise AI agents"
