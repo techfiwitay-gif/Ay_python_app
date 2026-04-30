@@ -41,6 +41,21 @@ def build_post_slug(topic: str) -> str:
     return f"{date.today().isoformat()}-{safe_filename(topic)}"
 
 
+def clean_event_topic(title: str) -> str:
+    cleaned = title.strip()
+    cleaned = cleaned.split(" - ")[0].strip()
+    return cleaned[:140] or DEFAULT_TOPIC
+
+
+def choose_generation_topic(topic: str, events: list[dict]) -> str:
+    if not env_bool("AUTO_POST_DYNAMIC_TOPIC", True):
+        return topic
+    if not events:
+        return topic
+    first_title = events[0].get("title", "")
+    return clean_event_topic(first_title) or topic
+
+
 def load_posts(path: Path) -> list[dict]:
     if not path.exists():
         return []
@@ -169,6 +184,7 @@ def main() -> int:
     event_query = os.environ.get("AUTO_POST_EVENT_QUERY", "").strip() or topic
     mode = os.environ.get("AUTO_POST_MODE", "skip").strip().lower()
     use_generator_command = env_bool("AUTO_POST_USE_GENERATOR_COMMAND", True)
+    require_generator = env_bool("AUTO_POST_REQUIRE_GENERATOR", False)
     should_commit = args.commit or args.push or env_bool("AUTO_POST_GIT_COMMIT", False)
     should_push = args.push or env_bool("AUTO_POST_GIT_PUSH", False)
 
@@ -183,30 +199,37 @@ def main() -> int:
         except Exception as exc:
             print(f"Warning: could not fetch live events: {exc}")
 
+    topic_for_generation = choose_generation_topic(topic, events)
+    used_generator = False
     if use_generator_command:
         try:
-            generated_title, subtitle, body = generate_article_with_command(topic, audience, angle, events)
+            generated_title, subtitle, body = generate_article_with_command(topic_for_generation, audience, angle, events)
             print("Generated article with external generator command.")
+            used_generator = True
         except Exception as exc:
+            if require_generator:
+                print(f"Error: external generator failed and AUTO_POST_REQUIRE_GENERATOR=true: {exc}", file=sys.stderr)
+                return 5
             print(f"Warning: external generator unavailable, using local template generator: {exc}")
             with app.app_context():
-                generated_title, subtitle, body = generate_article(topic, audience, angle, events=events)
+                generated_title, subtitle, body = generate_article(topic_for_generation, audience, angle, events=events)
     else:
         with app.app_context():
-            generated_title, subtitle, body = generate_article(topic, audience, angle, events=events)
+            generated_title, subtitle, body = generate_article(topic_for_generation, audience, angle, events=events)
 
-    post_slug = build_post_slug(topic)
-    final_title = build_today_title(topic)
+    title_source = generated_title if used_generator else topic_for_generation
+    post_slug = build_post_slug(title_source)
+    final_title = build_today_title(title_source)
     new_post = {
         "slug": post_slug,
         "title": final_title,
         "generated_title": generated_title,
         "subtitle": subtitle,
         "date": date.today().strftime("%B %d, %Y"),
-        "topic": topic,
+        "topic": topic_for_generation,
         "audience": audience,
         "event_query": event_query,
-        "img_url": img_url or generate_topic_cover(topic, audience),
+        "img_url": img_url or generate_topic_cover(topic_for_generation, audience),
         "body": body,
     }
 

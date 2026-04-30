@@ -18,4 +18,6 @@ fi
 "$VENV_PYTHON" -m pip install .
 
 export AUTO_POST_GENERATOR_COMMAND="${AUTO_POST_GENERATOR_COMMAND:-$VENV_PYTHON scripts/openclaw_codex_article_generator.py}"
+export AUTO_POST_REQUIRE_GENERATOR="${AUTO_POST_REQUIRE_GENERATOR:-true}"
+export AUTO_POST_DYNAMIC_TOPIC="${AUTO_POST_DYNAMIC_TOPIC:-true}"
 "$VENV_PYTHON" scripts/auto_publish.py --push

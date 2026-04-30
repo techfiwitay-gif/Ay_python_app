@@ -33,6 +33,8 @@ AUTO_POST_EVENT_QUERY="AI automation business news"
 AUTO_POST_EVENT_HOURS="24"
 AUTO_POST_USE_GENERATOR_COMMAND="true"
 AUTO_POST_GENERATOR_COMMAND=".venv/bin/python scripts/openclaw_codex_article_generator.py"
+AUTO_POST_REQUIRE_GENERATOR="true"
+AUTO_POST_DYNAMIC_TOPIC="true"
 AUTO_POST_MODE="skip"
 AUTO_POST_BRANCH="main"
 ```
@@ -49,7 +51,7 @@ The publish wrapper sets `AUTO_POST_GENERATOR_COMMAND` to `.venv/bin/python scri
 }
 ```
 
-If the command is not set or fails, the publisher falls back to the local template generator.
+For OpenClaw cron, `AUTO_POST_REQUIRE_GENERATOR=true` prevents publishing a fallback template article when Codex fails. `AUTO_POST_DYNAMIC_TOPIC=true` lets the publisher use the top 24-hour headline as the working topic, so daily posts do not keep repeating the same static subject.
 
 Generated posts are stored in `content/generated_posts.json`. On Vercel startup, the app imports any posts from that file that are not already in the database.
 
