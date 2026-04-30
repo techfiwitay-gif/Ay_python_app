@@ -25,11 +25,11 @@ The wrapper will:
 Recommended environment variables for the OpenClaw cron job:
 
 ```bash
-AUTO_POST_TOPIC="AI automation for small business"
+AUTO_POST_TOPIC="AI tech news"
 AUTO_POST_AUDIENCE="founders"
-AUTO_POST_ANGLE="Focus on practical tools, risks, and implementation steps."
+AUTO_POST_ANGLE="Keep the article tightly tied to a recent AI-heavy tech news topic, make the title distinct from prior posts, and focus on practical implications for builders, founders, and operators."
 AUTO_POST_USE_REAL_EVENTS="true"
-AUTO_POST_EVENT_QUERY="AI automation business news"
+AUTO_POST_EVENT_QUERY="artificial intelligence OR AI OR OpenAI OR Anthropic OR Google DeepMind OR Microsoft AI OR Nvidia OR robotics OR chips OR developer tools OR cloud software"
 AUTO_POST_EVENT_HOURS="24"
 AUTO_POST_USE_GENERATOR_COMMAND="true"
 AUTO_POST_GENERATOR_COMMAND=".venv/bin/python scripts/openclaw_codex_article_generator.py"
@@ -51,7 +51,7 @@ The publish wrapper sets `AUTO_POST_GENERATOR_COMMAND` to `.venv/bin/python scri
 }
 ```
 
-For OpenClaw cron, `AUTO_POST_REQUIRE_GENERATOR=true` prevents publishing a fallback template article when Codex fails. `AUTO_POST_DYNAMIC_TOPIC=true` lets the publisher use the top 24-hour headline as the working topic, so daily posts do not keep repeating the same static subject.
+For OpenClaw cron, `AUTO_POST_REQUIRE_GENERATOR=true` prevents publishing a fallback template article when Codex fails. `AUTO_POST_DYNAMIC_TOPIC=true` lets the publisher choose from recent headlines instead of reusing one fixed subject. The default wrapper now biases strongly toward AI-heavy tech news so titles stay in the AI lane while varying day to day.
 
 Generated posts are stored in `content/generated_posts.json`. On Vercel startup, the app imports any posts from that file that are not already in the database.
 
