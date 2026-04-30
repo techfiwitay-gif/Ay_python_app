@@ -7,6 +7,7 @@ from typing import Any
 
 
 DEFAULT_MODEL = "openai-codex/gpt-5.4"
+DEFAULT_SOCIAL_AGENT_LABEL = "ayo-social-media-researcher"
 TEXT_KEYS = ("output_text", "text", "content", "message", "completion", "response", "result", "stdout", "value")
 PRIORITY_CONTAINER_KEYS = ("outputs", "output", "data", "choices", "messages", "message", "result", "response")
 
@@ -19,6 +20,62 @@ def read_payload() -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise RuntimeError("Expected a JSON object on stdin.")
     return payload
+
+
+def social_agent_enabled() -> bool:
+    value = os.environ.get("AUTO_POST_USE_SOCIAL_AGENT", "true")
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def build_social_agent_prompt(payload: dict[str, Any]) -> str:
+    return (
+        "You are helping prepare a publish-ready AyNcode tech article. "
+        "Use the supplied topic, audience, angle, and recent event list to produce JSON only "
+        "with exactly these keys: title, subtitle, body. "
+        "The body must be clean HTML using tags like <p>, <h2>, <ul>, <li>, <a>. "
+        "Do not include markdown fences or extra commentary. "
+        "Use only the provided event headlines for current-event claims. "
+        "Do not invent facts, quotes, statistics, or company statements. "
+        "Include a short source-context section with links.\n\n"
+        f"Payload:\n{json.dumps(payload, ensure_ascii=False)}"
+    )
+
+
+def try_social_agent(payload: dict[str, Any]) -> dict[str, Any] | None:
+    if not social_agent_enabled():
+        return None
+
+    session_key = os.environ.get("AUTO_POST_SOCIAL_AGENT_SESSION_KEY", "").strip()
+    label = os.environ.get("AUTO_POST_SOCIAL_AGENT_LABEL", DEFAULT_SOCIAL_AGENT_LABEL).strip() or DEFAULT_SOCIAL_AGENT_LABEL
+    timeout = os.environ.get("AUTO_POST_SOCIAL_AGENT_TIMEOUT", "180").strip()
+
+    command = [
+        "openclaw",
+        "sessions",
+        "send",
+        "--json",
+        "--timeout-seconds",
+        timeout,
+        "--message",
+        build_social_agent_prompt(payload),
+    ]
+    if session_key:
+        command.extend(["--session-key", session_key])
+    else:
+        command.extend(["--label", label])
+
+    result = subprocess.run(command, text=True, capture_output=True, check=False)
+    if result.returncode != 0:
+        return None
+
+    try:
+        envelope = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+
+    text_output = extract_text(envelope)
+    article = parse_article_json(text_output)
+    return article if isinstance(article, dict) else None
 
 
 def build_prompt(payload: dict[str, Any]) -> str:
@@ -146,32 +203,37 @@ def parse_article_json(text_output: str) -> dict[str, Any]:
 
 def main() -> int:
     payload = read_payload()
-    prompt = build_prompt(payload)
-    model = os.environ.get("OPENCLAW_ARTICLE_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
 
-    result = subprocess.run(
-        [
-            "openclaw",
-            "infer",
-            "model",
-            "run",
-            "--model",
-            model,
-            "--prompt",
-            prompt,
-            "--json",
-        ],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    social_article = try_social_agent(payload)
+    if social_article:
+        article = social_article
+    else:
+        prompt = build_prompt(payload)
+        model = os.environ.get("OPENCLAW_ARTICLE_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
 
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "OpenClaw infer command failed.")
+        result = subprocess.run(
+            [
+                "openclaw",
+                "infer",
+                "model",
+                "run",
+                "--model",
+                model,
+                "--prompt",
+                prompt,
+                "--json",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
 
-    envelope = json.loads(result.stdout)
-    text_output = extract_text(envelope)
-    article = parse_article_json(text_output)
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "OpenClaw infer command failed.")
+
+        envelope = json.loads(result.stdout)
+        text_output = extract_text(envelope)
+        article = parse_article_json(text_output)
 
     for field in ("title", "subtitle", "body"):
         if not isinstance(article.get(field), str) or not article[field].strip():

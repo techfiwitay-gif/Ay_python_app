@@ -55,3 +55,18 @@ def test_parse_article_json_removes_markdown_fence():
     assert article["title"] == "Title"
     assert article["subtitle"] == "Sub"
     assert article["body"] == "<p>Body</p>"
+
+
+def test_build_social_agent_prompt_contains_payload_context():
+    payload = {
+        "topic": "AI founders",
+        "audience": "founders",
+        "angle": "practical",
+        "events": [{"title": "Headline", "source": "Source", "published": "Today", "link": "https://example.com"}],
+    }
+
+    prompt = generator.build_social_agent_prompt(payload)
+
+    assert "JSON only" in prompt
+    assert "AI founders" in prompt
+    assert "Headline" in prompt
