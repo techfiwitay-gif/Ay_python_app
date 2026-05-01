@@ -134,6 +134,9 @@ def article_generation_payload(topic: str, audience: str, angle: str, events: li
             "Return JSON only with title, subtitle, and body. The body must be clean HTML. "
             "Use only the provided event headlines for current-event claims. Do not invent facts, "
             "numbers, quotes, or events. Include a short source-context section with links. "
+            "Insert 1 or 2 relevant remote image blocks inline inside the HTML body using <figure>, <img>, and optional <figcaption>. "
+            "Only use stable remote image URLs from credible public sources when you are reasonably confident they match the topic. "
+            "Every image must include descriptive alt text. Do not use placeholder images. "
             "Target 700 to 1100 words and make the article practical for software builders."
         ),
     }

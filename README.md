@@ -58,3 +58,8 @@ Generated posts are stored in `content/generated_posts.json`. On Vercel startup,
 ## GitHub Actions
 
 The included workflow at `.github/workflows/daily-blog.yml` can also generate, commit, and push daily posts. A push to `main` should trigger Vercel deployment if the Vercel project is connected to this GitHub repo.
+
+
+## Inline article images
+
+The generator can now insert 1 to 2 inline remote images inside the article body using HTML figure blocks. This is the fastest path to richer article layouts, but it depends on the model choosing stable public image URLs. If the look is poor, this can be rolled back cleanly.
