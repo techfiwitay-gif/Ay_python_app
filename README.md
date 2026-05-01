@@ -58,3 +58,16 @@ Generated posts are stored in `content/generated_posts.json`. On Vercel startup,
 ## GitHub Actions
 
 The included workflow at `.github/workflows/daily-blog.yml` can also generate, commit, and push daily posts. A push to `main` should trigger Vercel deployment if the Vercel project is connected to this GitHub repo.
+
+
+## ComfyUI-ready article images
+
+The generator now supports `image_prompt` output and an optional OpenClaw-native image generation step. Enable it with:
+
+```bash
+AUTO_POST_USE_IMAGE_GENERATION="true"
+AUTO_POST_IMAGE_MODEL="comfy/workflow"
+AUTO_POST_IMAGE_ASPECT_RATIO="16:9"
+```
+
+When a configured image provider is available, the publish flow will save a generated article image to `static/generated/<slug>.png` and store that file path in `img_url`. If generation is unavailable, the app falls back to the topic SVG cover.

@@ -31,12 +31,12 @@ def build_social_agent_prompt(payload: dict[str, Any]) -> str:
     return (
         "You are helping prepare a publish-ready AyNcode tech article. "
         "Use the supplied topic, audience, angle, and recent event list to produce JSON only "
-        "with exactly these keys: title, subtitle, body. "
+        "with exactly these keys: title, subtitle, body, image_prompt. "
         "The body must be clean HTML using tags like <p>, <h2>, <ul>, <li>, <a>. "
         "Do not include markdown fences or extra commentary. "
         "Use only the provided event headlines for current-event claims. "
         "Do not invent facts, quotes, statistics, or company statements. "
-        "Include a short source-context section with links.\n\n"
+        "Include a short source-context section with links. Add one strong image prompt for a matching editorial visual.\n\n"
         f"Payload:\n{json.dumps(payload, ensure_ascii=False)}"
     )
 
@@ -82,7 +82,7 @@ def build_prompt(payload: dict[str, Any]) -> str:
     topic = payload.get("topic", "")
     audience = payload.get("audience", "")
     angle = payload.get("angle", "")
-    instructions = payload.get("instructions", "Return JSON only with title, subtitle, and body.")
+    instructions = payload.get("instructions", "Return JSON only with title, subtitle, body, and image_prompt.")
     events = payload.get("events", []) or []
 
     event_lines = []
@@ -102,6 +102,7 @@ Return JSON only, with exactly these top-level keys:
 - title
 - subtitle
 - body
+- image_prompt
 
 Requirements:
 - body must be clean HTML using tags like <p>, <h2>, <ul>, <li>, <a>
@@ -110,6 +111,8 @@ Requirements:
 - use only the provided event headlines for current-event claims
 - do not invent facts, quotes, statistics, or company statements
 - include a short source-context section with links
+- image_prompt must describe one strong editorial hero image for this article
+- no text overlays inside the image prompt
 - target 700 to 1100 words
 - make it practical and useful for the intended audience
 
@@ -235,6 +238,9 @@ def main() -> int:
         text_output = extract_text(envelope)
         article = parse_article_json(text_output)
 
+    if not isinstance(article.get("image_prompt"), str) or not article.get("image_prompt", "").strip():
+        article["image_prompt"] = f"Editorial technology illustration about {payload.get('topic', 'AI news')}, clean modern composition, premium lighting, no text overlays."
+
     for field in ("title", "subtitle", "body"):
         if not isinstance(article.get(field), str) or not article[field].strip():
             raise RuntimeError(f"Generated article is missing a non-empty '{field}'.")
@@ -243,6 +249,7 @@ def main() -> int:
         "title": article["title"].strip(),
         "subtitle": article["subtitle"].strip(),
         "body": article["body"].strip(),
+        "image_prompt": article["image_prompt"].strip(),
     }, ensure_ascii=False))
     return 0
 

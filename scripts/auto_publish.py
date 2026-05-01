@@ -4,7 +4,7 @@ import json
 import os
 import subprocess
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -104,25 +104,6 @@ def save_posts(path: Path, posts: list[dict]) -> None:
         content_file.write("\n")
 
 
-def event_context(events: list[dict]) -> str:
-    if not events:
-        return "No recent source headlines were found."
-
-    lines = []
-    for index, event in enumerate(events, start=1):
-        lines.append(
-            "\n".join(
-                [
-                    f"{index}. {event.get('title', '').strip()}",
-                    f"   Source: {event.get('source', 'Unknown')}",
-                    f"   Published: {event.get('published', 'Unknown')}",
-                    f"   URL: {event.get('link', '').strip()}",
-                ]
-            )
-        )
-    return "\n".join(lines)
-
-
 def article_generation_payload(topic: str, audience: str, angle: str, events: list[dict]) -> dict:
     return {
         "topic": topic,
@@ -131,15 +112,16 @@ def article_generation_payload(topic: str, audience: str, angle: str, events: li
         "events": events,
         "instructions": (
             "Use OpenClaw's Codex 5.4 model to write one publish-ready AyNcode article. "
-            "Return JSON only with title, subtitle, and body. The body must be clean HTML. "
+            "Return JSON only with title, subtitle, body, and image_prompt. The body must be clean HTML. "
             "Use only the provided event headlines for current-event claims. Do not invent facts, "
             "numbers, quotes, or events. Include a short source-context section with links. "
+            "Also return a strong image_prompt for a matching editorial hero image. "
             "Target 700 to 1100 words and make the article practical for software builders."
         ),
     }
 
 
-def generate_article_with_command(topic: str, audience: str, angle: str, events: list[dict]) -> tuple[str, str, str]:
+def generate_article_with_command(topic: str, audience: str, angle: str, events: list[dict]) -> tuple[str, str, str, str]:
     command = os.environ.get("AUTO_POST_GENERATOR_COMMAND", "").strip()
     if not command:
         raise RuntimeError("AUTO_POST_GENERATOR_COMMAND is not set.")
@@ -157,29 +139,57 @@ def generate_article_with_command(topic: str, audience: str, angle: str, events:
         raise RuntimeError(result.stderr.strip() or result.stdout.strip())
 
     article = json.loads(result.stdout)
+    if not article.get("image_prompt"):
+        article["image_prompt"] = f"Editorial technology illustration about {topic}, clean modern composition, premium lighting, no text overlays."
     for field in ("title", "subtitle", "body"):
         if not article.get(field):
             raise RuntimeError(f"Generator response is missing '{field}'.")
-    return article["title"], article["subtitle"], article["body"]
+    return article["title"], article["subtitle"], article["body"], article["image_prompt"]
+
+
+def generate_article_image(post_slug: str, image_prompt: str) -> str:
+    if not env_bool("AUTO_POST_USE_IMAGE_GENERATION", False):
+        return ""
+
+    model = os.environ.get("AUTO_POST_IMAGE_MODEL", "comfy/workflow").strip() or "comfy/workflow"
+    output_path = Path(app.root_path) / "static" / "generated" / f"{post_slug}.png"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    command = [
+        "openclaw", "infer", "image", "generate",
+        "--model", model,
+        "--prompt", image_prompt,
+        "--output", str(output_path),
+        "--json",
+    ]
+    aspect_ratio = os.environ.get("AUTO_POST_IMAGE_ASPECT_RATIO", "16:9").strip()
+    if aspect_ratio:
+        command.extend(["--aspect-ratio", aspect_ratio])
+
+    result = subprocess.run(command, cwd=app.root_path, text=True, capture_output=True, check=False)
+    if result.returncode != 0 or not output_path.exists():
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "Image generation failed.")
+    return f"/static/generated/{post_slug}.png"
 
 
 def run_git_command(args: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(args, cwd=app.root_path, text=True, capture_output=True, check=False)
 
 
-def git_has_changes(path: Path) -> bool:
-    result = run_git_command(["git", "status", "--short", "--", str(path.relative_to(app.root_path))])
+def git_has_changes(paths: list[Path]) -> bool:
+    rel_paths = [str(path.relative_to(app.root_path)) for path in paths if path.exists()]
+    result = run_git_command(["git", "status", "--short", "--", *rel_paths])
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or result.stdout.strip())
     return bool(result.stdout.strip())
 
 
-def commit_and_push(path: Path, message: str, push: bool) -> None:
-    relative_path = str(path.relative_to(app.root_path))
+def commit_and_push(paths: list[Path], message: str, push: bool) -> None:
+    relative_paths = [str(path.relative_to(app.root_path)) for path in paths if path.exists()]
     commands = [
         ["git", "config", "user.name", os.environ.get("GIT_AUTHOR_NAME", "AyNcode Bot")],
         ["git", "config", "user.email", os.environ.get("GIT_AUTHOR_EMAIL", "ayncode-bot@example.com")],
-        ["git", "add", relative_path],
+        ["git", "add", *relative_paths],
         ["git", "commit", "-m", message],
     ]
 
@@ -235,9 +245,10 @@ def main() -> int:
 
     topic_for_generation = choose_generation_topic(topic, events, existing_posts=posts)
     used_generator = False
+    image_prompt = f"Editorial technology illustration about {topic_for_generation}, clean modern composition, premium lighting, no text overlays."
     if use_generator_command:
         try:
-            generated_title, subtitle, body = generate_article_with_command(topic_for_generation, audience, angle, events)
+            generated_title, subtitle, body, image_prompt = generate_article_with_command(topic_for_generation, audience, angle, events)
             print("Generated article with external generator command.")
             used_generator = True
         except Exception as exc:
@@ -254,9 +265,13 @@ def main() -> int:
     title_source = generated_title if used_generator else topic_for_generation
     post_slug = build_post_slug(title_source)
     final_title = build_today_title(title_source)
-    published_at = date.today().strftime("%B %d, %Y")
-    from datetime import datetime
     published_at = datetime.now().strftime("%B %d, %Y %I:%M %p")
+
+    generated_img_url = ""
+    try:
+        generated_img_url = generate_article_image(post_slug, image_prompt)
+    except Exception:
+        generated_img_url = ""
 
     new_post = {
         "slug": post_slug,
@@ -268,7 +283,8 @@ def main() -> int:
         "topic": topic_for_generation,
         "audience": audience,
         "event_query": event_query,
-        "img_url": img_url or generate_topic_cover(topic_for_generation, audience),
+        "img_url": img_url or generated_img_url or generate_topic_cover(topic_for_generation, audience),
+        "image_prompt": image_prompt,
         "body": body,
     }
 
@@ -296,11 +312,15 @@ def main() -> int:
     save_posts(CONTENT_POSTS_PATH, posts)
     print(f"{action} repo content post: {final_title}")
 
+    changed_paths = [CONTENT_POSTS_PATH]
+    if generated_img_url:
+        changed_paths.append(Path(app.root_path) / generated_img_url.lstrip("/"))
+
     if should_commit:
         try:
-            if git_has_changes(CONTENT_POSTS_PATH):
+            if git_has_changes(changed_paths):
                 commit_and_push(
-                    CONTENT_POSTS_PATH,
+                    changed_paths,
                     f"Auto publish blog post for {date.today().isoformat()}",
                     push=should_push,
                 )
