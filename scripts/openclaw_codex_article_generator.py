@@ -32,11 +32,11 @@ def build_social_agent_prompt(payload: dict[str, Any]) -> str:
         "You are helping prepare a publish-ready AyNcode tech article. "
         "Use the supplied topic, audience, angle, and recent event list to produce JSON only "
         "with exactly these keys: title, subtitle, body. "
-        "The body must be clean HTML using tags like <p>, <h2>, <ul>, <li>, <a>, <figure>, <img>, and <figcaption>. "
+        "The body must be clean HTML using tags like <p>, <h2>, <ul>, <li>, <a>. "
         "Do not include markdown fences or extra commentary. "
         "Use only the provided event headlines for current-event claims. "
         "Do not invent facts, quotes, statistics, or company statements. "
-        "Include a short source-context section with links. Add 1 or 2 relevant inline remote images with descriptive alt text when appropriate.\n\n"
+        "Include a short source-context section with links.\n\n"
         f"Payload:\n{json.dumps(payload, ensure_ascii=False)}"
     )
 
@@ -104,15 +104,12 @@ Return JSON only, with exactly these top-level keys:
 - body
 
 Requirements:
-- body must be clean HTML using tags like <p>, <h2>, <ul>, <li>, <a>, <figure>, <img>, <figcaption>
+- body must be clean HTML using tags like <p>, <h2>, <ul>, <li>, <a>
 - do not wrap the JSON in markdown
 - do not include any prose before or after the JSON
 - use only the provided event headlines for current-event claims
 - do not invent facts, quotes, statistics, or company statements
 - include a short source-context section with links
-- include 1 or 2 relevant inline remote images using <figure><img><figcaption> when appropriate
-- every image must use a credible public remote URL and descriptive alt text
-- do not use placeholder images
 - target 700 to 1100 words
 - make it practical and useful for the intended audience
 
