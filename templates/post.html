@@ -1,7 +1,7 @@
 {% set page_title = post.title ~ " | AyNcode" %}
 {% set hero_title = post.title %}
 {% set hero_subtitle = post.subtitle %}
-{% set hero_kicker = "Article by " ~ post.author.name ~ " on " ~ post.date %}
+{% set hero_kicker = "Article by " ~ post.author.name ~ " on " ~ (post.published_at or post.date) %}
 {% set hero_image = post.img_url %}
 {% set compact_hero = true %}
 {% include "header.html" %}
@@ -10,7 +10,7 @@
   <article class="article-shell">
     <div class="article-meta">
       <span><i class="fas fa-user"></i> {{ post.author.name }}</span>
-      <span><i class="far fa-calendar"></i> {{ post.date }}</span>
+      <span><i class="far fa-calendar"></i> {{ post.published_at or post.date }}</span>
       {% if post.reading_time %}
       <span><i class="far fa-clock"></i> {{ post.reading_time }} min read</span>
       {% endif %}

@@ -54,6 +54,7 @@ def ensure_engagement_columns():
         "likes": "INTEGER NOT NULL DEFAULT 0",
         "upvotes": "INTEGER NOT NULL DEFAULT 0",
         "downvotes": "INTEGER NOT NULL DEFAULT 0",
+        "published_at": "VARCHAR(250) NOT NULL DEFAULT """,
     }
 
     dialect = db.engine.dialect.name
@@ -129,6 +130,7 @@ def sync_generated_content_posts():
                 img_url=post_data["img_url"],
                 author=author,
                 date=post_data["date"],
+                published_at=post_data.get("published_at", post_data["date"]),
             )
         )
         imported_count += 1
@@ -595,7 +597,8 @@ def add_new_post():
             body=form.body.data,
             img_url=form.img_url.data,
             author=current_user,
-            date=date.today().strftime("%B %d, %Y")
+            date=date.today().strftime("%B %d, %Y"),
+            published_at=datetime.now().strftime("%B %d, %Y %I:%M %p")
         )
         db.session.add(new_post)
         db.session.commit()
@@ -629,7 +632,8 @@ def generate_post():
             body=body,
             img_url=form.img_url.data or generate_topic_cover(form.topic.data, form.audience.data),
             author=current_user,
-            date=date.today().strftime("%B %d, %Y")
+            date=date.today().strftime("%B %d, %Y"),
+            published_at=datetime.now().strftime("%B %d, %Y %I:%M %p")
         )
         db.session.add(new_post)
         db.session.commit()

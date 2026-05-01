@@ -53,6 +53,7 @@ def create_post(main, author, title="Flask Search", subtitle="A useful tutorial"
         img_url="https://example.com/image.jpg",
         author=author,
         date="April 26, 2026",
+        published_at="April 26, 2026 09:15 AM",
     )
     main.db.session.add(post)
     main.db.session.commit()
@@ -169,6 +170,7 @@ def test_post_view_increments_view_count(client, app_module):
 
     assert response.status_code == 200
     assert b"1 views" in response.data
+    assert b"09:15 AM" in response.data
 
 
 def test_post_reactions_increment_counts(client, app_module):

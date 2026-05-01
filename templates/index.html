@@ -87,7 +87,7 @@
         <span>{{ featured.likes or 0 }} likes</span>
         <span>{{ featured.upvotes or 0 }} upvotes</span>
         <span>{{ featured.comment_count }} comments</span>
-        <span>{{ featured.date }}</span>
+        <span>{{ featured.published_at or featured.date }}</span>
       </div>
       <a class="btn btn-primary" href="{{ url_for('show_post', post_id=featured.id) }}">Read article</a>
     </div>
@@ -109,7 +109,7 @@
         <p class="post-subtitle">{{ post.subtitle }}</p>
         <div class="post-meta">
           <span>{{ post.author.name }}</span>
-          <span>{{ post.date }}</span>
+          <span>{{ post.published_at or post.date }}</span>
         </div>
         <div class="post-stats">
           <span>{{ post.reading_time }} min read</span>

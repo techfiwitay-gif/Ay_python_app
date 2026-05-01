@@ -31,6 +31,7 @@ class BlogPost(db.Model):
     title = db.Column(db.String(250), unique=True, nullable=False)
     subtitle = db.Column(db.String(250), nullable=False)
     date = db.Column(db.String(250), nullable=False)
+    published_at = db.Column(db.String(250), nullable=False, default="")
     body = db.Column(db.Text, nullable=False)
     img_url = db.Column(db.String(250), nullable=False)
     views = db.Column(db.Integer, nullable=False, default=0)
@@ -43,13 +44,14 @@ class BlogPost(db.Model):
         cascade="all, delete-orphan",
     )
 
-    def __init__(self, title, subtitle, body, img_url, author, date):
+    def __init__(self, title, subtitle, body, img_url, author, date, published_at=""):
         self.title = title
         self.subtitle = subtitle
         self.body = body
         self.img_url = img_url
         self.author = author
         self.date = date
+        self.published_at = published_at or date
         self.views = 0
         self.likes = 0
         self.upvotes = 0

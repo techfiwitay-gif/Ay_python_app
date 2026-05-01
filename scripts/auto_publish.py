@@ -254,12 +254,17 @@ def main() -> int:
     title_source = generated_title if used_generator else topic_for_generation
     post_slug = build_post_slug(title_source)
     final_title = build_today_title(title_source)
+    published_at = date.today().strftime("%B %d, %Y")
+    from datetime import datetime
+    published_at = datetime.now().strftime("%B %d, %Y %I:%M %p")
+
     new_post = {
         "slug": post_slug,
         "title": final_title,
         "generated_title": generated_title,
         "subtitle": subtitle,
         "date": date.today().strftime("%B %d, %Y"),
+        "published_at": published_at,
         "topic": topic_for_generation,
         "audience": audience,
         "event_query": event_query,
