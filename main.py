@@ -54,7 +54,7 @@ def ensure_engagement_columns():
         "likes": "INTEGER NOT NULL DEFAULT 0",
         "upvotes": "INTEGER NOT NULL DEFAULT 0",
         "downvotes": "INTEGER NOT NULL DEFAULT 0",
-        "published_at": "VARCHAR(250) NOT NULL DEFAULT """,
+        "published_at": "VARCHAR(250) NOT NULL DEFAULT ''",
     }
 
     dialect = db.engine.dialect.name
