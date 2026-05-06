@@ -2,6 +2,7 @@ import importlib
 import sys
 
 import pytest
+import smtplib
 from werkzeug.security import generate_password_hash
 
 
@@ -157,6 +158,39 @@ def test_duplicate_registration_redirects_to_login(client, app_module):
 def test_forgot_password_without_smtp_credentials_does_not_crash(client, app_module):
     with app_module.app.app_context():
         create_user(app_module, email="reset@example.com")
+
+    response = client.post(
+        "/forgot-password",
+        data={"email": "reset@example.com", "submit": "Send Reset Link"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"Password reset email is temporarily unavailable" in response.data
+
+
+def test_forgot_password_with_bad_smtp_credentials_does_not_crash(client, app_module, monkeypatch):
+    class FailingSMTP:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def starttls(self):
+            pass
+
+        def login(self, *_args):
+            raise smtplib.SMTPAuthenticationError(535, b"bad credentials")
+
+    with app_module.app.app_context():
+        create_user(app_module, email="reset@example.com")
+
+    monkeypatch.setenv("GMAIL_PASSWORD", "bad-password")
+    monkeypatch.setattr(app_module, "SMTP", FailingSMTP)
 
     response = client.post(
         "/forgot-password",

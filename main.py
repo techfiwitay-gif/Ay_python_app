@@ -15,7 +15,7 @@ import os
 import json
 import re
 from pathlib import Path
-from smtplib import SMTP
+from smtplib import SMTP, SMTPException
 from html import escape
 from urllib.parse import quote_plus
 from urllib.request import Request, urlopen
@@ -188,10 +188,14 @@ def send_password_reset_email(user, reset_url):
         "This link expires in one hour. If this was not requested, this email can be ignored.\n"
     )
 
-    with SMTP("smtp.gmail.com", 587) as smtp:
-        smtp.starttls()
-        smtp.login(my_email, password)
-        smtp.sendmail(my_email, user.email, msg=message)
+    try:
+        with SMTP("smtp.gmail.com", 587) as smtp:
+            smtp.starttls()
+            smtp.login(my_email, password)
+            smtp.sendmail(my_email, user.email, msg=message)
+    except (OSError, SMTPException) as exc:
+        app.logger.warning("Password reset email failed: %s", exc)
+        return False
     return True
 
 
