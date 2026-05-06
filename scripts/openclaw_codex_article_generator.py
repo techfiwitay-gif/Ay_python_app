@@ -29,13 +29,15 @@ def social_agent_enabled() -> bool:
 
 def build_social_agent_prompt(payload: dict[str, Any]) -> str:
     return (
-        "You are helping prepare a publish-ready AyNcode tech article. "
+        "Prepare a publish-ready AyNcode tech article in Ayotunde Oyeniyi's voice. "
         "Use the supplied topic, audience, angle, and recent event list to produce JSON only "
         "with exactly these keys: title, subtitle, body, image_prompt. "
         "The body must be clean HTML using tags like <p>, <h2>, <ul>, <li>, <a>. "
         "Do not include markdown fences or extra commentary. "
         "Use only the provided event headlines for current-event claims. "
         "Do not invent facts, quotes, statistics, or company statements. "
+        "Write in first person where natural. Avoid second-person advice like 'you should' or 'your team should'. "
+        "Prefer direct editorial analysis using phrases such as 'I am watching', 'my read is', and 'I think'. "
         "Include a short source-context section with links. Add one strong image prompt for a matching editorial visual.\n\n"
         f"Payload:\n{json.dumps(payload, ensure_ascii=False)}"
     )
@@ -96,7 +98,7 @@ def build_prompt(payload: dict[str, Any]) -> str:
     events_block = "\n\n".join(event_lines) if event_lines else "No recent events were provided."
 
     return f"""
-You are writing a publish-ready AyNcode tech article.
+Write a publish-ready AyNcode tech article in Ayotunde Oyeniyi's voice.
 
 Return JSON only, with exactly these top-level keys:
 - title
@@ -110,11 +112,14 @@ Requirements:
 - do not include any prose before or after the JSON
 - use only the provided event headlines for current-event claims
 - do not invent facts, quotes, statistics, or company statements
+- write in first person where natural, as if I wrote it
+- avoid second-person advice like "you should" or "your team should"
+- prefer direct editorial analysis: "I think", "my read is", "I am watching"
 - include a short source-context section with links
 - image_prompt must describe one strong editorial hero image for this article
 - no text overlays inside the image prompt
 - target 700 to 1100 words
-- make it practical and useful for the intended audience
+- make it practical and useful without sounding like generic advice copy
 
 Topic: {topic}
 Audience: {audience}

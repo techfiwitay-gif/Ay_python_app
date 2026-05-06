@@ -72,7 +72,7 @@ def test_homepage_shows_empty_state(client):
     response = client.get("/")
 
     assert response.status_code == 200
-    assert b"Your blog is ready" in response.data
+    assert b"The blog is ready" in response.data
     assert b"Posts" in response.data
 
 

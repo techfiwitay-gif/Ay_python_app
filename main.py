@@ -334,17 +334,17 @@ def generate_article(topic, audience, angle, events=None):
     if angle_text:
         angle_paragraph = f"<p>This article focuses on {escape(angle_text)}. Use that lens to decide what matters, what can wait, and what should be measured after launch.</p>"
 
-    subtitle = f"A clear, useful breakdown of {clean_topic} for {audience_text}."
+    subtitle = f"My practical read on {clean_topic}, with notes for {audience_text}."
     event_section = render_event_section(events or [])
     event_reference = ""
     if events:
         event_reference = "<p>Recent headlines show that this topic is not theoretical. The linked examples below give the article a real-world starting point, while the analysis focuses on practical lessons rather than guessing at facts not shown in the sources.</p>"
 
     body = f"""
-<p>{safe_topic} is easier to understand when it is treated as a practical workflow instead of a vague idea. The goal is not to chase every tool or trend, but to make steady decisions that improve the way people build, learn, and ship.</p>
+<p>I find {safe_topic} easier to understand when I treat it as a practical workflow instead of a vague idea. I am not trying to chase every tool or trend. I am looking for the steady decisions that improve how people build, learn, and ship.</p>
 
 <h2>Why it matters</h2>
-<p>For {audience_text}, {safe_topic_lower} matters because it connects daily execution with long-term progress. A good process reduces guesswork, makes tradeoffs visible, and helps teams move from scattered effort to repeatable outcomes.</p>
+<p>My read is that {safe_topic_lower} matters because it connects daily execution with long-term progress. A good process reduces guesswork, makes tradeoffs visible, and helps teams move from scattered effort to repeatable outcomes.</p>
 
 {event_reference}
 
@@ -353,16 +353,16 @@ def generate_article(topic, audience, angle, events=None):
 {angle_paragraph}
 
 <h2>Start with the problem</h2>
-<p>Before choosing a solution, define the problem in plain language. Ask what is slow, confusing, risky, or expensive today. A strong article, product, or technical plan usually starts with one specific pain point and builds outward from there.</p>
+<p>I like to define the problem in plain language before choosing a solution. The useful question is what feels slow, confusing, risky, or expensive today. A strong article, product, or technical plan usually starts with one specific pain point and builds outward from there.</p>
 
 <h2>Build a simple first version</h2>
-<p>The first version should prove the core idea with the fewest moving parts. Keep the scope small, document what changed, and make sure the result can be tested by a real person. This makes improvement easier because feedback arrives early.</p>
+<p>My first version usually needs to prove the core idea with the fewest moving parts. I keep the scope small, document what changed, and make sure the result can be tested by a real person. That makes improvement easier because feedback arrives early.</p>
 
 <h2>Measure what improves</h2>
-<p>Useful progress needs evidence. Track whether the work saves time, improves clarity, reduces errors, or creates a better experience for users. When the result is measurable, it becomes easier to decide what to keep, remove, or refine.</p>
+<p>Useful progress needs evidence. I care about whether the work saves time, improves clarity, reduces errors, or creates a better experience. When the result is measurable, it becomes easier to decide what to keep, remove, or refine.</p>
 
 <h2>Final thought</h2>
-<p>{safe_topic} works best when it stays grounded in real needs. Start with a focused problem, ship a small improvement, and use what you learn to guide the next version.</p>
+<p>{safe_topic} works best when it stays grounded in real needs. I start with a focused problem, ship a small improvement, and use what I learn to guide the next version.</p>
 """.strip()
     return title, subtitle, body
 

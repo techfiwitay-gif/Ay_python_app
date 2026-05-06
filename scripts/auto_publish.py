@@ -136,7 +136,9 @@ def article_generation_payload(topic: str, audience: str, angle: str, events: li
             "Use only the provided event headlines for current-event claims. Do not invent facts, "
             "numbers, quotes, or events. Include a short source-context section with links. "
             "Also return a strong image_prompt for a matching editorial hero image. "
-            "Target 700 to 1100 words and make the article practical for software builders."
+            "Target 700 to 1100 words. Write in first person where natural, as if Ayotunde Oyeniyi wrote it. "
+            "Avoid second-person phrasing like 'you should' or 'your team should'. Prefer 'I think', "
+            "'I am watching', 'my read is', and direct analysis."
         ),
     }
 

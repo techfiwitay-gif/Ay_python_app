@@ -36,7 +36,7 @@
   <section class="content-toolbar">
     <div>
       <p class="section-kicker">Latest writing</p>
-      <h2>{% if query %}Search results for "{{ query }}"{% else %}Fresh from Ayotunde Oyeniyi{% endif %}</h2>
+      <h2>{% if query %}Search results for "{{ query }}"{% else %}Fresh from my desk{% endif %}</h2>
     </div>
     <form class="search-panel" action="{{ url_for('get_all_posts') }}" method="get">
       <label class="sr-only" for="search">Search posts</label>
@@ -51,8 +51,8 @@
   {% if not query and all_posts|length == 0 %}
   <section class="empty-state">
     <div class="empty-state-icon"><i class="fas fa-pen-nib"></i></div>
-    <h2>Your blog is ready</h2>
-    <p>Create the first article to bring Ayotunde Oyeniyi's ideas to life.</p>
+    <h2>The blog is ready</h2>
+    <p>I can publish the first article whenever there is a useful idea to shape.</p>
     {% if current_user.is_authenticated and current_user.id == 1 %}
     <a class="btn btn-primary" href="{{ url_for('generate_post') }}">Generate first article</a>
     {% else %}
@@ -65,7 +65,7 @@
   <section class="empty-state">
     <div class="empty-state-icon"><i class="fas fa-search"></i></div>
     <h2>No matching posts</h2>
-    <p>Try a different search term or clear the search to see every post.</p>
+    <p>I could not find a match for that search. Clear it to see every post.</p>
     <a class="btn btn-primary" href="{{ url_for('get_all_posts') }}">View all posts</a>
   </section>
   {% endif %}
