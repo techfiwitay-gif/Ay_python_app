@@ -154,6 +154,49 @@ def test_duplicate_registration_redirects_to_login(client, app_module):
     assert b"Email already exist.Please login" in response.data
 
 
+def test_forgot_password_without_smtp_credentials_does_not_crash(client, app_module):
+    with app_module.app.app_context():
+        create_user(app_module, email="reset@example.com")
+
+    response = client.post(
+        "/forgot-password",
+        data={"email": "reset@example.com", "submit": "Send Reset Link"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"Password reset email is temporarily unavailable" in response.data
+
+
+def test_reset_password_updates_password(client, app_module):
+    with app_module.app.app_context():
+        create_user(app_module, email="reset@example.com", password="oldpassword123")
+        user = app_module.Users.query.filter_by(email="reset@example.com").first()
+        token = app_module.generate_password_reset_token(user)
+
+    response = client.post(
+        f"/reset-password/{token}",
+        data={
+            "password": "newpassword123",
+            "confirm_password": "newpassword123",
+            "submit": "Update Password",
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"Password updated" in response.data
+
+    login_response = client.post(
+        "/login",
+        data={"email": "reset@example.com", "password": "newpassword123", "login": "Log in"},
+        follow_redirects=True,
+    )
+
+    assert login_response.status_code == 200
+    assert b"Posts" in login_response.data
+
+
 def test_logged_in_user_can_comment(client, app_module):
     with app_module.app.app_context():
         author = create_user(app_module)

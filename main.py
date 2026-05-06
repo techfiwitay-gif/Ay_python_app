@@ -4,9 +4,10 @@ from flask_bootstrap import Bootstrap
 from flask_ckeditor import CKEditor
 from datetime import date, datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, LoginManager, login_required, current_user, logout_user
-from forms import CommentForm, CreatePostForm, GenerateArticleForm, LoginForm, RegisterForm
+from forms import CommentForm, CreatePostForm, ForgotPasswordForm, GenerateArticleForm, LoginForm, RegisterForm, ResetPasswordForm
 from functools import wraps
 from models import BlogPost, Comment, Users, db
 from sqlalchemy import func, inspect, or_, text
@@ -30,6 +31,7 @@ app.config.from_mapping(
     SECRET_KEY=os.environ.get("SECRET_KEY", "dev-secret-key"),
     SQLALCHEMY_DATABASE_URI=database_url,
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    PASSWORD_RESET_MAX_AGE=int(os.environ.get("PASSWORD_RESET_MAX_AGE", "3600")),
 )
 ckeditor = CKEditor(app)
 Bootstrap(app)
@@ -41,6 +43,7 @@ import hashlib
 CONTENT_POSTS_PATH = Path(app.root_path) / "content" / "generated_posts.json"
 DEFAULT_AUTOMATION_AUTHOR_EMAIL = "ayncode@gmail.com"
 DEFAULT_AUTOMATION_AUTHOR_NAME = "Ayotunde Oyeniyi"
+PASSWORD_RESET_SALT = "ayncoder-password-reset"
 
 
 def ensure_engagement_columns():
@@ -149,6 +152,47 @@ with app.app_context():
 
 def is_safe_redirect_url(target):
     return bool(target) and target.startswith("/") and not target.startswith("//")
+
+
+def password_reset_serializer():
+    return URLSafeTimedSerializer(app.config["SECRET_KEY"])
+
+
+def generate_password_reset_token(user):
+    return password_reset_serializer().dumps(user.email, salt=PASSWORD_RESET_SALT)
+
+
+def verify_password_reset_token(token):
+    try:
+        email = password_reset_serializer().loads(
+            token,
+            salt=PASSWORD_RESET_SALT,
+            max_age=app.config["PASSWORD_RESET_MAX_AGE"],
+        )
+    except (BadSignature, SignatureExpired):
+        return None
+    return Users.query.filter_by(email=email).first()
+
+
+def send_password_reset_email(user, reset_url):
+    password = os.environ.get("GMAIL_PASSWORD")
+    my_email = os.environ.get("CONTACT_EMAIL", "ayncode@gmail.com")
+    if not password:
+        return False
+
+    message = (
+        "Subject:Reset your AyNcode password\n\n"
+        f"Hi {user.name},\n\n"
+        "I received a request to reset the password for this AyNcode account.\n\n"
+        f"Reset password: {reset_url}\n\n"
+        "This link expires in one hour. If this was not requested, this email can be ignored.\n"
+    )
+
+    with SMTP("smtp.gmail.com", 587) as smtp:
+        smtp.starttls()
+        smtp.login(my_email, password)
+        smtp.sendmail(my_email, user.email, msg=message)
+    return True
 
 
 def text_word_count(html):
@@ -508,6 +552,47 @@ def login():
             return redirect(url_for("register"))
 
     return render_template("login.html",form=form)
+
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for("get_all_posts"))
+
+    form = ForgotPasswordForm()
+    if form.validate_on_submit():
+        user = Users.query.filter_by(email=form.email.data).first()
+        if user:
+            token = generate_password_reset_token(user)
+            reset_url = url_for("reset_password", token=token, _external=True)
+            if not send_password_reset_email(user, reset_url):
+                flash("Password reset email is temporarily unavailable. Please try again later.")
+                return render_template("forgot-password.html", form=form, logged_in=False)
+
+        flash("If that email is registered, I sent a password reset link.")
+        return redirect(url_for("login"))
+
+    return render_template("forgot-password.html", form=form, logged_in=False)
+
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    if current_user.is_authenticated:
+        return redirect(url_for("get_all_posts"))
+
+    user = verify_password_reset_token(token)
+    if not user:
+        flash("That password reset link is invalid or expired.")
+        return redirect(url_for("forgot_password"))
+
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        user.password = generate_password_hash(form.password.data, method="pbkdf2:sha256", salt_length=8)
+        db.session.commit()
+        flash("Password updated. I can log in with the new password now.")
+        return redirect(url_for("login"))
+
+    return render_template("reset-password.html", form=form, logged_in=False)
 
 
 
