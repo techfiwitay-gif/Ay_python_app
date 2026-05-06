@@ -14,14 +14,19 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      AUTO_POST_TOPIC: ${{ vars.AUTO_POST_TOPIC }}
-      AUTO_POST_AUDIENCE: ${{ vars.AUTO_POST_AUDIENCE }}
-      AUTO_POST_ANGLE: ${{ vars.AUTO_POST_ANGLE }}
+      AUTO_POST_TOPIC: ${{ vars.AUTO_POST_TOPIC || 'AI tech news' }}
+      AUTO_POST_AUDIENCE: ${{ vars.AUTO_POST_AUDIENCE || 'founders' }}
+      AUTO_POST_ANGLE: ${{ vars.AUTO_POST_ANGLE || 'Keep the article tightly tied to a recent AI-heavy tech news topic, make the title distinct from prior posts, and focus on practical implications for builders, founders, and operators.' }}
       AUTO_POST_IMAGE_URL: ${{ vars.AUTO_POST_IMAGE_URL }}
       AUTO_POST_AUTHOR_EMAIL: ${{ vars.AUTO_POST_AUTHOR_EMAIL }}
-      AUTO_POST_USE_REAL_EVENTS: ${{ vars.AUTO_POST_USE_REAL_EVENTS }}
-      AUTO_POST_EVENT_QUERY: ${{ vars.AUTO_POST_EVENT_QUERY }}
-      AUTO_POST_MODE: ${{ vars.AUTO_POST_MODE }}
+      AUTO_POST_USE_REAL_EVENTS: ${{ vars.AUTO_POST_USE_REAL_EVENTS || 'true' }}
+      AUTO_POST_EVENT_QUERY: ${{ vars.AUTO_POST_EVENT_QUERY || 'artificial intelligence OR AI OR OpenAI OR Anthropic OR Google DeepMind OR Microsoft AI OR Nvidia OR robotics OR chips OR developer tools OR cloud software' }}
+      AUTO_POST_EVENT_HOURS: ${{ vars.AUTO_POST_EVENT_HOURS || '24' }}
+      AUTO_POST_MODE: ${{ vars.AUTO_POST_MODE || 'skip' }}
+      AUTO_POST_USE_GENERATOR_COMMAND: "false"
+      AUTO_POST_DYNAMIC_TOPIC: "true"
+      AUTO_POST_REQUIRE_GENERATOR: "false"
+      AUTO_POST_USE_IMAGE_GENERATION: "false"
       GIT_AUTHOR_NAME: AyNcode Bot
       GIT_AUTHOR_EMAIL: ayncode-bot@example.com
     steps:

@@ -30,7 +30,27 @@ def env_bool(name: str, default: bool = False) -> bool:
     value = os.environ.get(name)
     if value is None:
         return default
+    if not value.strip():
+        return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_str(name: str, default: str = "") -> str:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    value = value.strip()
+    return value or default
+
+
+def env_int(name: str, default: int) -> int:
+    value = env_str(name, "")
+    if not value:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
 
 
 def build_today_title(topic: str) -> str:
@@ -213,14 +233,14 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    topic = os.environ.get("AUTO_POST_TOPIC", DEFAULT_TOPIC).strip()
-    audience = os.environ.get("AUTO_POST_AUDIENCE", DEFAULT_AUDIENCE).strip() or DEFAULT_AUDIENCE
-    angle = os.environ.get("AUTO_POST_ANGLE", DEFAULT_ANGLE).strip()
-    img_url = os.environ.get("AUTO_POST_IMAGE_URL", "").strip()
+    topic = env_str("AUTO_POST_TOPIC", DEFAULT_TOPIC)
+    audience = env_str("AUTO_POST_AUDIENCE", DEFAULT_AUDIENCE)
+    angle = env_str("AUTO_POST_ANGLE", DEFAULT_ANGLE)
+    img_url = env_str("AUTO_POST_IMAGE_URL", "")
     use_real_events = env_bool("AUTO_POST_USE_REAL_EVENTS", True)
-    event_hours = int(os.environ.get("AUTO_POST_EVENT_HOURS", "24"))
-    event_query = os.environ.get("AUTO_POST_EVENT_QUERY", "").strip() or topic
-    mode = os.environ.get("AUTO_POST_MODE", "skip").strip().lower()
+    event_hours = env_int("AUTO_POST_EVENT_HOURS", 24)
+    event_query = env_str("AUTO_POST_EVENT_QUERY", topic)
+    mode = env_str("AUTO_POST_MODE", "skip").lower()
     use_generator_command = env_bool("AUTO_POST_USE_GENERATOR_COMMAND", True)
     require_generator = env_bool("AUTO_POST_REQUIRE_GENERATOR", False)
     should_commit = args.commit or args.push or env_bool("AUTO_POST_GIT_COMMIT", False)

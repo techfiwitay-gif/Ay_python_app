@@ -40,3 +40,15 @@ def test_choose_generation_topic_skips_topics_already_used(monkeypatch):
     )
 
     assert topic == "Microsoft expands enterprise AI agents"
+
+
+def test_blank_github_action_env_values_fall_back_to_defaults(monkeypatch):
+    monkeypatch.setenv("AUTO_POST_MODE", "")
+    monkeypatch.setenv("AUTO_POST_TOPIC", "")
+    monkeypatch.setenv("AUTO_POST_EVENT_HOURS", "")
+    monkeypatch.setenv("AUTO_POST_USE_REAL_EVENTS", "")
+
+    assert auto_publish.env_str("AUTO_POST_MODE", "skip") == "skip"
+    assert auto_publish.env_str("AUTO_POST_TOPIC", auto_publish.DEFAULT_TOPIC) == auto_publish.DEFAULT_TOPIC
+    assert auto_publish.env_int("AUTO_POST_EVENT_HOURS", 24) == 24
+    assert auto_publish.env_bool("AUTO_POST_USE_REAL_EVENTS", True) is True
