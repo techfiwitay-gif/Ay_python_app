@@ -207,6 +207,31 @@ def topic_initials(topic):
     return "".join(word[0].upper() for word in words[:3])
 
 
+def wrap_svg_text(text, max_chars=28, max_lines=3):
+    words = re.findall(r"\S+", text)
+    lines = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if current and len(candidate) > max_chars:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+        if len(lines) == max_lines:
+            break
+
+    if current and len(lines) < max_lines:
+        lines.append(current)
+
+    if len(lines) == max_lines and words:
+        used_word_count = sum(len(re.findall(r"\S+", line)) for line in lines)
+        if used_word_count < len(words):
+            lines[-1] = lines[-1].rstrip(" .") + "..."
+
+    return lines or ["Article"]
+
+
 def generate_topic_cover(topic, audience):
     digest = hashlib.sha256(f"{topic}|{audience}".encode("utf-8")).hexdigest()
     audience_slug = safe_filename(audience)
@@ -223,7 +248,14 @@ def render_topic_cover_svg(topic, audience):
         ("#0e7490", "#1e293b", "#f59e0b"),
     ]
     primary, secondary, accent = palettes[int(digest[:2], 16) % len(palettes)]
-    safe_topic_text = escape(title_case_topic(topic.replace("-", " ")))
+    title_lines = wrap_svg_text(title_case_topic(topic.replace("-", " ")))
+    title_font_size = 74 if len(title_lines) == 1 else 62 if len(title_lines) == 2 else 52
+    title_start_y = 380 if len(title_lines) == 1 else 340 if len(title_lines) == 2 else 315
+    title_line_gap = title_font_size + 18
+    title_tspans = "\n".join(
+        f'    <tspan x="150" dy="{0 if index == 0 else title_line_gap}">{escape(line)}</tspan>'
+        for index, line in enumerate(title_lines)
+    )
     safe_audience = escape(audience.replace("-", " ").title())
     initials = escape(topic_initials(topic))
     return f'''<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
@@ -245,8 +277,10 @@ def render_topic_cover_svg(topic, audience):
   <path d="M0 705 C300 600 530 805 805 690 C1080 575 1270 585 1600 470 L1600 900 L0 900 Z" fill="#ffffff" opacity="0.08"/>
   <rect x="112" y="112" width="1376" height="676" rx="32" fill="#ffffff" opacity="0.08" stroke="#ffffff" stroke-opacity="0.22"/>
   <text x="150" y="200" fill="#ffffff" opacity="0.78" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="800" letter-spacing="6">AYNCODE / {safe_audience}</text>
-  <text x="150" y="440" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="86" font-weight="900">{safe_topic_text}</text>
-  <text x="150" y="535" fill="#ffffff" opacity="0.82" font-family="Inter, Arial, sans-serif" font-size="36" font-weight="600">Generated cover for a focused article draft</text>
+  <text x="150" y="{title_start_y}" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="{title_font_size}" font-weight="900">
+{title_tspans}
+  </text>
+  <text x="150" y="585" fill="#ffffff" opacity="0.82" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="600">Generated cover for a focused article draft</text>
   <text x="1210" y="695" fill="#ffffff" opacity="0.9" font-family="Inter, Arial, sans-serif" font-size="148" font-weight="900">{initials}</text>
 </svg>'''
 

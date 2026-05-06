@@ -108,6 +108,17 @@ def test_sync_generated_content_posts_imports_repo_content(client, app_module, m
     assert author_email == "ayncode@gmail.com"
 
 
+def test_generated_cover_wraps_long_titles(client):
+    response = client.get(
+        "/generated-cover/founders/"
+        "microsoft-s-ai-business-hits-37b-as-nadella-bets-on-agentic-computing.svg"
+    )
+
+    assert response.status_code == 200
+    assert response.data.count(b"<tspan") >= 2
+    assert b"font-size=\"52\"" in response.data or b"font-size=\"62\"" in response.data
+
+
 def test_homepage_search_filters_posts(client, app_module):
     with app_module.app.app_context():
         author = create_user(app_module)
