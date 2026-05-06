@@ -394,6 +394,12 @@ p {
     object-fit: cover;
 }
 
+.featured-media img[src*="/generated-cover/"],
+.post-image[src*="/generated-cover/"] {
+    background: #101623;
+    object-fit: contain;
+}
+
 .featured-content {
     display: flex;
     flex-direction: column;
