@@ -305,7 +305,6 @@ def render_topic_cover_svg(topic, audience):
         for index, line in enumerate(title_lines)
     )
     safe_audience = escape(audience.replace("-", " ").title())
-    initials = escape(topic_initials(topic))
     return f'''<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -329,7 +328,6 @@ def render_topic_cover_svg(topic, audience):
 {title_tspans}
   </text>
   <text x="150" y="585" fill="#ffffff" opacity="0.82" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="600">Generated cover for a focused article draft</text>
-  <text x="1210" y="695" fill="#ffffff" opacity="0.9" font-family="Inter, Arial, sans-serif" font-size="148" font-weight="900">{initials}</text>
 </svg>'''
 
 
