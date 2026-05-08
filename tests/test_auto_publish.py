@@ -42,6 +42,19 @@ def test_choose_generation_topic_skips_topics_already_used(monkeypatch):
     assert topic == "Microsoft expands enterprise AI agents"
 
 
+def test_choose_generation_topic_prefers_product_news_over_stock_lists(monkeypatch):
+    monkeypatch.delenv("AUTO_POST_DYNAMIC_TOPIC", raising=False)
+    topic = auto_publish.choose_generation_topic(
+        "AI tech news",
+        [
+            {"title": "Best AI Stocks to Buy in 2026: 10 Top Picks & How to Invest - The Motley Fool"},
+            {"title": "Google, Microsoft, xAI to give US government early access to AI models for security review - The Verge"},
+        ],
+    )
+
+    assert topic == "Google, Microsoft, xAI to give US government early access to AI models for security review"
+
+
 def test_blank_github_action_env_values_fall_back_to_defaults(monkeypatch):
     monkeypatch.setenv("AUTO_POST_MODE", "")
     monkeypatch.setenv("AUTO_POST_TOPIC", "")

@@ -122,7 +122,22 @@ def sync_generated_content_posts():
         if not required_fields.issubset(post_data):
             app.logger.warning("Skipping generated post with missing fields: %s", post_data.get("title", "Untitled"))
             continue
-        if BlogPost.query.filter_by(title=post_data["title"]).first():
+        existing_post = BlogPost.query.filter_by(title=post_data["title"]).first()
+        if existing_post:
+            updates = {
+                "subtitle": post_data["subtitle"],
+                "body": post_data["body"],
+                "img_url": post_data["img_url"],
+                "date": post_data["date"],
+                "published_at": post_data.get("published_at", post_data["date"]),
+            }
+            changed = False
+            for field, value in updates.items():
+                if getattr(existing_post, field) != value:
+                    setattr(existing_post, field, value)
+                    changed = True
+            if changed:
+                imported_count += 1
             continue
 
         db.session.add(
@@ -404,20 +419,172 @@ def render_event_section(events):
         )
 
     return f"""
-<h2>Recent real-world context</h2>
-<p>The points below are grounded in recent public headlines related to this topic. They should be reviewed before publishing because live events can change quickly.</p>
+<h2>Source context</h2>
+<p>These are the live headlines I used as the source frame for this note:</p>
 <ul>
 {''.join(event_items)}
 </ul>
 """.strip()
 
 
+def article_lens_for_topic(topic):
+    topic_lower = topic.lower()
+    if "market size" in topic_lower or "market accelerating" in topic_lower:
+        return {
+            "subtitle": "My read on the latest AI software market headline and what it says about demand for useful automation.",
+            "intro": (
+                "I read this kind of market-size headline as a demand signal, not as proof that every AI product is valuable. "
+                "The important question is why buyers keep allocating attention and budget to AI software in the first place."
+            ),
+            "why": (
+                "For builders, market growth only matters when it maps to a concrete customer problem. "
+                "A large category can still punish vague products. The useful opportunity is to find the operational pain behind the spending and build something that makes the work easier to measure."
+            ),
+            "sections": [
+                (
+                    "The signal underneath the market number",
+                    "A rising AI software market points to demand, but demand is not evenly distributed. Buyers are most likely to keep paying for tools that reduce repetitive work, improve decision speed, or make existing systems more useful.",
+                ),
+                (
+                    "Where I would focus",
+                    "I would focus on workflows that already have budget and urgency: support operations, internal search, developer tooling, reporting, compliance review, and sales or finance handoffs. Those are places where AI can be judged by practical output rather than novelty.",
+                ),
+                (
+                    "What to avoid",
+                    "The trap is assuming category growth will carry a weak product. It will not. A strong AI product needs a narrow use case, clean integration, clear controls, and a result the customer can explain without repeating the market headline.",
+                ),
+            ],
+            "final": (
+                "My practical takeaway: market growth is useful context, but the product still has to earn trust one workflow at a time."
+            ),
+        }
+
+    if any(term in topic_lower for term in ("stock", "stocks", "shares", "invest", "analyst")):
+        return {
+            "subtitle": "My read on the latest AI market headlines, focused on what builders can learn from where attention and capital are moving.",
+            "intro": (
+                "I do not read this as a stock recommendation. I read it as a signal about the pressure around AI: "
+                "public markets keep rewarding companies that can connect AI to revenue, distribution, and credible operating leverage."
+            ),
+            "why": (
+                "For builders, that matters because market attention usually follows a simpler question: where is AI creating measurable value? "
+                "A headline about AI stocks is less useful as an investment checklist and more useful as a reminder that demos are not enough. "
+                "The work has to show up in revenue, retention, margin, or a workflow customers already care about."
+            ),
+            "sections": [
+                (
+                    "The signal underneath the market story",
+                    "When AI stock coverage sits next to bullish Microsoft coverage and market-size reports, my takeaway is that investors are still hunting for durable AI monetization. The useful lesson is not which ticker gets attention today. It is that the market is trying to separate real operating advantage from generic AI positioning.",
+                ),
+                (
+                    "What I would watch as a builder",
+                    "I would watch whether a company can turn AI into a specific workflow advantage: faster support, better developer tooling, stronger cloud usage, cleaner analytics, or more useful automation inside existing teams. That is where the story becomes practical. The products that matter will make work visibly easier, not merely attach AI language to the same old interface.",
+                ),
+                (
+                    "The risk in chasing the headline",
+                    "The weak version of this trend is building for the narrative instead of the customer. If the product cannot explain what task improves, what cost falls, or what decision gets better, the AI angle will fade quickly. My bias is to build around a narrow operational promise first, then let the market language follow the proof.",
+                ),
+            ],
+            "final": (
+                "My practical takeaway: I would not treat AI stock headlines as advice on what to buy. "
+                "I would treat them as evidence that the market is still asking which AI products can produce real economic gravity."
+            ),
+        }
+
+    if any(term in topic_lower for term in ("security", "review", "government", "safety", "model")):
+        return {
+            "subtitle": "My read on the latest AI oversight headline and what it means for builders shipping model-driven products.",
+            "intro": (
+                "The useful part of this story is not just that large AI labs are dealing with more review. "
+                "It is that model capability is moving close enough to real infrastructure that trust, access, and accountability now sit beside performance."
+            ),
+            "why": (
+                "For builders, this matters because users will not judge AI products only by how impressive the output looks. "
+                "They will also ask who can inspect the system, how mistakes are contained, and whether the product behaves predictably in sensitive workflows."
+            ),
+            "sections": [
+                (
+                    "AI trust is becoming product infrastructure",
+                    "Security review and model oversight are becoming part of the product surface. That means the strongest AI products need logs, permission boundaries, fallbacks, and clear explanations for what the system is allowed to do.",
+                ),
+                (
+                    "What smaller teams can copy",
+                    "A small team does not need a government review process, but it can copy the discipline: define risky actions, require human approval where the downside is high, and keep enough traceability that errors can be understood rather than guessed at.",
+                ),
+                (
+                    "The product lesson",
+                    "The companies that make AI feel dependable will have an advantage over companies that only make it feel powerful. Reliability is becoming a feature, especially when models touch customer data, internal systems, or business-critical decisions.",
+                ),
+            ],
+            "final": (
+                "My practical takeaway: every AI feature needs a trust plan. Capability gets attention, but accountability is what keeps the product usable."
+            ),
+        }
+
+    if any(term in topic_lower for term in ("copilot", "vs code", "developer", "commit", "tooling")):
+        return {
+            "subtitle": "My read on the latest developer-tooling headline and what it says about trust in AI-assisted work.",
+            "intro": (
+                "Developer AI tools are becoming normal parts of the workflow, which means small trust failures matter more than they used to. "
+                "When tooling touches commits, authorship, or production code, the product has to be precise about what it did and what the human did."
+            ),
+            "why": (
+                "For builders, the lesson is simple: AI assistance needs clear boundaries. A tool can be useful and still create confusion if attribution, review, or ownership is muddy."
+            ),
+            "sections": [
+                (
+                    "Trust is part of the workflow",
+                    "The best developer tools reduce friction without making ownership unclear. If an AI system drafts code, suggests changes, or helps shape commits, the surrounding workflow should make review and responsibility obvious.",
+                ),
+                (
+                    "Where product teams should focus",
+                    "I would focus on visibility: what changed, why it changed, who approved it, and how to reverse it. Those details are not polish. They are the difference between a useful assistant and a tool teams hesitate to adopt.",
+                ),
+                (
+                    "The broader signal",
+                    "AI coding tools are moving from novelty to infrastructure. As that happens, the winning products will feel boring in the best way: predictable, inspectable, and respectful of how teams already ship software.",
+                ),
+            ],
+            "final": (
+                "My practical takeaway: AI developer tools win when they make the human more effective without blurring accountability."
+            ),
+        }
+
+    return {
+        "subtitle": f"My practical read on {topic}, focused on what the latest AI headline means for builders and operators.",
+        "intro": (
+            "I am reading this as another sign that AI is moving from broad hype into concrete operating decisions. "
+            "The useful question is not whether AI is important. The useful question is where it changes the way products are built, sold, or run."
+        ),
+        "why": (
+            "For founders and operators, that matters because the market is getting less patient with vague AI promises. "
+            "The strongest opportunities are tied to real workflows, clearer product value, and measurable improvements in how teams do their work."
+        ),
+        "sections": [
+            (
+                "The practical signal",
+                "The headline is useful because it points to where attention is shifting. AI is becoming part of product strategy, pricing, internal operations, and customer expectations rather than sitting off to the side as a feature experiment.",
+            ),
+            (
+                "What I would do with it",
+                "I would translate the news into one product question: what workflow becomes easier, faster, or more reliable because of this shift? If the answer is not specific, the idea probably needs more work before it becomes a strong product bet.",
+            ),
+            (
+                "What to avoid",
+                "The trap is reacting to every headline with another generic AI feature. A better move is to pick a narrow customer pain, add AI only where it improves the job, and make the result easy to verify.",
+            ),
+        ],
+        "final": (
+            "My practical takeaway: the headline matters only if it helps clarify what to build, what to measure, and what to ignore."
+        ),
+    }
+
+
 def generate_article(topic, audience, angle, events=None):
     clean_topic = re.sub(r"\s+", " ", topic).strip()
     safe_topic = escape(clean_topic)
-    safe_topic_lower = escape(clean_topic.lower())
     title_topic = title_case_topic(clean_topic)
-    title = unique_post_title(f"{title_topic}: A Practical Guide")
+    title = unique_post_title(f"What {title_topic} Signals for Builders")
     audience_labels = {
         "developers": "developers who want practical steps",
         "founders": "founders turning ideas into useful products",
@@ -425,40 +592,34 @@ def generate_article(topic, audience, angle, events=None):
         "general": "curious readers who want a clear overview",
     }
     audience_text = audience_labels.get(audience, audience_labels["general"])
-    angle_text = re.sub(r"\s+", " ", angle or "").strip()
-    angle_paragraph = ""
-    if angle_text:
-        angle_paragraph = f"<p>This article focuses on {escape(angle_text)}. Use that lens to decide what matters, what can wait, and what should be measured after launch.</p>"
-
-    subtitle = f"My practical read on {clean_topic}, with notes for {audience_text}."
+    lens = article_lens_for_topic(clean_topic)
+    subtitle = lens["subtitle"]
     event_section = render_event_section(events or [])
-    event_reference = ""
+    source_bridge = ""
     if events:
-        event_reference = "<p>Recent headlines show that this topic is not theoretical. The linked examples below give the article a real-world starting point, while the analysis focuses on practical lessons rather than guessing at facts not shown in the sources.</p>"
+        source_bridge = "<p>I am keeping the analysis tied to the source headlines below and avoiding claims the links do not support.</p>"
+
+    section_markup = "\n\n".join(
+        f"<h2>{escape(heading)}</h2>\n<p>{escape(paragraph)}</p>"
+        for heading, paragraph in lens["sections"]
+    )
 
     body = f"""
-<p>I find {safe_topic} easier to understand when I treat it as a practical workflow instead of a vague idea. I am not trying to chase every tool or trend. I am looking for the steady decisions that improve how people build, learn, and ship.</p>
+<p>{escape(lens["intro"])}</p>
 
 <h2>Why it matters</h2>
-<p>My read is that {safe_topic_lower} matters because it connects daily execution with long-term progress. A good process reduces guesswork, makes tradeoffs visible, and helps teams move from scattered effort to repeatable outcomes.</p>
+<p>{escape(lens["why"])}</p>
 
-{event_reference}
+<p>For {escape(audience_text)}, the practical value is in turning the headline into a sharper product decision instead of treating it as background noise.</p>
+
+{source_bridge}
 
 {event_section}
 
-{angle_paragraph}
-
-<h2>Start with the problem</h2>
-<p>I like to define the problem in plain language before choosing a solution. The useful question is what feels slow, confusing, risky, or expensive today. A strong article, product, or technical plan usually starts with one specific pain point and builds outward from there.</p>
-
-<h2>Build a simple first version</h2>
-<p>My first version usually needs to prove the core idea with the fewest moving parts. I keep the scope small, document what changed, and make sure the result can be tested by a real person. That makes improvement easier because feedback arrives early.</p>
-
-<h2>Measure what improves</h2>
-<p>Useful progress needs evidence. I care about whether the work saves time, improves clarity, reduces errors, or creates a better experience. When the result is measurable, it becomes easier to decide what to keep, remove, or refine.</p>
+{section_markup}
 
 <h2>Final thought</h2>
-<p>{safe_topic} works best when it stays grounded in real needs. I start with a focused problem, ship a small improvement, and use what I learn to guide the next version.</p>
+<p>{escape(lens["final"])}</p>
 """.strip()
     return title, subtitle, body
 

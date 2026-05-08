@@ -67,6 +67,45 @@ def clean_event_topic(title: str) -> str:
     return cleaned[:140] or DEFAULT_TOPIC
 
 
+def topic_relevance_score(topic: str) -> int:
+    normalized = topic.casefold()
+    preferred_terms = (
+        "agent",
+        "ai model",
+        "model",
+        "security",
+        "review",
+        "copilot",
+        "developer",
+        "vs code",
+        "software",
+        "cloud",
+        "robot",
+        "openai",
+        "anthropic",
+        "deepmind",
+        "google",
+        "microsoft",
+        "nvidia",
+        "xai",
+        "perplexity",
+    )
+    low_fit_terms = (
+        "stock",
+        "stocks",
+        "shares",
+        "invest",
+        "top picks",
+        "analyst",
+        "price target",
+        "market size",
+    )
+    score = 0
+    score += sum(3 for term in preferred_terms if term in normalized)
+    score -= sum(5 for term in low_fit_terms if term in normalized)
+    return score
+
+
 def candidate_topics_from_events(events: list[dict]) -> list[str]:
     candidates: list[str] = []
     seen: set[str] = set()
@@ -77,7 +116,7 @@ def candidate_topics_from_events(events: list[dict]) -> list[str]:
             continue
         seen.add(normalized)
         candidates.append(topic)
-    return candidates
+    return sorted(candidates, key=topic_relevance_score, reverse=True)
 
 
 def choose_generation_topic(topic: str, events: list[dict], existing_posts: list[dict] | None = None) -> str:

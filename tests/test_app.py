@@ -120,6 +120,30 @@ def test_generated_cover_wraps_long_titles(client):
     assert b"font-size=\"52\"" in response.data or b"font-size=\"62\"" in response.data
 
 
+def test_fallback_article_is_topic_specific(client, app_module):
+    with app_module.app.app_context():
+        _title, subtitle, body = app_module.generate_article(
+            "Best AI Stocks to Buy in 2026: 10 Top Picks & How to Invest",
+            "founders",
+            "Focus on practical, real-world implementation steps, tradeoffs, and useful examples.",
+            events=[
+                {
+                    "title": "Best AI Stocks to Buy in 2026: 10 Top Picks & How to Invest - The Motley Fool",
+                    "link": "https://example.com/ai-stocks",
+                    "published": "Thu, 07 May 2026 15:14:00 GMT",
+                    "source": "The Motley Fool",
+                }
+            ],
+        )
+
+    assert "stock recommendation" in body
+    assert "Source context" in body
+    assert "This article focuses on Focus" not in body
+    assert "Start with the problem" not in body
+    assert "workflow instead of a vague idea" not in body
+    assert "capital are moving" in subtitle
+
+
 def test_homepage_search_filters_posts(client, app_module):
     with app_module.app.app_context():
         author = create_user(app_module)
