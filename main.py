@@ -23,12 +23,12 @@ import xml.etree.ElementTree as ET
 
 app = Flask(__name__, static_url_path='/static')
 default_database_url = "sqlite:////tmp/ayblog.db" if os.environ.get("VERCEL") else "sqlite:///ayblog.db"
-database_url = os.environ.get("DATABASE_URL", default_database_url)
+database_url = os.environ.get("DATABASE_URL") or default_database_url
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
 app.config.from_mapping(
-    SECRET_KEY=os.environ.get("SECRET_KEY", "dev-secret-key"),
+    SECRET_KEY=os.environ.get("SECRET_KEY") or "dev-secret-key",
     SQLALCHEMY_DATABASE_URI=database_url,
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     PASSWORD_RESET_MAX_AGE=int(os.environ.get("PASSWORD_RESET_MAX_AGE", "3600")),
@@ -67,7 +67,7 @@ def ensure_engagement_columns():
                 continue
             if dialect == "postgresql":
                 connection.execute(
-                    text(f"ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS {column_name} INTEGER NOT NULL DEFAULT 0")
+                    text(f"ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS {column_name} {column_definition}")
                 )
             else:
                 connection.execute(text(f"ALTER TABLE blog_posts ADD COLUMN {column_name} {column_definition}"))
@@ -92,8 +92,8 @@ def load_generated_content_posts():
 
 
 def get_or_create_automation_author():
-    email = os.environ.get("AUTO_POST_AUTHOR_EMAIL", DEFAULT_AUTOMATION_AUTHOR_EMAIL).strip()
-    name = os.environ.get("AUTO_POST_AUTHOR_NAME", DEFAULT_AUTOMATION_AUTHOR_NAME).strip()
+    email = (os.environ.get("AUTO_POST_AUTHOR_EMAIL") or DEFAULT_AUTOMATION_AUTHOR_EMAIL).strip()
+    name = (os.environ.get("AUTO_POST_AUTHOR_NAME") or DEFAULT_AUTOMATION_AUTHOR_NAME).strip()
     author = Users.query.filter_by(email=email).first()
     if author:
         return author
@@ -214,6 +214,22 @@ def decorate_posts(posts):
         post.reading_time = reading_time_minutes(post.body)
         post.comment_count = len(post.comments)
     return posts
+
+
+def parse_post_timestamp(post):
+    for value in (getattr(post, "published_at", ""), getattr(post, "date", "")):
+        if not value:
+            continue
+        for date_format in ("%B %d, %Y %I:%M %p", "%B %d, %Y"):
+            try:
+                return datetime.strptime(value, date_format)
+            except ValueError:
+                continue
+    return datetime.min
+
+
+def sort_posts_latest_first(posts):
+    return sorted(posts, key=lambda post: (parse_post_timestamp(post), post.id or 0), reverse=True)
 
 
 def title_case_topic(topic):
@@ -491,7 +507,7 @@ def get_all_posts():
             )
         )
 
-    posts = decorate_posts(posts_query.order_by(BlogPost.id.desc()).all())
+    posts = decorate_posts(sort_posts_latest_first(posts_query.all()))
     stats = {
         "posts": BlogPost.query.count(),
         "comments": Comment.query.count(),
