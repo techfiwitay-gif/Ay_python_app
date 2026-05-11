@@ -340,6 +340,26 @@ def test_configured_admin_email_can_access_admin_routes(client, app_module, monk
     assert b"Blog Post Title" in response.data
 
 
+def test_admin_sees_delete_button_on_post_page(client, app_module, monkeypatch):
+    monkeypatch.setenv("ADMIN_EMAIL", "admin@example.com")
+
+    with app_module.app.app_context():
+        admin = create_user(app_module, email="admin@example.com", name="Admin")
+        post = create_post(app_module, admin)
+        post_id = post.id
+
+    client.post(
+        "/login",
+        data={"email": "admin@example.com", "password": "password123", "login": "Log in"},
+        follow_redirects=True,
+    )
+    response = client.get(f"/post/{post_id}")
+
+    assert response.status_code == 200
+    assert b"Delete post" in response.data
+    assert f"/delete/{post_id}".encode() in response.data
+
+
 def test_ensure_admin_user_repairs_existing_automation_account(app_module, monkeypatch):
     monkeypatch.setenv("ADMIN_EMAIL", "ayncode@gmail.com")
     monkeypatch.setenv("ADMIN_NAME", "Ayotunde Oyeniyi")

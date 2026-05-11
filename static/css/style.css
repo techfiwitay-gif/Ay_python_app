@@ -364,6 +364,18 @@ p {
     transform: translateY(-2px);
 }
 
+.btn-danger {
+    background: #fff5f5;
+    border-color: #fecaca;
+    color: #b42318;
+}
+
+.btn-danger:hover {
+    background: #fee2e2;
+    color: #991b1b;
+    transform: translateY(-2px);
+}
+
 .button-row,
 .form-actions {
     display: flex;
