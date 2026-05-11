@@ -43,6 +43,7 @@ import hashlib
 CONTENT_POSTS_PATH = Path(app.root_path) / "content" / "generated_posts.json"
 DEFAULT_AUTOMATION_AUTHOR_EMAIL = "ayncode@gmail.com"
 DEFAULT_AUTOMATION_AUTHOR_NAME = "Ayotunde Oyeniyi"
+DEFAULT_ADMIN_EMAIL = DEFAULT_AUTOMATION_AUTHOR_EMAIL
 PASSWORD_RESET_SALT = "ayncoder-password-reset"
 
 
@@ -109,6 +110,52 @@ def get_or_create_automation_author():
     return author
 
 
+def configured_admin_email():
+    return (os.environ.get("ADMIN_EMAIL") or os.environ.get("AUTO_POST_AUTHOR_EMAIL") or DEFAULT_ADMIN_EMAIL).strip().lower()
+
+
+def configured_admin_name():
+    return (os.environ.get("ADMIN_NAME") or DEFAULT_AUTOMATION_AUTHOR_NAME).strip()
+
+
+def is_admin_user(user):
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    admin_email = configured_admin_email()
+    user_email = (getattr(user, "email", "") or "").strip().lower()
+    return bool(admin_email and user_email == admin_email)
+
+
+def ensure_admin_user():
+    password = (os.environ.get("ADMIN_PASSWORD") or os.environ.get("AUTO_POST_AUTHOR_PASSWORD") or "").strip()
+    if not password:
+        return None
+
+    email = configured_admin_email()
+    if not email:
+        return None
+
+    name = configured_admin_name()
+    user = Users.query.filter_by(email=email).first()
+    password_hash = generate_password_hash(password, method="pbkdf2:sha256", salt_length=8)
+    if not user:
+        user = Users(email=email, name=name, password=password_hash)
+        db.session.add(user)
+        db.session.commit()
+        return user
+
+    changed = False
+    if user.name != name:
+        user.name = name
+        changed = True
+    if not check_password_hash(user.password, password):
+        user.password = password_hash
+        changed = True
+    if changed:
+        db.session.commit()
+    return user
+
+
 def sync_generated_content_posts():
     posts = load_generated_content_posts()
     if not posts:
@@ -162,6 +209,7 @@ def sync_generated_content_posts():
 with app.app_context():
     db.create_all()
     ensure_engagement_columns()
+    ensure_admin_user()
     sync_generated_content_posts()
 
 
@@ -190,8 +238,13 @@ def verify_password_reset_token(token):
 
 
 def send_password_reset_email(user, reset_url):
-    password = os.environ.get("GMAIL_PASSWORD")
-    my_email = os.environ.get("CONTACT_EMAIL", "ayncode@gmail.com")
+    password = (os.environ.get("GMAIL_PASSWORD") or "").replace(" ", "").strip()
+    my_email = (
+        os.environ.get("GMAIL_EMAIL")
+        or os.environ.get("SMTP_USERNAME")
+        or os.environ.get("CONTACT_EMAIL")
+        or DEFAULT_ADMIN_EMAIL
+    ).strip()
     if not password:
         return False
 
@@ -633,16 +686,14 @@ app.jinja_env.filters['gravatar'] = gravatar_url
 
 @app.context_processor
 def inject_template_globals():
-    return {"date": date.today().year}
+    return {"date": date.today().year, "is_admin": is_admin_user(current_user)}
 
 
 def admin_only(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # If id is not 1 then return abort with 403 error
-        if not current_user.is_authenticated or current_user.id != 1:
+        if not is_admin_user(current_user):
             abort(403, "You do not have permission to access this resource.")
-        # Otherwise continue with the route function
         return f(*args, **kwargs)
     return decorated_function
 

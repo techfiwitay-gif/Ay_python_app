@@ -20,7 +20,7 @@
     </div>
   </section>
 
-  {% if current_user.is_authenticated and current_user.id == 1 %}
+  {% if is_admin %}
   <section class="admin-command">
     <div>
       <p class="section-kicker">Creator tools</p>
@@ -53,7 +53,7 @@
     <div class="empty-state-icon"><i class="fas fa-pen-nib"></i></div>
     <h2>The blog is ready</h2>
     <p>I can publish the first article whenever there is a useful idea to shape.</p>
-    {% if current_user.is_authenticated and current_user.id == 1 %}
+    {% if is_admin %}
     <a class="btn btn-primary" href="{{ url_for('generate_post') }}">Generate first article</a>
     {% else %}
     <a class="btn btn-primary" href="{{ url_for('register') }}">Create an account</a>
@@ -118,7 +118,7 @@
           <span>{{ post.upvotes or 0 }} upvotes</span>
           <span>{{ post.comment_count }} comments</span>
         </div>
-        {% if current_user.id == 1: %}
+        {% if is_admin %}
         <div class="admin-actions">
           <a href="{{ url_for('delete_post', post_id=post.id) }}" class="btn-delete" aria-label="Delete {{ post.title }}">Delete</a>
         </div>

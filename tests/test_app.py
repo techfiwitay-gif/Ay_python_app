@@ -319,6 +319,41 @@ def test_admin_routes_are_protected(client, app_module):
     assert response.status_code == 403
 
 
+def test_configured_admin_email_can_access_admin_routes(client, app_module, monkeypatch):
+    monkeypatch.setenv("ADMIN_EMAIL", "admin@example.com")
+
+    with app_module.app.app_context():
+        create_user(app_module, email="reader@example.com", name="Reader")
+        admin = create_user(app_module, email="admin@example.com", name="Admin")
+        admin_id = admin.id
+
+    assert admin_id != 1
+
+    client.post(
+        "/login",
+        data={"email": "admin@example.com", "password": "password123", "login": "Log in"},
+        follow_redirects=True,
+    )
+    response = client.get("/new-post")
+
+    assert response.status_code == 200
+    assert b"Blog Post Title" in response.data
+
+
+def test_ensure_admin_user_repairs_existing_automation_account(app_module, monkeypatch):
+    monkeypatch.setenv("ADMIN_EMAIL", "ayncode@gmail.com")
+    monkeypatch.setenv("ADMIN_NAME", "Ayotunde Oyeniyi")
+    monkeypatch.setenv("ADMIN_PASSWORD", "new-admin-password")
+
+    with app_module.app.app_context():
+        create_user(app_module, email="ayncode@gmail.com", name="Old Bot", password="old-password")
+        app_module.ensure_admin_user()
+        user = app_module.Users.query.filter_by(email="ayncode@gmail.com").first()
+
+    assert user.name == "Ayotunde Oyeniyi"
+    assert app_module.check_password_hash(user.password, "new-admin-password")
+
+
 def test_contact_without_smtp_credentials_does_not_crash(client):
     response = client.post(
         "/contact",

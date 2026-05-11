@@ -45,7 +45,7 @@
       {{ post.body|safe }}
     </div>
 
-    {% if current_user.id == 1: %}
+    {% if is_admin %}
     <div class="article-actions">
       <a class="btn btn-secondary" href="{{ url_for('edit_post', post_id=post.id) }}">Edit post</a>
       <a class="btn btn-primary" href="{{ url_for('generate_post') }}">Generate another</a>
