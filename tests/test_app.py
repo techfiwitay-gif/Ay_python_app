@@ -109,6 +109,49 @@ def test_sync_generated_content_posts_imports_repo_content(client, app_module, m
     assert author_email == "ayncode@gmail.com"
 
 
+def test_deleted_generated_post_is_not_reimported(client, app_module, monkeypatch, tmp_path):
+    monkeypatch.setenv("ADMIN_EMAIL", "admin@example.com")
+    content_path = tmp_path / "generated_posts.json"
+    content_path.write_text(
+        """
+[
+  {
+    "slug": "2026-04-28-ai-news",
+    "title": "AI News (2026-04-28)",
+    "subtitle": "A useful update.",
+    "date": "April 28, 2026",
+    "img_url": "/generated-cover/general/ai-news.svg",
+    "body": "<p>Recent AI news.</p>"
+  }
+]
+""".strip(),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(app_module, "CONTENT_POSTS_PATH", content_path)
+
+    with app_module.app.app_context():
+        create_user(app_module, email="admin@example.com", name="Admin")
+        app_module.sync_generated_content_posts()
+        post = app_module.BlogPost.query.filter_by(title="AI News (2026-04-28)").first()
+        post_id = post.id
+
+    client.post(
+        "/login",
+        data={"email": "admin@example.com", "password": "password123", "login": "Log in"},
+        follow_redirects=True,
+    )
+    response = client.get(f"/delete/{post_id}", follow_redirects=True)
+
+    with app_module.app.app_context():
+        app_module.sync_generated_content_posts()
+        restored_post = app_module.BlogPost.query.filter_by(title="AI News (2026-04-28)").first()
+        deleted_marker = app_module.DeletedGeneratedPost.query.filter_by(title="AI News (2026-04-28)").first()
+
+    assert response.status_code == 200
+    assert restored_post is None
+    assert deleted_marker is not None
+
+
 def test_generated_cover_wraps_long_titles(client):
     response = client.get(
         "/generated-cover/founders/"
@@ -142,6 +185,33 @@ def test_fallback_article_is_topic_specific(client, app_module):
     assert "Start with the problem" not in body
     assert "workflow instead of a vague idea" not in body
     assert "capital are moving" in subtitle
+
+
+def test_researched_article_uses_source_specific_context(client, app_module):
+    with app_module.app.app_context():
+        _title, subtitle, body = app_module.generate_article(
+            "How China’s AI race is transforming Alibaba’s business model",
+            "founders",
+            "",
+            events=[
+                {
+                    "title": "How China’s AI race is transforming Alibaba’s business model - Example News",
+                    "link": "https://example.com/alibaba-ai",
+                    "published": "Thu, 14 May 2026 06:55:11 GMT",
+                    "source": "Example News",
+                    "research": (
+                        "Alibaba is changing how it sells cloud services and AI products as China’s AI competition intensifies. "
+                        "The report says the company is tying model capability, enterprise demand, and commerce infrastructure more tightly together."
+                    ),
+                }
+            ],
+        )
+
+    assert "Alibaba" in body
+    assert "China" in body
+    assert "What I found in the sources" in body
+    assert "AI trust is becoming product infrastructure" not in body
+    assert "latest AI oversight headline" not in subtitle
 
 
 def test_homepage_search_filters_posts(client, app_module):

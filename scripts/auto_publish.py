@@ -14,6 +14,7 @@ if str(REPO_ROOT) not in sys.path:
 from main import (
     CONTENT_POSTS_PATH,
     app,
+    enrich_events_with_research,
     fetch_recent_events,
     generate_article,
     generate_topic_cover,
@@ -24,6 +25,25 @@ from main import (
 DEFAULT_TOPIC = "AI automation for everyday business workflows"
 DEFAULT_AUDIENCE = "developers"
 DEFAULT_ANGLE = "Focus on practical, real-world implementation steps, tradeoffs, and useful examples."
+LOW_FIT_SOURCES = (
+    "the motley fool",
+    "tradingview",
+    "invezz",
+    "cryptorank",
+    "analytics insight",
+    "openpr",
+    "ad hoc news",
+    "latest news from azerbaijan",
+)
+LOW_FIT_TOPIC_TERMS = (
+    "stock",
+    "stocks",
+    "shares",
+    "invest",
+    "top picks",
+    "analyst",
+    "price target",
+)
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -67,12 +87,14 @@ def clean_event_topic(title: str) -> str:
     return cleaned[:140] or DEFAULT_TOPIC
 
 
-def topic_relevance_score(topic: str) -> int:
+def topic_relevance_score(topic: str, source: str = "") -> int:
     normalized = topic.casefold()
+    normalized_source = source.casefold()
     preferred_terms = (
         "agent",
         "ai model",
-        "model",
+        "foundation model",
+        "large language model",
         "security",
         "review",
         "copilot",
@@ -89,34 +111,58 @@ def topic_relevance_score(topic: str) -> int:
         "nvidia",
         "xai",
         "perplexity",
+        "alibaba",
+        "china",
     )
-    low_fit_terms = (
-        "stock",
-        "stocks",
-        "shares",
-        "invest",
-        "top picks",
-        "analyst",
-        "price target",
-        "market size",
+    low_fit_terms = (*LOW_FIT_TOPIC_TERMS, "market size", "market to boom")
+    preferred_sources = (
+        "reuters",
+        "associated press",
+        "ap news",
+        "the verge",
+        "techcrunch",
+        "wired",
+        "ars technica",
+        "mit technology review",
+        "venturebeat",
+        "the decoder",
+        "cnbc",
+        "bloomberg",
+        "microsoft",
+        "google",
+        "openai",
+        "anthropic",
+        "nvidia",
     )
     score = 0
     score += sum(3 for term in preferred_terms if term in normalized)
     score -= sum(5 for term in low_fit_terms if term in normalized)
+    score += sum(4 for term in preferred_sources if term in normalized_source)
+    score -= sum(4 for term in LOW_FIT_SOURCES if term in normalized_source)
     return score
 
 
+def is_low_fit_event(topic: str, source: str = "") -> bool:
+    normalized = topic.casefold()
+    normalized_source = source.casefold()
+    return any(term in normalized for term in LOW_FIT_TOPIC_TERMS) or any(
+        term in normalized_source for term in LOW_FIT_SOURCES
+    )
+
+
 def candidate_topics_from_events(events: list[dict]) -> list[str]:
-    candidates: list[str] = []
+    candidates: list[tuple[str, int]] = []
     seen: set[str] = set()
     for event in events:
         topic = clean_event_topic(event.get("title", ""))
         normalized = topic.casefold().strip()
         if not normalized or normalized in seen:
             continue
+        if is_low_fit_event(topic, event.get("source", "")):
+            continue
         seen.add(normalized)
-        candidates.append(topic)
-    return sorted(candidates, key=topic_relevance_score, reverse=True)
+        candidates.append((topic, topic_relevance_score(topic, event.get("source", ""))))
+    return [topic for topic, _score in sorted(candidates, key=lambda item: item[1], reverse=True)]
 
 
 def choose_generation_topic(topic: str, events: list[dict], existing_posts: list[dict] | None = None) -> str:
@@ -172,8 +218,8 @@ def article_generation_payload(topic: str, audience: str, angle: str, events: li
         "instructions": (
             "Use OpenClaw's Codex 5.4 model to write one publish-ready AyNcode article. "
             "Return JSON only with title, subtitle, body, and image_prompt. The body must be clean HTML. "
-            "Use only the provided event headlines for current-event claims. Do not invent facts, "
-            "numbers, quotes, or events. Include a short source-context section with links. "
+            "Use only the provided event headlines, source names, links, and research notes for current-event claims. "
+            "Do not invent facts, numbers, quotes, or events. Include a short source-context section with links. "
             "Also return a strong image_prompt for a matching editorial hero image. "
             "Target 700 to 1100 words. Write in first person where natural, as if Ayotunde Oyeniyi wrote it. "
             "Avoid second-person phrasing like 'you should' or 'your team should'. Prefer 'I think', "
@@ -280,6 +326,8 @@ def main() -> int:
     img_url = env_str("AUTO_POST_IMAGE_URL", "")
     use_real_events = env_bool("AUTO_POST_USE_REAL_EVENTS", True)
     event_hours = env_int("AUTO_POST_EVENT_HOURS", 24)
+    event_limit = env_int("AUTO_POST_EVENT_LIMIT", 12)
+    research_limit = env_int("AUTO_POST_RESEARCH_LIMIT", 4)
     event_query = env_str("AUTO_POST_EVENT_QUERY", topic)
     mode = env_str("AUTO_POST_MODE", "skip").lower()
     use_generator_command = env_bool("AUTO_POST_USE_GENERATOR_COMMAND", True)
@@ -300,11 +348,23 @@ def main() -> int:
     events = []
     if use_real_events:
         try:
-            events = fetch_recent_events(event_query, hours=event_hours)
+            events = fetch_recent_events(event_query, limit=event_limit, hours=event_hours)
+            if env_bool("AUTO_POST_RESEARCH_EVENTS", True):
+                events = enrich_events_with_research(events, limit=research_limit)
         except Exception as exc:
             print(f"Warning: could not fetch live events: {exc}")
 
     topic_for_generation = choose_generation_topic(topic, events, existing_posts=posts)
+    if (
+        use_real_events
+        and env_bool("AUTO_POST_DYNAMIC_TOPIC", True)
+        and env_bool("AUTO_POST_REQUIRE_CREDIBLE_EVENT", True)
+        and events
+        and topic_for_generation == topic
+    ):
+        print("No credible live event candidate found, skipping auto publish.")
+        return 0
+
     used_generator = False
     image_prompt = f"Editorial technology illustration about {topic_for_generation}, clean modern composition, premium lighting, no text overlays."
     if use_generator_command:

@@ -55,6 +55,35 @@ def test_choose_generation_topic_prefers_product_news_over_stock_lists(monkeypat
     assert topic == "Google, Microsoft, xAI to give US government early access to AI models for security review"
 
 
+def test_choose_generation_topic_penalizes_low_quality_sources(monkeypatch):
+    monkeypatch.delenv("AUTO_POST_DYNAMIC_TOPIC", raising=False)
+    topic = auto_publish.choose_generation_topic(
+        "AI tech news",
+        [
+            {"title": "Artificial Intelligence Software Platform Market to Boom - openPR.com", "source": "openPR.com"},
+            {"title": "Alibaba launches new AI cloud tools for enterprise developers - The Verge", "source": "The Verge"},
+        ],
+    )
+
+    assert topic == "Alibaba launches new AI cloud tools for enterprise developers"
+
+
+def test_choose_generation_topic_returns_base_topic_when_only_low_fit_events(monkeypatch):
+    monkeypatch.delenv("AUTO_POST_DYNAMIC_TOPIC", raising=False)
+    topic = auto_publish.choose_generation_topic(
+        "AI tech news",
+        [
+            {
+                "title": "How China’s AI race is transforming Alibaba’s business model - Latest news from Azerbaijan",
+                "source": "Latest news from Azerbaijan",
+            },
+            {"title": "Microsoft Stock Rises As AI Trade Reignites", "source": "TechStock²"},
+        ],
+    )
+
+    assert topic == "AI tech news"
+
+
 def test_blank_github_action_env_values_fall_back_to_defaults(monkeypatch):
     monkeypatch.setenv("AUTO_POST_MODE", "")
     monkeypatch.setenv("AUTO_POST_TOPIC", "")

@@ -72,3 +72,17 @@ class Comment(db.Model):
         self.text = text
         self.comment_author = comment_author
         self.parent_post = parent_post
+
+
+class DeletedGeneratedPost(db.Model):
+    __tablename__ = "deleted_generated_posts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(250), unique=True, nullable=False)
+    slug = db.Column(db.String(250), unique=True, nullable=True)
+    deleted_at = db.Column(db.String(250), nullable=False)
+
+    def __init__(self, title, slug="", deleted_at=""):
+        self.title = title
+        self.slug = slug or None
+        self.deleted_at = deleted_at

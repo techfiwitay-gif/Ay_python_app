@@ -9,7 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, LoginManager, login_required, current_user, logout_user
 from forms import CommentForm, CreatePostForm, ForgotPasswordForm, GenerateArticleForm, LoginForm, RegisterForm, ResetPasswordForm
 from functools import wraps
-from models import BlogPost, Comment, Users, db
+from models import BlogPost, Comment, DeletedGeneratedPost, Users, db
 from sqlalchemy import func, inspect, or_, text
 import os
 import json
@@ -20,6 +20,7 @@ from html import escape
 from urllib.parse import quote_plus
 from urllib.request import Request, urlopen
 import xml.etree.ElementTree as ET
+from bs4 import BeautifulSoup
 
 app = Flask(__name__, static_url_path='/static')
 default_database_url = "sqlite:////tmp/ayblog.db" if os.environ.get("VERCEL") else "sqlite:///ayblog.db"
@@ -156,6 +157,27 @@ def ensure_admin_user():
     return user
 
 
+def generated_post_key_for_title(title):
+    for post_data in load_generated_content_posts():
+        if post_data.get("title") == title:
+            return post_data.get("slug", ""), post_data.get("title", title)
+    return "", title
+
+
+def remember_deleted_generated_post(post):
+    slug, title = generated_post_key_for_title(post.title)
+    if DeletedGeneratedPost.query.filter_by(title=title).first():
+        return
+
+    db.session.add(
+        DeletedGeneratedPost(
+            title=title,
+            slug=slug,
+            deleted_at=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+
 def sync_generated_content_posts():
     posts = load_generated_content_posts()
     if not posts:
@@ -164,10 +186,15 @@ def sync_generated_content_posts():
     author = get_or_create_automation_author()
     imported_count = 0
     required_fields = {"title", "subtitle", "body", "img_url", "date"}
+    deleted_posts = DeletedGeneratedPost.query.all()
+    deleted_titles = {post.title for post in deleted_posts}
+    deleted_slugs = {post.slug for post in deleted_posts if post.slug}
 
     for post_data in posts:
         if not required_fields.issubset(post_data):
             app.logger.warning("Skipping generated post with missing fields: %s", post_data.get("title", "Untitled"))
+            continue
+        if post_data.get("title") in deleted_titles or post_data.get("slug") in deleted_slugs:
             continue
         existing_post = BlogPost.query.filter_by(title=post_data["title"]).first()
         if existing_post:
@@ -415,7 +442,73 @@ def render_topic_cover_svg(topic, audience):
 </svg>'''
 
 
-def fetch_recent_events(query, limit=4, hours=None):
+def clean_research_text(value):
+    text = re.sub(r"<[^>]+>", " ", value or "")
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def summarize_research_text(text, max_sentences=3):
+    cleaned = clean_research_text(text)
+    if not cleaned:
+        return ""
+
+    sentences = re.split(r"(?<=[.!?])\s+", cleaned)
+    useful = []
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if len(sentence) < 45:
+            continue
+        useful.append(sentence)
+        if len(useful) >= max_sentences:
+            break
+    summary = " ".join(useful) or cleaned
+    return summary[:900].rstrip()
+
+
+def fetch_article_research(link):
+    try:
+        request_obj = Request(
+            link,
+            headers={
+                "User-Agent": "Mozilla/5.0 AyNcodeResearchBot/1.0",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            },
+        )
+        with urlopen(request_obj, timeout=8) as response:
+            content_type = response.headers.get("Content-Type", "")
+            if "html" not in content_type and "text" not in content_type:
+                return ""
+            html = response.read(350_000)
+    except Exception:
+        return ""
+
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup(["script", "style", "noscript", "svg", "header", "footer", "nav"]):
+        tag.decompose()
+
+    meta_description = soup.find("meta", attrs={"name": "description"})
+    meta_text = meta_description.get("content", "") if meta_description else ""
+    paragraphs = [
+        clean_research_text(paragraph.get_text(" "))
+        for paragraph in soup.find_all("p")
+    ]
+    paragraphs = [paragraph for paragraph in paragraphs if len(paragraph) >= 60]
+    return summarize_research_text(" ".join([meta_text, *paragraphs]), max_sentences=4)
+
+
+def enrich_events_with_research(events, limit=4):
+    enriched = []
+    for event in events[:limit]:
+        research = event.get("summary") or event.get("description") or ""
+        article_research = fetch_article_research(event.get("link", ""))
+        if article_research:
+            research = article_research
+        enriched.append({**event, "research": summarize_research_text(research, max_sentences=4)})
+    return enriched + events[limit:]
+
+
+def fetch_recent_events(query, limit=12, hours=None):
     search_query = quote_plus(query.strip())
     feed_url = f"https://news.google.com/rss/search?q={search_query}&hl=en-US&gl=US&ceid=US:en"
     request_obj = Request(feed_url, headers={"User-Agent": "AyNcodeArticleGenerator/1.0"})
@@ -433,6 +526,7 @@ def fetch_recent_events(query, limit=4, hours=None):
         link = item.findtext("link", "").strip()
         published = item.findtext("pubDate", "").strip()
         source = item.findtext("source", "").strip()
+        description = clean_research_text(item.findtext("description", ""))
         if cutoff and published:
             try:
                 published_at = parsedate_to_datetime(published)
@@ -449,6 +543,7 @@ def fetch_recent_events(query, limit=4, hours=None):
                     "link": link,
                     "published": published,
                     "source": source or "Google News",
+                    "description": description,
                 }
             )
         if len(events) >= limit:
@@ -544,7 +639,7 @@ def article_lens_for_topic(topic):
             ),
         }
 
-    if any(term in topic_lower for term in ("security", "review", "government", "safety", "model")):
+    if any(term in topic_lower for term in ("security", "review", "government", "safety", "ai model", "models")):
         return {
             "subtitle": "My read on the latest AI oversight headline and what it means for builders shipping model-driven products.",
             "intro": (
@@ -633,6 +728,131 @@ def article_lens_for_topic(topic):
     }
 
 
+def event_note(event):
+    return summarize_research_text(
+        event.get("research") or event.get("description") or event.get("title", ""),
+        max_sentences=2,
+    )
+
+
+def extract_focus_terms(topic, events):
+    text = " ".join([topic, *[event.get("title", "") for event in events]])
+    candidates = re.findall(r"\b[A-Z][A-Za-z0-9&.\-]*(?:\s+[A-Z][A-Za-z0-9&.\-]*){0,3}", text)
+    stop_phrases = {
+        "AI",
+        "How",
+        "Why",
+        "What",
+        "The",
+        "Latest",
+        "Google News",
+        "Source",
+        "Azerbaijan",
+        "Latest News",
+        "Latest News From Azerbaijan",
+    }
+    terms = []
+    seen = set()
+    for candidate in candidates:
+        cleaned = candidate.strip(" -:,.")
+        if cleaned in stop_phrases or len(cleaned) < 3:
+            continue
+        normalized = cleaned.casefold()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        terms.append(cleaned)
+        if len(terms) >= 5:
+            break
+    return terms
+
+
+def render_research_context(events):
+    if not events:
+        return ""
+
+    items = []
+    for event in events:
+        source = escape(event.get("source") or "Source")
+        title = escape(event.get("title") or "Untitled")
+        link = escape(event.get("link") or "#", quote=True)
+        published = escape(event.get("published") or "")
+        note = escape(event_note(event))
+        note_markup = f"<p>{note}</p>" if note else ""
+        items.append(
+            f'<li><a href="{link}" target="_blank" rel="noopener noreferrer">{title}</a> '
+            f'<span>({source}{", " + published if published else ""})</span>{note_markup}</li>'
+        )
+
+    return f"""
+<h2>What I found in the sources</h2>
+<p>I used the source notes below as the factual boundary for this article.</p>
+<ul>
+{''.join(items)}
+</ul>
+""".strip()
+
+
+def build_researched_article(topic, audience_text, events):
+    source_events = [event for event in events if event.get("title")]
+    top_event = source_events[0]
+    terms = extract_focus_terms(topic, source_events)
+    terms_text = ", ".join(terms[:3]) if terms else "this AI story"
+    top_source = top_event.get("source") or "the lead source"
+    top_title = top_event.get("title") or topic
+    top_note = event_note(top_event)
+    secondary_notes = [event_note(event) for event in source_events[1:3] if event_note(event)]
+
+    subtitle = f"My read on {topic}, based on the latest source context around {terms_text}."
+    research_context = render_research_context(source_events[:4])
+
+    if top_note:
+        lead = (
+            f"I am reading this through the lead source from {escape(top_source)}: "
+            f"{escape(top_title)}. The useful part is not the headline by itself, but the specific pattern it points to around {escape(terms_text)}."
+        )
+        source_detail = f"<p>{escape(top_note)}</p>"
+    else:
+        lead = (
+            f"I am reading {escape(topic)} as a concrete AI business signal, not as a broad trend note. "
+            f"The useful part is what it suggests around {escape(terms_text)}."
+        )
+        source_detail = ""
+
+    if secondary_notes:
+        secondary = " ".join(secondary_notes)
+        corroboration = (
+            f"<p>The surrounding sources add useful context: {escape(summarize_research_text(secondary, max_sentences=3))}</p>"
+        )
+    else:
+        corroboration = (
+            "<p>I am being careful not to stretch this beyond the available source material. One headline can be useful without becoming a complete market thesis.</p>"
+        )
+
+    body = f"""
+<p>{lead}</p>
+
+<h2>What the reporting points to</h2>
+{source_detail}
+{corroboration}
+
+{research_context}
+
+<h2>Why I think it matters</h2>
+<p>For {escape(audience_text)}, the practical question is what changes if this story keeps developing. I am looking at whether it changes pricing power, customer expectations, platform control, product distribution, or the cost of building with AI.</p>
+
+<h2>The builder read</h2>
+<p>My read is that {escape(topic)} should be treated as a product and operations signal first. If a company is changing its business model, accelerating AI software demand, opening model access, or shifting developer tooling, the important question is where that change touches real workflows.</p>
+
+<h2>What I would watch next</h2>
+<p>I would watch for evidence that the story moves from announcement to behavior: customers adopting the product differently, developers changing their tooling choices, enterprises changing budgets, or regulators forcing new controls. That is where a headline becomes useful signal.</p>
+
+<h2>Final thought</h2>
+<p>The article is strongest when it stays close to the sources. My takeaway is that {escape(terms_text)} deserves attention only where it changes what builders can ship, how customers buy, or how teams manage risk.</p>
+""".strip()
+    return subtitle, body
+
+
 def generate_article(topic, audience, angle, events=None):
     clean_topic = re.sub(r"\s+", " ", topic).strip()
     safe_topic = escape(clean_topic)
@@ -645,6 +865,11 @@ def generate_article(topic, audience, angle, events=None):
         "general": "curious readers who want a clear overview",
     }
     audience_text = audience_labels.get(audience, audience_labels["general"])
+    researched_events = [event for event in (events or []) if event.get("research") or event.get("description")]
+    if researched_events:
+        subtitle, body = build_researched_article(clean_topic, audience_text, researched_events)
+        return title, subtitle, body
+
     lens = article_lens_for_topic(clean_topic)
     subtitle = lens["subtitle"]
     event_section = render_event_section(events or [])
@@ -1019,6 +1244,7 @@ def edit_post(post_id):
 @admin_only
 def delete_post(post_id):
     post_to_delete = db.get_or_404(BlogPost, post_id)
+    remember_deleted_generated_post(post_to_delete)
     db.session.delete(post_to_delete)
     db.session.commit()
     return redirect(url_for('get_all_posts'))
