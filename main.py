@@ -11,13 +11,15 @@ from forms import CommentForm, CreatePostForm, ForgotPasswordForm, GenerateArtic
 from functools import wraps
 from models import BlogPost, Comment, DeletedGeneratedPost, Users, db
 from sqlalchemy import func, inspect, or_, text
+import base64
 import os
 import json
 import re
 from pathlib import Path
 from smtplib import SMTP, SMTPException
 from html import escape
-from urllib.parse import quote_plus
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote, quote_plus
 from urllib.request import Request, urlopen
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
@@ -45,6 +47,7 @@ CONTENT_POSTS_PATH = Path(app.root_path) / "content" / "generated_posts.json"
 DEFAULT_AUTOMATION_AUTHOR_EMAIL = "ayncode@gmail.com"
 DEFAULT_AUTOMATION_AUTHOR_NAME = "Ayotunde Oyeniyi"
 DEFAULT_ADMIN_EMAIL = DEFAULT_AUTOMATION_AUTHOR_EMAIL
+DEFAULT_GITHUB_REPOSITORY = "techfiwitay-gif/Ay_python_app"
 PASSWORD_RESET_SALT = "ayncoder-password-reset"
 
 
@@ -91,6 +94,115 @@ def load_generated_content_posts():
         return []
 
     return [post for post in posts if isinstance(post, dict)]
+
+
+def generated_post_matches(post_data, slug, title):
+    return (slug and post_data.get("slug") == slug) or post_data.get("title") == title
+
+
+def github_repo_name():
+    repo = os.environ.get("GITHUB_REPOSITORY") or os.environ.get("AUTO_POST_GITHUB_REPOSITORY")
+    if repo:
+        return repo
+
+    owner = os.environ.get("VERCEL_GIT_REPO_OWNER")
+    repo_name = os.environ.get("VERCEL_GIT_REPO_SLUG")
+    if owner and repo_name:
+        return f"{owner}/{repo_name}"
+
+    return DEFAULT_GITHUB_REPOSITORY
+
+
+def github_write_token():
+    return (
+        os.environ.get("GITHUB_TOKEN")
+        or os.environ.get("GH_TOKEN")
+        or os.environ.get("AUTO_POST_GITHUB_TOKEN")
+    )
+
+
+def remove_generated_post_from_local_content(slug, title):
+    posts = load_generated_content_posts()
+    if not posts:
+        return False
+
+    filtered_posts = [post for post in posts if not generated_post_matches(post, slug, title)]
+    if len(filtered_posts) == len(posts):
+        return False
+
+    try:
+        CONTENT_POSTS_PATH.write_text(
+            json.dumps(filtered_posts, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+    except OSError as exc:
+        app.logger.warning("Could not update generated content file: %s", exc)
+        return False
+
+    return True
+
+
+def remove_generated_post_from_github(slug, title):
+    token = github_write_token()
+    repo = github_repo_name()
+    if not token or not repo:
+        return False
+
+    branch = (
+        os.environ.get("GITHUB_BRANCH")
+        or os.environ.get("VERCEL_GIT_COMMIT_REF")
+        or "main"
+    )
+    repo_path = os.environ.get("GENERATED_POSTS_REPO_PATH", "content/generated_posts.json")
+    encoded_path = quote(repo_path, safe="/")
+    api_url = f"https://api.github.com/repos/{repo}/contents/{encoded_path}?ref={quote(branch)}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "User-Agent": "ayncode-app",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    try:
+        get_request = Request(api_url, headers=headers)
+        with urlopen(get_request, timeout=15) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+
+        current_content = base64.b64decode(payload["content"]).decode("utf-8")
+        posts = json.loads(current_content)
+        if not isinstance(posts, list):
+            return False
+
+        filtered_posts = [post for post in posts if not generated_post_matches(post, slug, title)]
+        if len(filtered_posts) == len(posts):
+            return False
+
+        updated_content = json.dumps(filtered_posts, indent=2, ensure_ascii=False) + "\n"
+        put_payload = json.dumps(
+            {
+                "message": f"Delete generated post: {title[:120]}",
+                "content": base64.b64encode(updated_content.encode("utf-8")).decode("ascii"),
+                "sha": payload["sha"],
+                "branch": branch,
+            }
+        ).encode("utf-8")
+        put_request = Request(
+            api_url.split("?", 1)[0],
+            data=put_payload,
+            headers={**headers, "Content-Type": "application/json"},
+            method="PUT",
+        )
+        with urlopen(put_request, timeout=20):
+            return True
+    except (HTTPError, URLError, OSError, KeyError, json.JSONDecodeError, ValueError) as exc:
+        app.logger.warning("Could not delete generated post from GitHub: %s", exc)
+        return False
+
+
+def remove_generated_post_from_source(slug, title):
+    removed_locally = remove_generated_post_from_local_content(slug, title)
+    removed_remotely = remove_generated_post_from_github(slug, title)
+    return removed_locally or removed_remotely
 
 
 def get_or_create_automation_author():
@@ -1244,7 +1356,9 @@ def edit_post(post_id):
 @admin_only
 def delete_post(post_id):
     post_to_delete = db.get_or_404(BlogPost, post_id)
+    slug, title = generated_post_key_for_title(post_to_delete.title)
     remember_deleted_generated_post(post_to_delete)
+    remove_generated_post_from_source(slug, title)
     db.session.delete(post_to_delete)
     db.session.commit()
     return redirect(url_for('get_all_posts'))

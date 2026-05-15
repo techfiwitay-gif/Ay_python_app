@@ -1,4 +1,6 @@
+import base64
 import importlib
+import json
 import sys
 
 import pytest
@@ -12,6 +14,9 @@ def app_module(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
     monkeypatch.setenv("SECRET_KEY", "test-secret-key")
     monkeypatch.delenv("GMAIL_PASSWORD", raising=False)
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    monkeypatch.delenv("AUTO_POST_GITHUB_TOKEN", raising=False)
 
     for module_name in ["main", "models"]:
         sys.modules.pop(module_name, None)
@@ -146,10 +151,56 @@ def test_deleted_generated_post_is_not_reimported(client, app_module, monkeypatc
         app_module.sync_generated_content_posts()
         restored_post = app_module.BlogPost.query.filter_by(title="AI News (2026-04-28)").first()
         deleted_marker = app_module.DeletedGeneratedPost.query.filter_by(title="AI News (2026-04-28)").first()
+        content_posts = app_module.load_generated_content_posts()
 
     assert response.status_code == 200
     assert restored_post is None
     assert deleted_marker is not None
+    assert content_posts == []
+
+
+def test_remove_generated_post_from_github_commits_filtered_content(app_module, monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "test-token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "techfiwitay-gif/Ay_python_app")
+    monkeypatch.setenv("GITHUB_BRANCH", "main")
+    posts = [
+        {"slug": "keep-me", "title": "Keep Me"},
+        {"slug": "delete-me", "title": "Delete Me"},
+    ]
+    get_payload = {
+        "sha": "abc123",
+        "content": base64.b64encode(json.dumps(posts).encode("utf-8")).decode("ascii"),
+    }
+    put_payloads = []
+
+    class FakeResponse:
+        def __init__(self, payload=None):
+            self.payload = payload or {}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return json.dumps(self.payload).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        if request.get_method() == "GET":
+            return FakeResponse(get_payload)
+        put_payloads.append(json.loads(request.data.decode("utf-8")))
+        return FakeResponse()
+
+    monkeypatch.setattr(app_module, "urlopen", fake_urlopen)
+
+    removed = app_module.remove_generated_post_from_github("delete-me", "Delete Me")
+
+    assert removed is True
+    assert put_payloads
+    updated_posts = json.loads(base64.b64decode(put_payloads[0]["content"]).decode("utf-8"))
+    assert updated_posts == [{"slug": "keep-me", "title": "Keep Me"}]
+    assert put_payloads[0]["branch"] == "main"
 
 
 def test_generated_cover_wraps_long_titles(client):
