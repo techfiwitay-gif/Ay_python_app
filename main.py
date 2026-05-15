@@ -1252,21 +1252,31 @@ def contact():
         email = request.form.get("email", "").strip()
         num = request.form.get("phone", "").strip()
         msg = request.form.get("message", "").strip()
-        password = os.environ.get('GMAIL_PASSWORD')
-        my_email = os.environ.get('CONTACT_EMAIL', 'ayncode@gmail.com')
+        password = (os.environ.get('GMAIL_PASSWORD') or '').replace(" ", "").strip()
+        my_email = (
+            os.environ.get('GMAIL_EMAIL')
+            or os.environ.get('MAIL_USERNAME')
+            or os.environ.get('CONTACT_EMAIL')
+            or DEFAULT_ADMIN_EMAIL
+        ).strip()
 
-        if not password:
+        if not password or not my_email:
             flash('Contact service is temporarily unavailable. Please try again later.')
             return render_template("contact.html", logged_in=current_user.is_authenticated, confirm=False)
 
-        with SMTP('smtp.gmail.com', 587) as smtp:
-            smtp.starttls()
-            smtp.login(my_email, password)
-            smtp.sendmail(
-                my_email,
-                my_email,
-                msg=f"Subject:{name or 'Website Contact'}\n\nNumber:{num}\n\nEmail from: {email}\n\n{msg}",
-            )
+        try:
+            with SMTP('smtp.gmail.com', 587) as smtp:
+                smtp.starttls()
+                smtp.login(my_email, password)
+                smtp.sendmail(
+                    my_email,
+                    my_email,
+                    msg=f"Subject:{name or 'Website Contact'}\n\nNumber:{num}\n\nEmail from: {email}\n\n{msg}",
+                )
+        except (SMTPException, OSError) as exc:
+            app.logger.warning("Contact email failed: %s", exc)
+            flash('Contact service is temporarily unavailable. Please try again later.')
+            return render_template("contact.html", logged_in=current_user.is_authenticated, confirm=False)
         confirm = True
     return render_template("contact.html",logged_in=current_user.is_authenticated,confirm=confirm)
 

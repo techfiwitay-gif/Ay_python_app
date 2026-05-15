@@ -509,3 +509,39 @@ def test_contact_without_smtp_credentials_does_not_crash(client):
 
     assert response.status_code == 200
     assert b"Contact service is temporarily unavailable" in response.data
+
+
+def test_contact_with_bad_smtp_credentials_does_not_crash(client, app_module, monkeypatch):
+    class FailingSMTP:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def starttls(self):
+            pass
+
+        def login(self, *_args):
+            raise smtplib.SMTPAuthenticationError(535, b"bad credentials")
+
+    monkeypatch.setenv("GMAIL_EMAIL", "ayncode@gmail.com")
+    monkeypatch.setenv("GMAIL_PASSWORD", "bad-password")
+    monkeypatch.setattr(app_module, "SMTP", FailingSMTP)
+
+    response = client.post(
+        "/contact",
+        data={
+            "name": "Visitor",
+            "email": "visitor@example.com",
+            "phone": "555-1212",
+            "message": "Hello",
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"Contact service is temporarily unavailable" in response.data
