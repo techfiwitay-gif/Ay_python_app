@@ -7,7 +7,7 @@ from typing import Any
 
 
 DEFAULT_MODEL = "openai-codex/gpt-5.4"
-DEFAULT_SOCIAL_AGENT_LABEL = "ayo-social-media-researcher"
+DEFAULT_OPENCLAW_AGENT = "main"
 TEXT_KEYS = ("output_text", "text", "content", "message", "completion", "response", "result", "stdout", "value")
 PRIORITY_CONTAINER_KEYS = ("outputs", "output", "data", "choices", "messages", "message", "result", "response")
 
@@ -22,13 +22,14 @@ def read_payload() -> dict[str, Any]:
     return payload
 
 
-def social_agent_enabled() -> bool:
-    value = os.environ.get("AUTO_POST_USE_SOCIAL_AGENT", "true")
+def openclaw_agent_enabled() -> bool:
+    value = os.environ.get("AUTO_POST_USE_OPENCLAW_AGENT", os.environ.get("AUTO_POST_USE_SOCIAL_AGENT", "true"))
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def build_social_agent_prompt(payload: dict[str, Any]) -> str:
+def build_openclaw_agent_prompt(payload: dict[str, Any]) -> str:
     return (
+        "You are a non-interactive article generator. Do not ask follow-up questions. "
         "Prepare a publish-ready AyNcode tech article in Ayotunde Oyeniyi's voice. "
         "Use the supplied topic, audience, angle, and recent event list to produce JSON only "
         "with exactly these keys: title, subtitle, body, image_prompt. "
@@ -43,28 +44,27 @@ def build_social_agent_prompt(payload: dict[str, Any]) -> str:
     )
 
 
-def try_social_agent(payload: dict[str, Any]) -> dict[str, Any] | None:
-    if not social_agent_enabled():
+def try_openclaw_agent(payload: dict[str, Any]) -> dict[str, Any] | None:
+    if not openclaw_agent_enabled():
         return None
 
-    session_key = os.environ.get("AUTO_POST_SOCIAL_AGENT_SESSION_KEY", "").strip()
-    label = os.environ.get("AUTO_POST_SOCIAL_AGENT_LABEL", DEFAULT_SOCIAL_AGENT_LABEL).strip() or DEFAULT_SOCIAL_AGENT_LABEL
-    timeout = os.environ.get("AUTO_POST_SOCIAL_AGENT_TIMEOUT", "180").strip()
+    agent = os.environ.get("AUTO_POST_OPENCLAW_AGENT", DEFAULT_OPENCLAW_AGENT).strip() or DEFAULT_OPENCLAW_AGENT
+    timeout = os.environ.get("AUTO_POST_OPENCLAW_AGENT_TIMEOUT", os.environ.get("AUTO_POST_SOCIAL_AGENT_TIMEOUT", "600")).strip()
+    thinking = os.environ.get("AUTO_POST_OPENCLAW_THINKING", "medium").strip() or "medium"
 
     command = [
         "openclaw",
-        "sessions",
-        "send",
+        "agent",
+        "--agent",
+        agent,
         "--json",
-        "--timeout-seconds",
+        "--timeout",
         timeout,
+        "--thinking",
+        thinking,
         "--message",
-        build_social_agent_prompt(payload),
+        build_openclaw_agent_prompt(payload),
     ]
-    if session_key:
-        command.extend(["--session-key", session_key])
-    else:
-        command.extend(["--label", label])
 
     result = subprocess.run(command, text=True, capture_output=True, check=False)
     if result.returncode != 0:
@@ -212,9 +212,9 @@ def parse_article_json(text_output: str) -> dict[str, Any]:
 def main() -> int:
     payload = read_payload()
 
-    social_article = try_social_agent(payload)
-    if social_article:
-        article = social_article
+    agent_article = try_openclaw_agent(payload)
+    if agent_article:
+        article = agent_article
     else:
         prompt = build_prompt(payload)
         model = os.environ.get("OPENCLAW_ARTICLE_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL

@@ -57,7 +57,22 @@ def test_parse_article_json_removes_markdown_fence():
     assert article["body"] == "<p>Body</p>"
 
 
-def test_build_social_agent_prompt_contains_payload_context():
+def test_extract_text_from_openclaw_agent_payload_shape():
+    response = {
+        "status": "ok",
+        "result": {
+            "payloads": [
+                {
+                    "text": '{"title":"Title","subtitle":"Sub","body":"<p>Body</p>"}',
+                }
+            ]
+        },
+    }
+
+    assert generator.extract_text(response) == '{"title":"Title","subtitle":"Sub","body":"<p>Body</p>"}'
+
+
+def test_build_openclaw_agent_prompt_contains_payload_context():
     payload = {
         "topic": "AI founders",
         "audience": "founders",
@@ -65,8 +80,9 @@ def test_build_social_agent_prompt_contains_payload_context():
         "events": [{"title": "Headline", "source": "Source", "published": "Today", "link": "https://example.com"}],
     }
 
-    prompt = generator.build_social_agent_prompt(payload)
+    prompt = generator.build_openclaw_agent_prompt(payload)
 
     assert "JSON only" in prompt
+    assert "Do not ask follow-up questions" in prompt
     assert "AI founders" in prompt
     assert "Headline" in prompt
