@@ -7,6 +7,8 @@ import subprocess
 import sys
 from datetime import date, datetime
 from pathlib import Path
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -56,6 +58,35 @@ QUALITY_REJECT_PHRASES = (
     "where attention is shifting",
     "if a company is changing its business model, accelerating ai software demand",
 )
+COMMONS_API_URL = "https://commons.wikimedia.org/w/api.php"
+IMAGE_SEARCH_USER_AGENT = "AyNcodeBot/1.0 (https://ayncode.com)"
+IMAGE_REJECT_TERMS = (
+    "ai-generated",
+    "ai generated",
+    "dall-e",
+    "midjourney",
+    "stable diffusion",
+    "bing image creator",
+    "screenshot",
+    "icon",
+    "logo",
+)
+IMAGE_ENTITY_HINTS = {
+    "alibaba": "Alibaba headquarters",
+    "amazon": "Amazon offices",
+    "anthropic": "Anthropic artificial intelligence",
+    "apple": "Apple Park",
+    "chatgpt": "OpenAI artificial intelligence",
+    "china": "China technology district",
+    "deepmind": "Google DeepMind",
+    "google": "Google headquarters",
+    "meta": "Meta headquarters",
+    "microsoft": "Microsoft headquarters",
+    "nvidia": "Nvidia headquarters",
+    "openai": "OpenAI artificial intelligence",
+    "robot": "robotics laboratory",
+    "robotics": "robotics laboratory",
+}
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -229,10 +260,11 @@ def article_generation_payload(topic: str, audience: str, angle: str, events: li
         "events": events,
         "instructions": (
             "Use OpenClaw's Codex 5.4 model to write one publish-ready AyNcode article. "
-            "Return JSON only with title, subtitle, body, and image_prompt. The body must be clean HTML. "
+            "Return JSON only with title, subtitle, body, image_prompt, and image_query. The body must be clean HTML. "
             "Use only the provided event headlines, source names, links, and research notes for current-event claims. "
             "Do not invent facts, numbers, quotes, or events. Include a short source-context section with links. "
             "Also return a strong image_prompt for a matching editorial hero image. "
+            "Also return image_query as a short search phrase for a real, relevant public-domain or freely licensed header image. "
             "Target 700 to 1100 words. Write in first person where natural, as if Ayotunde Oyeniyi wrote it. "
             "Avoid second-person phrasing like 'you should' or 'your team should'. Prefer 'I think', "
             "'I am watching', 'my read is', and direct analysis."
@@ -240,7 +272,7 @@ def article_generation_payload(topic: str, audience: str, angle: str, events: li
     }
 
 
-def generate_article_with_command(topic: str, audience: str, angle: str, events: list[dict]) -> tuple[str, str, str, str]:
+def generate_article_with_command(topic: str, audience: str, angle: str, events: list[dict]) -> tuple[str, str, str, str, str]:
     command = os.environ.get("AUTO_POST_GENERATOR_COMMAND", "").strip()
     if not command:
         raise RuntimeError("AUTO_POST_GENERATOR_COMMAND is not set.")
@@ -260,10 +292,12 @@ def generate_article_with_command(topic: str, audience: str, angle: str, events:
     article = json.loads(result.stdout)
     if not article.get("image_prompt"):
         article["image_prompt"] = f"Editorial technology illustration about {topic}, clean modern composition, premium lighting, no text overlays."
+    if not article.get("image_query"):
+        article["image_query"] = topic
     for field in ("title", "subtitle", "body"):
         if not article.get(field):
             raise RuntimeError(f"Generator response is missing '{field}'.")
-    return article["title"], article["subtitle"], article["body"], article["image_prompt"]
+    return article["title"], article["subtitle"], article["body"], article["image_prompt"], article["image_query"]
 
 
 def html_word_count(html: str) -> int:
@@ -324,6 +358,148 @@ def validate_article_quality(title: str, subtitle: str, body: str, events: list[
     issues = article_quality_issues(title, subtitle, body, events)
     if issues:
         raise RuntimeError("Article failed quality gate: " + "; ".join(issues))
+
+
+def clean_image_search_text(value: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", value or "")
+    text = re.sub(r"[\u2018\u2019]", "'", text)
+    text = re.sub(r"[\u201c\u201d]", '"', text)
+    text = re.sub(r"[^A-Za-z0-9&+.' -]+", " ", text)
+    text = re.sub(r"\s+", " ", text).strip(" -")
+    return text[:120]
+
+
+def image_search_queries(topic: str, image_query: str, events: list[dict]) -> list[str]:
+    candidates: list[str] = []
+    for value in (image_query, topic):
+        cleaned = clean_image_search_text(value)
+        if cleaned:
+            candidates.append(cleaned)
+
+    combined = f"{topic} {image_query}".casefold()
+    for term, query in IMAGE_ENTITY_HINTS.items():
+        if term in combined:
+            candidates.insert(0, query)
+
+    for event in events[:3]:
+        cleaned = clean_image_search_text(clean_event_topic(str(event.get("title", ""))))
+        if cleaned:
+            candidates.append(cleaned)
+
+    candidates.extend([
+        "artificial intelligence data center",
+        "software engineering office",
+        "cloud computing data center",
+    ])
+
+    unique_queries: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        normalized = candidate.casefold()
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            unique_queries.append(candidate)
+    return unique_queries
+
+
+def commons_metadata_value(image_info: dict, key: str) -> str:
+    metadata = image_info.get("extmetadata") or {}
+    value = metadata.get(key, {})
+    if isinstance(value, dict):
+        return re.sub(r"<[^>]+>", "", str(value.get("value", ""))).strip()
+    return ""
+
+
+def commons_candidate_score(page: dict, query: str) -> int:
+    image_info = (page.get("imageinfo") or [{}])[0]
+    width = int(image_info.get("width") or 0)
+    height = int(image_info.get("height") or 0)
+    title = str(page.get("title", ""))
+    description = commons_metadata_value(image_info, "ImageDescription")
+    categories = commons_metadata_value(image_info, "Categories")
+    searchable = f"{title} {description} {categories}".casefold()
+
+    if not image_info.get("thumburl") and not image_info.get("url"):
+        return -100
+    if not str(image_info.get("mime", "")).startswith("image/"):
+        return -100
+    if width < 700 or height < 350:
+        return -100
+    if any(term in searchable for term in IMAGE_REJECT_TERMS):
+        return -100
+
+    score = 0
+    if width >= height:
+        score += 15
+    if width >= 1200:
+        score += 8
+    if height >= 675:
+        score += 5
+    for word in re.findall(r"[a-z0-9]{4,}", query.casefold()):
+        if word in searchable:
+            score += 4
+    if commons_metadata_value(image_info, "LicenseShortName"):
+        score += 3
+    return score
+
+
+def find_wikimedia_header_image(query: str) -> dict[str, str]:
+    params = {
+        "action": "query",
+        "generator": "search",
+        "gsrsearch": f"{query} filetype:bitmap",
+        "gsrnamespace": "6",
+        "gsrlimit": str(env_int("AUTO_POST_IMAGE_SEARCH_LIMIT", 8)),
+        "prop": "imageinfo",
+        "iiprop": "url|mime|size|extmetadata",
+        "iiurlwidth": "1600",
+        "format": "json",
+        "formatversion": "2",
+    }
+    request = Request(
+        f"{COMMONS_API_URL}?{urlencode(params)}",
+        headers={"User-Agent": IMAGE_SEARCH_USER_AGENT},
+    )
+    with urlopen(request, timeout=env_int("AUTO_POST_IMAGE_SEARCH_TIMEOUT", 15)) as response:
+        payload = json.load(response)
+
+    pages = payload.get("query", {}).get("pages", [])
+    scored_pages = [
+        (commons_candidate_score(page, query), page)
+        for page in pages
+        if isinstance(page, dict)
+    ]
+    scored_pages = [(score, page) for score, page in scored_pages if score >= 0]
+    if not scored_pages:
+        return {}
+
+    _score, page = sorted(scored_pages, key=lambda item: item[0], reverse=True)[0]
+    image_info = (page.get("imageinfo") or [{}])[0]
+    artist = commons_metadata_value(image_info, "Artist")
+    license_name = commons_metadata_value(image_info, "LicenseShortName")
+    credit_parts = [part for part in (artist, license_name) if part]
+    return {
+        "url": str(image_info.get("thumburl") or image_info.get("url") or ""),
+        "source_url": str(image_info.get("descriptionurl") or ""),
+        "credit": " / ".join(credit_parts),
+        "query": query,
+    }
+
+
+def find_topic_header_image(topic: str, image_query: str, events: list[dict]) -> dict[str, str]:
+    if not env_bool("AUTO_POST_USE_IMAGE_SEARCH", True):
+        return {}
+
+    for query in image_search_queries(topic, image_query, events):
+        try:
+            image = find_wikimedia_header_image(query)
+        except Exception as exc:
+            print(f"Warning: image search failed for '{query}': {exc}", file=sys.stderr)
+            continue
+        if image.get("url"):
+            print(f"Selected Wikimedia header image for query: {query}")
+            return image
+    return {}
 
 
 def generate_article_image(post_slug: str, image_prompt: str) -> str:
@@ -440,9 +616,10 @@ def main() -> int:
 
     used_generator = False
     image_prompt = f"Editorial technology illustration about {topic_for_generation}, clean modern composition, premium lighting, no text overlays."
+    image_query = topic_for_generation
     if use_generator_command:
         try:
-            generated_title, subtitle, body, image_prompt = generate_article_with_command(topic_for_generation, audience, angle, events)
+            generated_title, subtitle, body, image_prompt, image_query = generate_article_with_command(topic_for_generation, audience, angle, events)
             print("Generated article with external generator command.")
             used_generator = True
         except Exception as exc:
@@ -469,11 +646,13 @@ def main() -> int:
     final_title = build_today_title(title_source)
     published_at = datetime.now().strftime("%B %d, %Y %I:%M %p")
 
+    searched_image = find_topic_header_image(topic_for_generation, image_query, events) if not img_url else {}
     generated_img_url = ""
-    try:
-        generated_img_url = generate_article_image(post_slug, image_prompt)
-    except Exception:
-        generated_img_url = ""
+    if not img_url and not searched_image.get("url"):
+        try:
+            generated_img_url = generate_article_image(post_slug, image_prompt)
+        except Exception:
+            generated_img_url = ""
 
     new_post = {
         "slug": post_slug,
@@ -485,8 +664,11 @@ def main() -> int:
         "topic": topic_for_generation,
         "audience": audience,
         "event_query": event_query,
-        "img_url": img_url or generated_img_url or generate_topic_cover(topic_for_generation, audience),
+        "img_url": img_url or searched_image.get("url") or generated_img_url or generate_topic_cover(topic_for_generation, audience),
         "image_prompt": image_prompt,
+        "image_query": image_query,
+        "image_source_url": searched_image.get("source_url", ""),
+        "image_credit": searched_image.get("credit", ""),
         "body": body,
     }
 

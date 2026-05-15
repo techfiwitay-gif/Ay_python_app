@@ -32,14 +32,15 @@ def build_openclaw_agent_prompt(payload: dict[str, Any]) -> str:
         "You are a non-interactive article generator. Do not ask follow-up questions. "
         "Prepare a publish-ready AyNcode tech article in Ayotunde Oyeniyi's voice. "
         "Use the supplied topic, audience, angle, and recent event list to produce JSON only "
-        "with exactly these keys: title, subtitle, body, image_prompt. "
+        "with exactly these keys: title, subtitle, body, image_prompt, image_query. "
         "The body must be clean HTML using tags like <p>, <h2>, <ul>, <li>, <a>. "
         "Do not include markdown fences or extra commentary. "
         "Use only the provided event headlines for current-event claims. "
         "Do not invent facts, quotes, statistics, or company statements. "
         "Write in first person where natural. Avoid second-person advice like 'you should' or 'your team should'. "
         "Prefer direct editorial analysis using phrases such as 'I am watching', 'my read is', and 'I think'. "
-        "Include a short source-context section with links. Add one strong image prompt for a matching editorial visual.\n\n"
+        "Include a short source-context section with links. Add one strong image prompt for a matching editorial visual. "
+        "Add image_query as a concise phrase for finding a real, relevant public-domain or freely licensed header photo.\n\n"
         f"Payload:\n{json.dumps(payload, ensure_ascii=False)}"
     )
 
@@ -84,7 +85,7 @@ def build_prompt(payload: dict[str, Any]) -> str:
     topic = payload.get("topic", "")
     audience = payload.get("audience", "")
     angle = payload.get("angle", "")
-    instructions = payload.get("instructions", "Return JSON only with title, subtitle, body, and image_prompt.")
+    instructions = payload.get("instructions", "Return JSON only with title, subtitle, body, image_prompt, and image_query.")
     events = payload.get("events", []) or []
 
     event_lines = []
@@ -105,6 +106,7 @@ Return JSON only, with exactly these top-level keys:
 - subtitle
 - body
 - image_prompt
+- image_query
 
 Requirements:
 - body must be clean HTML using tags like <p>, <h2>, <ul>, <li>, <a>
@@ -117,6 +119,7 @@ Requirements:
 - prefer direct editorial analysis: "I think", "my read is", "I am watching"
 - include a short source-context section with links
 - image_prompt must describe one strong editorial hero image for this article
+- image_query must be a concise search phrase for a real, relevant public-domain or freely licensed header photo
 - no text overlays inside the image prompt
 - target 700 to 1100 words
 - make it practical and useful without sounding like generic advice copy
@@ -245,6 +248,8 @@ def main() -> int:
 
     if not isinstance(article.get("image_prompt"), str) or not article.get("image_prompt", "").strip():
         article["image_prompt"] = f"Editorial technology illustration about {payload.get('topic', 'AI news')}, clean modern composition, premium lighting, no text overlays."
+    if not isinstance(article.get("image_query"), str) or not article.get("image_query", "").strip():
+        article["image_query"] = str(payload.get("topic", "artificial intelligence technology"))
 
     for field in ("title", "subtitle", "body"):
         if not isinstance(article.get(field), str) or not article[field].strip():
@@ -255,6 +260,7 @@ def main() -> int:
         "subtitle": article["subtitle"].strip(),
         "body": article["body"].strip(),
         "image_prompt": article["image_prompt"].strip(),
+        "image_query": article["image_query"].strip(),
     }, ensure_ascii=False))
     return 0
 
