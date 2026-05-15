@@ -2,8 +2,11 @@
   <div class="container footer-grid">
     <div>
       <a class="footer-brand" href="{{ url_for('get_all_posts') }}">
-        <span class="brand-mark">A</span>
-        <span>AyNcode</span>
+        <span class="brand-mark" aria-hidden="true">A</span>
+        <span class="brand-copy">
+          <span>AyNcode</span>
+          <small>Build notes</small>
+        </span>
       </a>
       <p>My practical notes on software, automation, AI, and building useful tools.</p>
     </div>
@@ -15,7 +18,7 @@
         <a href="{{ url_for('openclaw') }}">OpenClaw</a>
       </div>
       <div class="social-links">
-        <a href="#" class="social-icon" aria-label="Twitter">
+        <a href="https://x.com/ayncode" class="social-icon" aria-label="X" target="_blank" rel="noopener noreferrer">
           <i class="fab fa-twitter"></i>
         </a>
         <a href="https://github.com/ay1ncode" class="social-icon" aria-label="GitHub">
