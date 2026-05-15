@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import date, datetime
@@ -43,6 +44,17 @@ LOW_FIT_TOPIC_TERMS = (
     "top picks",
     "analyst",
     "price target",
+)
+QUALITY_REJECT_PHRASES = (
+    "&nbsp;",
+    "nbsp",
+    "start with the problem",
+    "this article focuses on",
+    "the article is strongest when it stays close to the sources",
+    "the useful part is not the headline by itself, but the specific pattern it points to",
+    "deserves attention only where",
+    "where attention is shifting",
+    "if a company is changing its business model, accelerating ai software demand",
 )
 
 
@@ -254,6 +266,66 @@ def generate_article_with_command(topic: str, audience: str, angle: str, events:
     return article["title"], article["subtitle"], article["body"], article["image_prompt"]
 
 
+def html_word_count(html: str) -> int:
+    text = re.sub(r"<[^>]+>", " ", html)
+    return len(re.findall(r"\b[\w'-]+\b", text))
+
+
+def article_quality_issues(title: str, subtitle: str, body: str, events: list[dict]) -> list[str]:
+    issues: list[str] = []
+    combined = f"{title}\n{subtitle}\n{body}"
+    normalized = combined.casefold()
+
+    missing_fields = [
+        field_name
+        for field_name, value in (("title", title), ("subtitle", subtitle), ("body", body))
+        if not str(value).strip()
+    ]
+    if missing_fields:
+        issues.append(f"missing required fields: {', '.join(missing_fields)}")
+
+    word_count = html_word_count(body)
+    if word_count < 450:
+        issues.append(f"article is too short: {word_count} words")
+
+    if body.count("<h2") < 4:
+        issues.append("article needs at least four section headings")
+
+    if "source context" not in normalized:
+        issues.append("article needs a source-context section")
+
+    if events and "href=" not in body:
+        issues.append("article needs source links")
+
+    for phrase in QUALITY_REJECT_PHRASES:
+        if phrase in normalized:
+            issues.append(f"contains generic/template phrase: {phrase}")
+
+    if re.search(r"\b[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3}\s+Why\b", combined):
+        issues.append("contains a source/title extraction artifact ending in 'Why'")
+
+    if re.search(r"\b(The Indian Express|Analytics Insight|The Verge|Reuters|Bloomberg|CNBC)\s+Why\b", combined):
+        issues.append("contains a source-name extraction artifact")
+
+    current_event_sources = {
+        str(event.get("source", "")).strip().casefold()
+        for event in events
+        if str(event.get("source", "")).strip()
+    }
+    if events and current_event_sources:
+        mentions_source = any(source and source in normalized for source in current_event_sources)
+        if not mentions_source:
+            issues.append("article does not mention any current source by name")
+
+    return issues
+
+
+def validate_article_quality(title: str, subtitle: str, body: str, events: list[dict]) -> None:
+    issues = article_quality_issues(title, subtitle, body, events)
+    if issues:
+        raise RuntimeError("Article failed quality gate: " + "; ".join(issues))
+
+
 def generate_article_image(post_slug: str, image_prompt: str) -> str:
     if not env_bool("AUTO_POST_USE_IMAGE_GENERATION", False):
         return ""
@@ -332,6 +404,7 @@ def main() -> int:
     mode = env_str("AUTO_POST_MODE", "skip").lower()
     use_generator_command = env_bool("AUTO_POST_USE_GENERATOR_COMMAND", True)
     require_generator = env_bool("AUTO_POST_REQUIRE_GENERATOR", False)
+    enforce_quality = env_bool("AUTO_POST_ENFORCE_QUALITY", True)
     should_commit = args.commit or args.push or env_bool("AUTO_POST_GIT_COMMIT", False)
     should_push = args.push or env_bool("AUTO_POST_GIT_PUSH", False)
 
@@ -382,6 +455,14 @@ def main() -> int:
     else:
         with app.app_context():
             generated_title, subtitle, body = generate_article(topic_for_generation, audience, angle, events=events)
+
+    if enforce_quality:
+        try:
+            validate_article_quality(generated_title, subtitle, body, events)
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            print("Skipping auto publish so a rough draft is not committed.", file=sys.stderr)
+            return 6
 
     title_source = generated_title if used_generator else topic_for_generation
     post_slug = build_post_slug(title_source)
