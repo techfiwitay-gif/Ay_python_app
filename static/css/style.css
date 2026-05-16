@@ -239,7 +239,7 @@ p {
 }
 
 .overview-item {
-    padding: 1.05rem;
+    padding: 0.45rem 0.7rem;
     border-right: 1px solid var(--line);
 }
 
@@ -250,14 +250,14 @@ p {
 .overview-item span {
     display: block;
     color: var(--ink);
-    font-size: clamp(1.35rem, 2.3vw, 1.9rem);
+    font-size: 0.72rem;
     font-weight: 900;
     line-height: 1;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.15rem;
 }
 
 .overview-item p {
-    font-size: 0.76rem;
+    font-size: 0.48rem;
     font-weight: 800;
     text-transform: uppercase;
 }
