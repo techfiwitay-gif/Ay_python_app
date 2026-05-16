@@ -1,38 +1,6 @@
 {% include "header.html" %}
 
 <main class="container page-stack">
-  <section class="overview-strip" aria-label="Site overview">
-    <div class="overview-item">
-      <span>{{ stats.posts }}</span>
-      <p>Posts</p>
-    </div>
-    <div class="overview-item">
-      <span>{{ stats.comments }}</span>
-      <p>Comments</p>
-    </div>
-    <div class="overview-item">
-      <span>{{ stats.views }}</span>
-      <p>Views</p>
-    </div>
-    <div class="overview-item">
-      <span>{{ stats.likes }}</span>
-      <p>Likes</p>
-    </div>
-  </section>
-
-  {% if is_admin %}
-  <section class="admin-command">
-    <div>
-      <p class="section-kicker">Creator tools</p>
-      <h2>Publish faster with guided drafting.</h2>
-    </div>
-    <div class="button-row">
-      <a class="btn btn-primary" href="{{ url_for('generate_post') }}">Generate article</a>
-      <a class="btn btn-secondary" href="{{ url_for('add_new_post') }}">New post</a>
-    </div>
-  </section>
-  {% endif %}
-
   <section class="content-toolbar">
     <div>
       <p class="section-kicker">Latest writing</p>
@@ -128,6 +96,38 @@
     {% endif %}
     {% endfor %}
   </div>
+  {% endif %}
+
+  <section class="overview-strip" aria-label="Site overview">
+    <div class="overview-item">
+      <span>{{ stats.posts }}</span>
+      <p>Posts</p>
+    </div>
+    <div class="overview-item">
+      <span>{{ stats.comments }}</span>
+      <p>Comments</p>
+    </div>
+    <div class="overview-item">
+      <span>{{ stats.views }}</span>
+      <p>Views</p>
+    </div>
+    <div class="overview-item">
+      <span>{{ stats.likes }}</span>
+      <p>Likes</p>
+    </div>
+  </section>
+
+  {% if is_admin %}
+  <section class="admin-command">
+    <div>
+      <p class="section-kicker">Creator tools</p>
+      <h2>Publish faster with guided drafting.</h2>
+    </div>
+    <div class="button-row">
+      <a class="btn btn-primary" href="{{ url_for('generate_post') }}">Generate article</a>
+      <a class="btn btn-secondary" href="{{ url_for('add_new_post') }}">New post</a>
+    </div>
+  </section>
   {% endif %}
 </main>
 
