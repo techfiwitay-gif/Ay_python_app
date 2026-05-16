@@ -8,6 +8,10 @@
 
 <main class="container">
   <article class="article-shell">
+    <div class="post-body">
+      {{ post.body|safe }}
+    </div>
+
     <div class="article-meta">
       <span><i class="fas fa-user"></i> {{ post.author.name }}</span>
       <span><i class="far fa-calendar"></i> {{ post.published_at or post.date }}</span>
@@ -40,10 +44,6 @@
         <button class="reaction-btn reaction-btn--muted" type="submit"><i class="far fa-thumbs-down"></i> Downvote</button>
       </form>
     </section>
-
-    <div class="post-body">
-      {{ post.body|safe }}
-    </div>
 
     {% if is_admin %}
     <div class="article-actions">
