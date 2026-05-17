@@ -37,8 +37,9 @@ def build_openclaw_agent_prompt(payload: dict[str, Any]) -> str:
         "Do not include markdown fences or extra commentary. "
         "Use only the provided event headlines for current-event claims. "
         "Do not invent facts, quotes, statistics, or company statements. "
-        "Write in first person where natural. Avoid second-person advice like 'you should' or 'your team should'. "
-        "Prefer direct editorial analysis using phrases such as 'I am watching', 'my read is', and 'I think'. "
+        "The article can be a straightforward news report, a short analysis, or a practical explainer. "
+        "Do not force a founder angle unless the source story is specifically about founders or startups. "
+        "Use first person sparingly only when analysis needs a clear point of view. Avoid second-person advice like 'you should' or 'your team should'. "
         "Include a short source-context section with links. Add one strong image prompt for a matching editorial visual. "
         "Add image_query as a concise phrase for finding a real, relevant public-domain or freely licensed header photo.\n\n"
         f"Payload:\n{json.dumps(payload, ensure_ascii=False)}"
@@ -114,9 +115,10 @@ Requirements:
 - do not include any prose before or after the JSON
 - use only the provided event headlines for current-event claims
 - do not invent facts, quotes, statistics, or company statements
-- write in first person where natural, as if I wrote it
+- the article can be a straightforward news report, short analysis, or practical explainer
+- do not force a founder angle unless the source story is specifically about founders or startups
+- use first person sparingly only when analysis needs a clear point of view
 - avoid second-person advice like "you should" or "your team should"
-- prefer direct editorial analysis: "I think", "my read is", "I am watching"
 - include a short source-context section with links
 - image_prompt must describe one strong editorial hero image for this article
 - image_query must be a concise search phrase for a real, relevant public-domain or freely licensed header photo

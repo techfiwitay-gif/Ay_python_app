@@ -27,7 +27,7 @@ from main import (
 
 DEFAULT_TOPIC = "AI automation for everyday business workflows"
 DEFAULT_AUDIENCE = "developers"
-DEFAULT_ANGLE = "Focus on practical, real-world implementation steps, tradeoffs, and useful examples."
+DEFAULT_ANGLE = "Report the news clearly, then add concise context where it helps readers understand why it matters."
 LOW_FIT_SOURCES = (
     "the motley fool",
     "tradingview",
@@ -265,9 +265,9 @@ def article_generation_payload(topic: str, audience: str, angle: str, events: li
             "Do not invent facts, numbers, quotes, or events. Include a short source-context section with links. "
             "Also return a strong image_prompt for a matching editorial hero image. "
             "Also return image_query as a short search phrase for a real, relevant public-domain or freely licensed header image. "
-            "Target 700 to 1100 words. Write in first person where natural, as if Ayotunde Oyeniyi wrote it. "
-            "Avoid second-person phrasing like 'you should' or 'your team should'. Prefer 'I think', "
-            "'I am watching', 'my read is', and direct analysis."
+            "Target 650 to 1000 words. The article may be a straightforward news report, a short analysis, or a practical explainer. "
+            "Do not force a founder angle unless the source story is specifically about founders or startups. "
+            "Use first person sparingly only when analysis needs a clear point of view. Avoid second-person phrasing like 'you should' or 'your team should'."
         ),
     }
 
@@ -379,7 +379,7 @@ def image_search_queries(topic: str, image_query: str, events: list[dict]) -> li
     combined = f"{topic} {image_query}".casefold()
     for term, query in IMAGE_ENTITY_HINTS.items():
         if term in combined:
-            candidates.insert(0, query)
+            candidates.append(query)
 
     for event in events[:3]:
         cleaned = clean_image_search_text(clean_event_topic(str(event.get("title", ""))))
@@ -400,6 +400,18 @@ def image_search_queries(topic: str, image_query: str, events: list[dict]) -> li
             seen.add(normalized)
             unique_queries.append(candidate)
     return unique_queries
+
+
+def normalized_image_url(value: str) -> str:
+    return str(value or "").split("?", 1)[0].strip().lower()
+
+
+def used_image_urls_from_posts(posts: list[dict]) -> set[str]:
+    return {
+        normalized_image_url(post.get("img_url", ""))
+        for post in posts
+        if isinstance(post, dict) and post.get("img_url")
+    }
 
 
 def commons_metadata_value(image_info: dict, key: str) -> str:
@@ -443,7 +455,7 @@ def commons_candidate_score(page: dict, query: str) -> int:
     return score
 
 
-def find_wikimedia_header_image(query: str) -> dict[str, str]:
+def find_wikimedia_header_image(query: str, used_image_urls: set[str] | None = None) -> dict[str, str]:
     params = {
         "action": "query",
         "generator": "search",
@@ -473,26 +485,32 @@ def find_wikimedia_header_image(query: str) -> dict[str, str]:
     if not scored_pages:
         return {}
 
-    _score, page = sorted(scored_pages, key=lambda item: item[0], reverse=True)[0]
-    image_info = (page.get("imageinfo") or [{}])[0]
-    artist = commons_metadata_value(image_info, "Artist")
-    license_name = commons_metadata_value(image_info, "LicenseShortName")
-    credit_parts = [part for part in (artist, license_name) if part]
-    return {
-        "url": str(image_info.get("thumburl") or image_info.get("url") or ""),
-        "source_url": str(image_info.get("descriptionurl") or ""),
-        "credit": " / ".join(credit_parts),
-        "query": query,
-    }
+    used_image_urls = used_image_urls or set()
+    for _score, page in sorted(scored_pages, key=lambda item: item[0], reverse=True):
+        image_info = (page.get("imageinfo") or [{}])[0]
+        image_url = str(image_info.get("thumburl") or image_info.get("url") or "")
+        if normalized_image_url(image_url) in used_image_urls:
+            continue
+        artist = commons_metadata_value(image_info, "Artist")
+        license_name = commons_metadata_value(image_info, "LicenseShortName")
+        credit_parts = [part for part in (artist, license_name) if part]
+        return {
+            "url": image_url,
+            "source_url": str(image_info.get("descriptionurl") or ""),
+            "credit": " / ".join(credit_parts),
+            "query": query,
+        }
+    return {}
 
 
-def find_topic_header_image(topic: str, image_query: str, events: list[dict]) -> dict[str, str]:
+def find_topic_header_image(topic: str, image_query: str, events: list[dict], existing_posts: list[dict] | None = None) -> dict[str, str]:
     if not env_bool("AUTO_POST_USE_IMAGE_SEARCH", True):
         return {}
 
+    used_image_urls = used_image_urls_from_posts(existing_posts or [])
     for query in image_search_queries(topic, image_query, events):
         try:
-            image = find_wikimedia_header_image(query)
+            image = find_wikimedia_header_image(query, used_image_urls=used_image_urls)
         except Exception as exc:
             print(f"Warning: image search failed for '{query}': {exc}", file=sys.stderr)
             continue
@@ -646,7 +664,7 @@ def main() -> int:
     final_title = build_today_title(title_source)
     published_at = datetime.now().strftime("%B %d, %Y %I:%M %p")
 
-    searched_image = find_topic_header_image(topic_for_generation, image_query, events) if not img_url else {}
+    searched_image = find_topic_header_image(topic_for_generation, image_query, events, existing_posts=posts) if not img_url else {}
     generated_img_url = ""
     if not img_url and not searched_image.get("url"):
         try:

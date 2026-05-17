@@ -150,3 +150,81 @@ def test_article_quality_accepts_specific_sourced_article():
     )
 
     assert issues == []
+
+
+def test_image_search_queries_preserve_model_query_before_company_fallback():
+    queries = auto_publish.image_search_queries(
+        "Microsoft AI bundling probe",
+        "software antitrust hearing courtroom",
+        [{"title": "Microsoft faces AI bundling probe - Reuters"}],
+    )
+
+    assert queries[0] == "software antitrust hearing courtroom"
+    assert "Microsoft headquarters" in queries
+    assert queries.index("software antitrust hearing courtroom") < queries.index("Microsoft headquarters")
+
+
+def test_find_wikimedia_header_image_skips_urls_already_used(monkeypatch):
+    first_url = "https://upload.wikimedia.org/example/microsoft-building.jpg?width=1600"
+    second_url = "https://upload.wikimedia.org/example/azure-datacenter.jpg?width=1600"
+    payload = {
+        "query": {
+            "pages": [
+                {
+                    "title": "File:Microsoft building.jpg",
+                    "imageinfo": [
+                        {
+                            "width": 1600,
+                            "height": 900,
+                            "mime": "image/jpeg",
+                            "thumburl": first_url,
+                            "url": first_url,
+                            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Microsoft_building.jpg",
+                            "extmetadata": {
+                                "ImageDescription": {"value": "Microsoft headquarters"},
+                                "LicenseShortName": {"value": "CC BY-SA 4.0"},
+                            },
+                        }
+                    ],
+                },
+                {
+                    "title": "File:Azure datacenter.jpg",
+                    "imageinfo": [
+                        {
+                            "width": 1600,
+                            "height": 900,
+                            "mime": "image/jpeg",
+                            "thumburl": second_url,
+                            "url": second_url,
+                            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Azure_datacenter.jpg",
+                            "extmetadata": {
+                                "ImageDescription": {"value": "Azure cloud datacenter"},
+                                "LicenseShortName": {"value": "CC BY-SA 4.0"},
+                            },
+                        }
+                    ],
+                },
+            ]
+        }
+    }
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            import json
+
+            return json.dumps(payload).encode("utf-8")
+
+    monkeypatch.setattr(auto_publish, "urlopen", lambda *_args, **_kwargs: FakeResponse())
+
+    image = auto_publish.find_wikimedia_header_image(
+        "Microsoft AI",
+        used_image_urls={auto_publish.normalized_image_url(first_url)},
+    )
+
+    assert image["url"] == second_url
