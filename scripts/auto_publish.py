@@ -70,6 +70,7 @@ IMAGE_REJECT_TERMS = (
     "screenshot",
     "icon",
     "logo",
+    "building92microsoft",
 )
 IMAGE_ENTITY_HINTS = {
     "alibaba": "Alibaba headquarters",
@@ -81,7 +82,7 @@ IMAGE_ENTITY_HINTS = {
     "deepmind": "Google DeepMind",
     "google": "Google headquarters",
     "meta": "Meta headquarters",
-    "microsoft": "Microsoft headquarters",
+    "microsoft": "cloud computing data center",
     "nvidia": "Nvidia headquarters",
     "openai": "OpenAI artificial intelligence",
     "robot": "robotics laboratory",

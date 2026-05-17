@@ -160,8 +160,8 @@ def test_image_search_queries_preserve_model_query_before_company_fallback():
     )
 
     assert queries[0] == "software antitrust hearing courtroom"
-    assert "Microsoft headquarters" in queries
-    assert queries.index("software antitrust hearing courtroom") < queries.index("Microsoft headquarters")
+    assert "cloud computing data center" in queries
+    assert queries.index("software antitrust hearing courtroom") < queries.index("cloud computing data center")
 
 
 def test_find_wikimedia_header_image_skips_urls_already_used(monkeypatch):
