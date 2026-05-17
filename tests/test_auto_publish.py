@@ -228,3 +228,16 @@ def test_find_wikimedia_header_image_skips_urls_already_used(monkeypatch):
     )
 
     assert image["url"] == second_url
+
+
+def test_openclaw_publish_default_query_is_diverse():
+    script = (Path(__file__).resolve().parents[1] / "scripts" / "openclaw_publish.sh").read_text(encoding="utf-8")
+
+    assert "AUTO_POST_TOPIC=\"${AUTO_POST_TOPIC:-AI tech news}\"" in script
+    assert "AUTO_POST_AUDIENCE=\"${AUTO_POST_AUDIENCE:-founders}\"" in script
+    assert "OpenAI" in script
+    assert "Anthropic" in script
+    assert "Google DeepMind" in script
+    assert "Microsoft AI" in script
+    assert "Nvidia" in script
+    assert "focus on practical implications for builders, founders, and operators" in script

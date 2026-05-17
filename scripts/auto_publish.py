@@ -27,7 +27,7 @@ from main import (
 
 DEFAULT_TOPIC = "AI automation for everyday business workflows"
 DEFAULT_AUDIENCE = "developers"
-DEFAULT_ANGLE = "Report the news clearly, then add concise context where it helps readers understand why it matters."
+DEFAULT_ANGLE = "Keep the article tightly tied to a recent tech news topic and focus on practical implications for builders, founders, and operators."
 LOW_FIT_SOURCES = (
     "the motley fool",
     "tradingview",
@@ -265,9 +265,9 @@ def article_generation_payload(topic: str, audience: str, angle: str, events: li
             "Do not invent facts, numbers, quotes, or events. Include a short source-context section with links. "
             "Also return a strong image_prompt for a matching editorial hero image. "
             "Also return image_query as a short search phrase for a real, relevant public-domain or freely licensed header image. "
-            "Target 650 to 1000 words. The article may be a straightforward news report, a short analysis, or a practical explainer. "
-            "Do not force a founder angle unless the source story is specifically about founders or startups. "
-            "Use first person sparingly only when analysis needs a clear point of view. Avoid second-person phrasing like 'you should' or 'your team should'."
+            "Target 700 to 1100 words. Write in first person where natural, as if Ayotunde Oyeniyi wrote it. "
+            "Focus on what the news means for builders, founders, and operators. Avoid second-person phrasing like 'you should' or 'your team should'. "
+            "Prefer 'I think', 'I am watching', 'my read is', and direct analysis."
         ),
     }
 
