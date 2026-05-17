@@ -79,7 +79,7 @@ def test_homepage_shows_empty_state(client):
 
     assert response.status_code == 200
     assert b"The blog is ready" in response.data
-    assert b"Posts" in response.data
+    assert b"Latest writing" in response.data
 
 
 def test_sync_generated_content_posts_imports_repo_content(client, app_module, monkeypatch, tmp_path):
@@ -373,7 +373,7 @@ def test_reset_password_updates_password(client, app_module):
     )
 
     assert login_response.status_code == 200
-    assert b"Posts" in login_response.data
+    assert b"Latest writing" in login_response.data
 
 
 def test_logged_in_user_can_comment(client, app_module):
