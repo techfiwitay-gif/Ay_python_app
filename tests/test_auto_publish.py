@@ -84,6 +84,29 @@ def test_choose_generation_topic_returns_base_topic_when_only_low_fit_events(mon
     assert topic == "AI tech news"
 
 
+def test_collect_fallback_events_stops_after_credible_targeted_query(monkeypatch):
+    calls = []
+
+    def fake_fetch(query, limit=12, hours=None):
+        calls.append((query, limit, hours))
+        if query == "OpenAI AI news":
+            return [
+                {
+                    "title": "OpenAI and Dell Technologies partner to bring Codex to enterprise environments - OpenAI",
+                    "source": "OpenAI",
+                    "link": "https://example.com/openai-dell",
+                }
+            ]
+        return []
+
+    monkeypatch.setattr(auto_publish, "fetch_recent_events", fake_fetch)
+
+    events = auto_publish.collect_fallback_events("AI tech news", limit=12, hours=24)
+
+    assert events[0]["title"].startswith("OpenAI and Dell Technologies")
+    assert calls == [("OpenAI AI news", 12, 48)]
+
+
 def test_blank_github_action_env_values_fall_back_to_defaults(monkeypatch):
     monkeypatch.setenv("AUTO_POST_MODE", "")
     monkeypatch.setenv("AUTO_POST_TOPIC", "")

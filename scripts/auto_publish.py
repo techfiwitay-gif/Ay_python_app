@@ -28,6 +28,16 @@ from main import (
 DEFAULT_TOPIC = "AI automation for everyday business workflows"
 DEFAULT_AUDIENCE = "developers"
 DEFAULT_ANGLE = "Keep the article tightly tied to a recent tech news topic and focus on practical implications for builders, founders, and operators."
+DEFAULT_FALLBACK_EVENT_QUERIES = (
+    "OpenAI AI news",
+    "Anthropic AI news",
+    "Google DeepMind AI news",
+    "Nvidia AI chips news",
+    "AI developer tools news",
+    "robotics artificial intelligence news",
+    "enterprise AI software news",
+    "cybersecurity AI news",
+)
 LOW_FIT_SOURCES = (
     "the motley fool",
     "tradingview",
@@ -115,6 +125,13 @@ def env_int(name: str, default: int) -> int:
         return int(value)
     except ValueError:
         return default
+
+
+def env_list(name: str, default: tuple[str, ...]) -> list[str]:
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return list(default)
+    return [item.strip() for item in re.split(r"\s*(?:\|\||;|\n)\s*", value) if item.strip()]
 
 
 def build_today_title(topic: str) -> str:
@@ -231,6 +248,42 @@ def choose_generation_topic(topic: str, events: list[dict], existing_posts: list
             return candidate
 
     return candidates[0]
+
+
+def event_identity(event: dict) -> str:
+    return str(event.get("link") or event.get("title") or "").casefold().strip()
+
+
+def unique_events(events: list[dict]) -> list[dict]:
+    unique: list[dict] = []
+    seen: set[str] = set()
+    for event in events:
+        identity = event_identity(event)
+        if not identity or identity in seen:
+            continue
+        seen.add(identity)
+        unique.append(event)
+    return unique
+
+
+def collect_fallback_events(initial_query: str, limit: int, hours: int | None) -> list[dict]:
+    fallback_events: list[dict] = []
+    fallback_hours = max(hours or 0, env_int("AUTO_POST_FALLBACK_EVENT_HOURS", 48))
+
+    for query in env_list("AUTO_POST_FALLBACK_EVENT_QUERIES", DEFAULT_FALLBACK_EVENT_QUERIES):
+        if query.casefold().strip() == initial_query.casefold().strip():
+            continue
+        try:
+            fallback_events.extend(fetch_recent_events(query, limit=limit, hours=fallback_hours))
+        except Exception as exc:
+            print(f"Warning: fallback event search failed for '{query}': {exc}", file=sys.stderr)
+            continue
+
+        fallback_events = unique_events(fallback_events)
+        if candidate_topics_from_events(fallback_events):
+            return fallback_events[:limit]
+
+    return unique_events(fallback_events)[:limit]
 
 
 def load_posts(path: Path) -> list[dict]:
@@ -617,6 +670,15 @@ def main() -> int:
     if use_real_events:
         try:
             events = fetch_recent_events(event_query, limit=event_limit, hours=event_hours)
+            if (
+                env_bool("AUTO_POST_DYNAMIC_TOPIC", True)
+                and env_bool("AUTO_POST_REQUIRE_CREDIBLE_EVENT", True)
+                and not candidate_topics_from_events(events)
+            ):
+                fallback_events = collect_fallback_events(event_query, limit=event_limit, hours=event_hours)
+                if candidate_topics_from_events(fallback_events):
+                    print("Using targeted fallback event search after broad query returned no credible candidate.")
+                    events = fallback_events
             if env_bool("AUTO_POST_RESEARCH_EVENTS", True):
                 events = enrich_events_with_research(events, limit=research_limit)
         except Exception as exc:
