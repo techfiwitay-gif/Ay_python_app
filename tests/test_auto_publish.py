@@ -253,6 +253,69 @@ def test_find_wikimedia_header_image_skips_urls_already_used(monkeypatch):
     assert image["url"] == second_url
 
 
+def test_wikimedia_header_image_rejects_prompt_study_charts(monkeypatch):
+    chart_url = "https://upload.wikimedia.org/example/ai-psychology-study.png"
+    data_center_url = "https://upload.wikimedia.org/example/data-center.jpg"
+    payload = {
+        "query": {
+            "pages": [
+                {
+                    "title": "File:Artificial intelligence Psychology study.png",
+                    "imageinfo": [
+                        {
+                            "width": 1600,
+                            "height": 900,
+                            "mime": "image/png",
+                            "thumburl": chart_url,
+                            "url": chart_url,
+                            "descriptionurl": "https://commons.wikimedia.org/wiki/File:AI_study.png",
+                            "extmetadata": {
+                                "ImageDescription": {"value": "Single prompt pair psychological study with bar charts"},
+                                "LicenseShortName": {"value": "CC BY 4.0"},
+                            },
+                        }
+                    ],
+                },
+                {
+                    "title": "File:Enterprise data center.jpg",
+                    "imageinfo": [
+                        {
+                            "width": 1600,
+                            "height": 900,
+                            "mime": "image/jpeg",
+                            "thumburl": data_center_url,
+                            "url": data_center_url,
+                            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Data_center.jpg",
+                            "extmetadata": {
+                                "ImageDescription": {"value": "Enterprise data center server racks"},
+                                "LicenseShortName": {"value": "CC BY-SA 4.0"},
+                            },
+                        }
+                    ],
+                },
+            ]
+        }
+    }
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            import json
+
+            return json.dumps(payload).encode("utf-8")
+
+    monkeypatch.setattr(auto_publish, "urlopen", lambda *_args, **_kwargs: FakeResponse())
+
+    image = auto_publish.find_wikimedia_header_image("enterprise data center")
+
+    assert image["url"] == data_center_url
+
+
 def test_openclaw_publish_default_query_is_diverse():
     script = (Path(__file__).resolve().parents[1] / "scripts" / "openclaw_publish.sh").read_text(encoding="utf-8")
 
