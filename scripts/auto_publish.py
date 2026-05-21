@@ -38,6 +38,19 @@ DEFAULT_FALLBACK_EVENT_QUERIES = (
     "enterprise AI software news",
     "cybersecurity AI news",
 )
+TOPIC_ENTITY_TERMS = {
+    "alibaba": ("alibaba",),
+    "amazon": ("amazon", "aws"),
+    "anthropic": ("anthropic", "claude"),
+    "apple": ("apple", "siri"),
+    "google": ("google", "deepmind", "gemini", "alphabet"),
+    "meta": ("meta", "llama"),
+    "microsoft": ("microsoft", "msft", "azure", "copilot", "windows"),
+    "nvidia": ("nvidia", "gpu", "cuda"),
+    "openai": ("openai", "chatgpt", "codex"),
+    "perplexity": ("perplexity",),
+    "xai": ("xai", "grok"),
+}
 LOW_FIT_SOURCES = (
     "the motley fool",
     "tradingview",
@@ -216,6 +229,46 @@ def topic_relevance_score(topic: str, source: str = "") -> int:
     return score
 
 
+def topic_entities(topic: str) -> set[str]:
+    normalized = topic.casefold()
+    return {
+        entity
+        for entity, terms in TOPIC_ENTITY_TERMS.items()
+        if any(re.search(rf"\b{re.escape(term)}\b", normalized) for term in terms)
+    }
+
+
+def recent_entity_counts(posts: list[dict], limit: int | None = None) -> dict[str, int]:
+    limit = limit if limit is not None else env_int("AUTO_POST_DIVERSITY_LOOKBACK", 5)
+    counts: dict[str, int] = {}
+    for post in posts[:limit]:
+        if not isinstance(post, dict):
+            continue
+        text = " ".join(
+            str(post.get(field, ""))
+            for field in ("topic", "title", "generated_title", "subtitle")
+        )
+        for entity in topic_entities(text):
+            counts[entity] = counts.get(entity, 0) + 1
+    return counts
+
+
+def topic_diversity_penalty(topic: str, entity_counts: dict[str, int]) -> int:
+    repeat_penalty = env_int("AUTO_POST_ENTITY_REPEAT_PENALTY", 8)
+    entities = topic_entities(topic)
+    return sum(entity_counts.get(entity, 0) * repeat_penalty for entity in entities)
+
+
+def repeats_overused_entity(topic: str, entity_counts: dict[str, int]) -> bool:
+    threshold = env_int("AUTO_POST_MAX_RECENT_ENTITY_POSTS", 2)
+    return any(entity_counts.get(entity, 0) >= threshold for entity in topic_entities(topic))
+
+
+def has_diverse_candidate(candidates: list[str], existing_posts: list[dict]) -> bool:
+    entity_counts = recent_entity_counts(existing_posts)
+    return any(not repeats_overused_entity(candidate, entity_counts) for candidate in candidates)
+
+
 def is_low_fit_event(topic: str, source: str = "") -> bool:
     normalized = topic.casefold()
     normalized_source = source.casefold()
@@ -224,9 +277,10 @@ def is_low_fit_event(topic: str, source: str = "") -> bool:
     )
 
 
-def candidate_topics_from_events(events: list[dict]) -> list[str]:
+def scored_candidate_topics_from_events(events: list[dict], existing_posts: list[dict] | None = None) -> list[tuple[str, int]]:
     candidates: list[tuple[str, int]] = []
     seen: set[str] = set()
+    entity_counts = recent_entity_counts(existing_posts or [])
     for event in events:
         topic = clean_event_topic(event.get("title", ""))
         normalized = topic.casefold().strip()
@@ -235,8 +289,14 @@ def candidate_topics_from_events(events: list[dict]) -> list[str]:
         if is_low_fit_event(topic, event.get("source", "")):
             continue
         seen.add(normalized)
-        candidates.append((topic, topic_relevance_score(topic, event.get("source", ""))))
-    return [topic for topic, _score in sorted(candidates, key=lambda item: item[1], reverse=True)]
+        score = topic_relevance_score(topic, event.get("source", ""))
+        score -= topic_diversity_penalty(topic, entity_counts)
+        candidates.append((topic, score))
+    return sorted(candidates, key=lambda item: item[1], reverse=True)
+
+
+def candidate_topics_from_events(events: list[dict], existing_posts: list[dict] | None = None) -> list[str]:
+    return [topic for topic, _score in scored_candidate_topics_from_events(events, existing_posts=existing_posts)]
 
 
 def choose_generation_topic(topic: str, events: list[dict], existing_posts: list[dict] | None = None) -> str:
@@ -245,7 +305,7 @@ def choose_generation_topic(topic: str, events: list[dict], existing_posts: list
     if not events:
         return topic
 
-    candidates = candidate_topics_from_events(events)
+    candidates = candidate_topics_from_events(events, existing_posts=existing_posts)
     if not candidates:
         return topic
 
@@ -683,14 +743,21 @@ def main() -> int:
     if use_real_events:
         try:
             events = fetch_recent_events(event_query, limit=event_limit, hours=event_hours)
+            candidates = candidate_topics_from_events(events, existing_posts=posts)
             if (
                 env_bool("AUTO_POST_DYNAMIC_TOPIC", True)
                 and env_bool("AUTO_POST_REQUIRE_CREDIBLE_EVENT", True)
-                and not candidate_topics_from_events(events)
+                and (
+                    not candidates
+                    or (
+                        env_bool("AUTO_POST_ENFORCE_TOPIC_DIVERSITY", True)
+                        and not has_diverse_candidate(candidates, posts)
+                    )
+                )
             ):
                 fallback_events = collect_fallback_events(event_query, limit=event_limit, hours=event_hours)
-                if candidate_topics_from_events(fallback_events):
-                    print("Using targeted fallback event search after broad query returned no credible candidate.")
+                if candidate_topics_from_events(fallback_events, existing_posts=posts):
+                    print("Using targeted fallback event search for credibility or topic diversity.")
                     events = fallback_events
             if env_bool("AUTO_POST_RESEARCH_EVENTS", True):
                 events = enrich_events_with_research(events, limit=research_limit)

@@ -42,6 +42,34 @@ def test_choose_generation_topic_skips_topics_already_used(monkeypatch):
     assert topic == "Microsoft expands enterprise AI agents"
 
 
+def test_choose_generation_topic_prefers_diverse_company_after_microsoft_run(monkeypatch):
+    monkeypatch.delenv("AUTO_POST_DYNAMIC_TOPIC", raising=False)
+    topic = auto_publish.choose_generation_topic(
+        "AI tech news",
+        [
+            {"title": "Microsoft expands enterprise AI agents - The Verge", "source": "The Verge"},
+            {"title": "Anthropic acquires developer tool startup Stainless - TechCrunch", "source": "TechCrunch"},
+        ],
+        existing_posts=[
+            {"topic": "Microsoft business software faces UK antitrust probe over bundling, AI lock-in"},
+            {"topic": "Microsoft Reportedly Hunts for AI Startups as It Prepares for a Future Beyond OpenAI"},
+            {"topic": "Calabrio Workforce Management Earns the Solutions Partner with Certified Software Designation From Microsoft"},
+        ],
+    )
+
+    assert topic == "Anthropic acquires developer tool startup Stainless"
+
+
+def test_has_diverse_candidate_detects_microsoft_only_candidates(monkeypatch):
+    posts = [
+        {"topic": "Microsoft expands AI agents"},
+        {"topic": "Azure AI platform update"},
+    ]
+
+    assert auto_publish.has_diverse_candidate(["Microsoft launches new AI tools"], posts) is False
+    assert auto_publish.has_diverse_candidate(["Anthropic acquires developer tools startup"], posts) is True
+
+
 def test_choose_generation_topic_prefers_product_news_over_stock_lists(monkeypatch):
     monkeypatch.delenv("AUTO_POST_DYNAMIC_TOPIC", raising=False)
     topic = auto_publish.choose_generation_topic(
