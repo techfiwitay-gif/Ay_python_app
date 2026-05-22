@@ -807,22 +807,41 @@ textarea.form-control {
     padding-left: 1.35rem;
 }
 
-.article-base-image {
-    margin: 2.5rem auto 0;
-    max-width: 420px;
+.article-author-card {
+    align-items: center;
+    border-top: 1px solid var(--line);
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 76px 1fr;
+    margin-top: 2.5rem;
+    padding-top: 1.4rem;
 }
 
-.article-base-image img {
-    aspect-ratio: 4 / 5;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
+.article-author-card img {
+    aspect-ratio: 1;
+    background: #05070a;
+    border: 2px solid #05070a;
+    border-radius: 999px;
+    box-shadow: 0 0 0 1px var(--line), var(--shadow-sm);
     display: block;
-    height: auto;
-    max-height: 520px;
+    height: 76px;
     object-fit: cover;
     object-position: center top;
-    width: 100%;
+    width: 76px;
+}
+
+.article-author-card h2 {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    margin: 0 0 0.35rem;
+}
+
+.article-author-card p {
+    color: var(--muted);
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    line-height: 1.55;
+    margin: 0;
 }
 
 .article-actions {
@@ -1088,6 +1107,15 @@ footer a:hover {
     .engagement-actions,
     .reaction-btn {
         width: 100%;
+    }
+
+    .article-author-card {
+        grid-template-columns: 64px 1fr;
+    }
+
+    .article-author-card img {
+        height: 64px;
+        width: 64px;
     }
 
     .button-row,

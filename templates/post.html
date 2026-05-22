@@ -11,9 +11,13 @@
     <div class="post-body">
       {{ post.body|safe }}
 
-      <figure class="article-base-image">
+      <aside class="article-author-card" aria-label="About the author">
         <img src="{{ url_for('static', filename='img/ayotunde-article-base.png') }}" alt="Ayotunde Oyeniyi">
-      </figure>
+        <div>
+          <h2>Built by Ayotunde Oyeniyi</h2>
+          <p>I help builders turn software, automation, and AI ideas into useful tools, clear systems, and practical execution notes.</p>
+        </div>
+      </aside>
     </div>
 
     <div class="article-meta">
