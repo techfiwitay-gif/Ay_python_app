@@ -807,6 +807,24 @@ textarea.form-control {
     padding-left: 1.35rem;
 }
 
+.article-base-image {
+    margin: 2.5rem auto 0;
+    max-width: 420px;
+}
+
+.article-base-image img {
+    aspect-ratio: 4 / 5;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    display: block;
+    height: auto;
+    max-height: 520px;
+    object-fit: cover;
+    object-position: center top;
+    width: 100%;
+}
+
 .article-actions {
     display: flex;
     justify-content: flex-end;

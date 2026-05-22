@@ -10,6 +10,10 @@
   <article class="article-shell">
     <div class="post-body">
       {{ post.body|safe }}
+
+      <figure class="article-base-image">
+        <img src="{{ url_for('static', filename='img/ayotunde-article-base.png') }}" alt="Ayotunde Oyeniyi">
+      </figure>
     </div>
 
     <div class="article-meta">
