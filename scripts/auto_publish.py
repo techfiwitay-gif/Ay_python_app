@@ -359,6 +359,58 @@ def collect_fallback_events(initial_query: str, limit: int, hours: int | None) -
     return unique_events(fallback_events)[:limit]
 
 
+def event_topic_similarity(topic: str, event: dict) -> int:
+    event_title = clean_event_topic(str(event.get("title", "")))
+    topic_normalized = topic.casefold()
+    event_normalized = event_title.casefold()
+    if not event_normalized:
+        return 0
+    if event_normalized == topic_normalized or topic_normalized in event_normalized or event_normalized in topic_normalized:
+        return 100
+
+    topic_entities_set = topic_entities(topic)
+    event_entities_set = topic_entities(event_title)
+    score = len(topic_entities_set & event_entities_set) * 20
+
+    ignored_words = {
+        "about", "after", "agent", "agentic", "artificial", "becoming", "business", "could",
+        "from", "into", "latest", "larger", "model", "models", "news", "part", "platform",
+        "products", "raises", "signals", "system", "technology", "this", "with",
+    }
+    topic_words = {
+        word
+        for word in re.findall(r"[a-z0-9]{4,}", topic_normalized)
+        if word not in ignored_words
+    }
+    event_words = {
+        word
+        for word in re.findall(r"[a-z0-9]{4,}", event_normalized)
+        if word not in ignored_words
+    }
+    score += len(topic_words & event_words) * 4
+    return score
+
+
+def events_for_topic(topic: str, events: list[dict]) -> list[dict]:
+    if not events:
+        return []
+
+    max_events = env_int("AUTO_POST_RELEVANT_EVENT_LIMIT", 3)
+    scored_events = [
+        (event_topic_similarity(topic, event), index, event)
+        for index, event in enumerate(events)
+        if isinstance(event, dict)
+    ]
+    relevant = [
+        event
+        for score, _index, event in sorted(scored_events, key=lambda item: (-item[0], item[1]))
+        if score >= 8
+    ]
+    if relevant:
+        return relevant[:max_events]
+    return events[:1]
+
+
 def load_posts(path: Path) -> list[dict]:
     if not path.exists():
         return []
@@ -388,11 +440,12 @@ def article_generation_payload(topic: str, audience: str, angle: str, events: li
         "instructions": (
             "Use OpenClaw's Codex 5.4 model to write one publish-ready AyNcode article. "
             "Return JSON only with title, subtitle, body, image_prompt, and image_query. The body must be clean HTML. "
-            "Use only the provided event headlines, source names, links, and research notes for current-event claims. "
-            "Do not invent facts, numbers, quotes, or events. Include a short source-context section with links. "
+            "Stay tightly on the selected topic. Use the first event as the main story and only mention other events when they are directly about the same company, product, or narrow theme. "
+            "Do not force unrelated headlines into the article. Use only the provided event headlines, source names, links, and research notes for current-event claims. "
+            "Do not invent facts, numbers, quotes, or events. Include a short source-context section with links for only the sources actually used. "
             "Also return a strong image_prompt for a matching editorial hero image. "
             "Also return image_query as a short search phrase for a real, relevant public-domain or freely licensed header image. "
-            "Target 700 to 1100 words. Write in first person where natural, as if Ayotunde Oyeniyi wrote it. "
+            "Target 350 to 550 words. Use at most three <h2> sections including Source context. Write in first person where natural, as if Ayotunde Oyeniyi wrote it. "
             "Focus on what the news means for builders, founders, and operators. Avoid second-person phrasing like 'you should' or 'your team should'. "
             "Prefer 'I think', 'I am watching', 'my read is', and direct analysis."
         ),
@@ -446,11 +499,17 @@ def article_quality_issues(title: str, subtitle: str, body: str, events: list[di
         issues.append(f"missing required fields: {', '.join(missing_fields)}")
 
     word_count = html_word_count(body)
-    if word_count < 450:
+    if word_count < env_int("AUTO_POST_MIN_WORDS", 300):
         issues.append(f"article is too short: {word_count} words")
 
-    if body.count("<h2") < 4:
-        issues.append("article needs at least four section headings")
+    if word_count > env_int("AUTO_POST_MAX_WORDS", 650):
+        issues.append(f"article is too long: {word_count} words")
+
+    h2_count = body.count("<h2")
+    if h2_count < 2:
+        issues.append("article needs at least two section headings")
+    if h2_count > env_int("AUTO_POST_MAX_H2_SECTIONS", 4):
+        issues.append(f"article has too many section headings: {h2_count}")
 
     if "source context" not in normalized:
         issues.append("article needs a source-context section")
@@ -775,12 +834,13 @@ def main() -> int:
         print("No credible live event candidate found, skipping auto publish.")
         return 0
 
+    focused_events = events_for_topic(topic_for_generation, events)
     used_generator = False
     image_prompt = f"Editorial technology illustration about {topic_for_generation}, clean modern composition, premium lighting, no text overlays."
     image_query = topic_for_generation
     if use_generator_command:
         try:
-            generated_title, subtitle, body, image_prompt, image_query = generate_article_with_command(topic_for_generation, audience, angle, events)
+            generated_title, subtitle, body, image_prompt, image_query = generate_article_with_command(topic_for_generation, audience, angle, focused_events)
             print("Generated article with external generator command.")
             used_generator = True
         except Exception as exc:
@@ -789,14 +849,14 @@ def main() -> int:
                 return 5
             print(f"Warning: external generator unavailable, using local template generator: {exc}")
             with app.app_context():
-                generated_title, subtitle, body = generate_article(topic_for_generation, audience, angle, events=events)
+                generated_title, subtitle, body = generate_article(topic_for_generation, audience, angle, events=focused_events)
     else:
         with app.app_context():
-            generated_title, subtitle, body = generate_article(topic_for_generation, audience, angle, events=events)
+            generated_title, subtitle, body = generate_article(topic_for_generation, audience, angle, events=focused_events)
 
     if enforce_quality:
         try:
-            validate_article_quality(generated_title, subtitle, body, events)
+            validate_article_quality(generated_title, subtitle, body, focused_events)
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
             print("Skipping auto publish so a rough draft is not committed.", file=sys.stderr)
@@ -807,7 +867,7 @@ def main() -> int:
     final_title = build_today_title(title_source)
     published_at = datetime.now().strftime("%B %d, %Y %I:%M %p")
 
-    searched_image = find_topic_header_image(topic_for_generation, image_query, events, existing_posts=posts) if not img_url else {}
+    searched_image = find_topic_header_image(topic_for_generation, image_query, focused_events, existing_posts=posts) if not img_url else {}
     generated_img_url = ""
     if not img_url and not searched_image.get("url"):
         try:

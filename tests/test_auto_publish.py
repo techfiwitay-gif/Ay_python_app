@@ -135,6 +135,22 @@ def test_collect_fallback_events_stops_after_credible_targeted_query(monkeypatch
     assert calls == [("OpenAI AI news", 12, 48)]
 
 
+def test_events_for_topic_keeps_article_on_selected_story(monkeypatch):
+    events = [
+        {"title": "Google's AI Products Are Becoming Part of a Larger AGI System - TechTrendsKE", "source": "TechTrendsKE"},
+        {"title": "Microsoft Reshapes Workforce As AI Spending Raises New Execution Questions - simplywall.st", "source": "simplywall.st"},
+        {"title": "Fortune Adds Sebastian Herrera to Cover AI and Technology Infrastructure - citybiz", "source": "citybiz"},
+        {"title": "Google DeepMind updates Gemini robotics controls - Reuters", "source": "Reuters"},
+    ]
+
+    focused = auto_publish.events_for_topic(
+        "Google's AI Products Are Becoming Part of a Larger AGI System",
+        events,
+    )
+
+    assert [event["source"] for event in focused] == ["TechTrendsKE", "Reuters"]
+
+
 def test_blank_github_action_env_values_fall_back_to_defaults(monkeypatch):
     monkeypatch.setenv("AUTO_POST_MODE", "")
     monkeypatch.setenv("AUTO_POST_TOPIC", "")
@@ -176,20 +192,14 @@ def test_article_quality_accepts_specific_sourced_article():
     body = """
 <p>I read the Anthropic small-business headline as a workflow story first. If the reporting is accurate, the useful signal is that AI vendors are moving closer to everyday business tasks such as drafting, support, research, operations, handoffs, and internal coordination.</p>
 <h2>What the reporting points to</h2>
-<p>The lead source is The Indian Express, which describes Anthropic launching Claude automation tools for small businesses. A second related headline frames the same direction as Anthropic targeting smaller companies with a Claude business platform. I am keeping this analysis inside that boundary.</p>
+<p>The lead source is The Indian Express, which describes Anthropic launching Claude automation tools for small businesses. I am keeping the article inside that boundary because the interesting part is not a broad prediction about all AI. It is the narrower product question: how does a model company turn general intelligence into repeatable business workflow?</p>
 <h2>Why I think it matters</h2>
 <p>Small businesses usually need fewer dropped tasks, faster first drafts, cleaner customer follow-up, and a way to turn scattered information into decisions. That is why this kind of product move matters. The product has to fit into daily work without asking the team to become an AI operations department.</p>
-<h2>The builder read</h2>
-<p>My read is that Anthropic is trying to move Claude from a general assistant into packaged business infrastructure. A small-business AI tool has to be obvious about what it can do, what it needs permission to touch, and where a human should approve the result.</p>
-<p>For builders, this is a reminder that automation is a chain of small decisions: what data the system can read, what action it can take, what happens when confidence is low, and how a user can review the work before it affects a customer, a payment, or a team process.</p>
-<p>The practical implementation lesson is to design the workflow around reviewable steps. I would rather see a narrow automation that reliably prepares a support reply, labels the source context, and waits for approval than a broad assistant that quietly changes business records. That difference matters because small teams need leverage, but they also need to know why a tool made a recommendation.</p>
-<h2>What I would watch next</h2>
-<p>I would watch whether these Claude tools become specific enough for real business roles. Useful automation usually shows up as a named workflow: handling an inbound lead, preparing a weekly report, summarizing customer feedback, reconciling tasks, or drafting a response from known company context.</p>
-<p>I would also watch pricing and distribution. If Anthropic can package these tools in a way that small teams understand quickly, the product becomes less like a model subscription and more like operating software. That is where the business story gets more interesting.</p>
+<p>My builder read is simple: the winning version of this product is not the one that promises the most autonomy. It is the one that makes each step visible enough to trust. A useful workflow should show what context it used, what action it proposes, and where a person can approve the result before it touches a customer or a business record.</p>
+<p>I would watch whether Anthropic packages the work as named jobs rather than abstract AI capability. Handling an inbound lead, preparing a weekly report, summarizing support themes, and drafting a response from approved company context are clearer than saying a model can help with productivity. Specific jobs create adoption because buyers can picture the before and after.</p>
 <h2>Source context</h2>
-<p>These are the live headlines I used as the factual frame:</p>
+<p>The source frame for this article is intentionally narrow:</p>
 <ul><li><a href="https://example.com">Anthropic launches Claude tools - The Indian Express</a></li></ul>
-<h2>Final thought</h2>
 <p>My takeaway is that the practical AI opportunity for small businesses is not replacing the team. It is turning repeated work into reliable systems that people can still inspect, adjust, and trust before the work reaches customers.</p>
 """.strip()
 

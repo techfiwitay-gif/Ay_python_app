@@ -35,12 +35,14 @@ def build_openclaw_agent_prompt(payload: dict[str, Any]) -> str:
         "with exactly these keys: title, subtitle, body, image_prompt, image_query. "
         "The body must be clean HTML using tags like <p>, <h2>, <ul>, <li>, <a>. "
         "Do not include markdown fences or extra commentary. "
-        "Use only the provided event headlines for current-event claims. "
+        "Stay tightly on the selected topic. Use the first event as the main story and only mention other events when they are directly about the same company, product, or narrow theme. "
+        "Do not force unrelated headlines into the article. Use only the provided event headlines for current-event claims. "
         "Do not invent facts, quotes, statistics, or company statements. "
         "Write in first person where natural. Focus on what the news means for builders, founders, and operators. "
         "Avoid second-person advice like 'you should' or 'your team should'. "
         "Prefer direct editorial analysis using phrases such as 'I am watching', 'my read is', and 'I think'. "
-        "Include a short source-context section with links. Add one strong image prompt for a matching editorial visual. "
+        "Write 350 to 550 words total. Use at most three <h2> sections, including Source context. "
+        "Include a short source-context section with links for only the sources actually used. Add one strong image prompt for a matching editorial visual. "
         "Add image_query as a concise phrase for finding a real, relevant public-domain or freely licensed header photo.\n\n"
         f"Payload:\n{json.dumps(payload, ensure_ascii=False)}"
     )
@@ -114,17 +116,22 @@ Requirements:
 - do not wrap the JSON in markdown
 - do not include any prose before or after the JSON
 - use only the provided event headlines for current-event claims
+- stay tightly on the selected topic
+- use the first event as the main story
+- only mention other events when they are directly about the same company, product, or narrow theme
+- do not force unrelated headlines into the article
 - do not invent facts, quotes, statistics, or company statements
 - write in first person where natural, as if I wrote it
 - focus on what the news means for builders, founders, and operators
 - avoid second-person advice like "you should" or "your team should"
 - prefer direct editorial analysis: "I think", "my read is", "I am watching"
-- include a short source-context section with links
+- include a short source-context section with links for only the sources actually used
 - image_prompt must describe one strong editorial hero image for this article
 - image_query must be a concise search phrase for a real, relevant public-domain or freely licensed header photo
 - no text overlays inside the image prompt
-- target 700 to 1100 words
-- make it practical and useful without sounding like generic advice copy
+- target 350 to 550 words
+- use at most three <h2> sections, including Source context
+- make one clear argument, then stop
 
 Topic: {topic}
 Audience: {audience}
