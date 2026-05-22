@@ -370,13 +370,14 @@ def event_topic_similarity(topic: str, event: dict) -> int:
 
     topic_entities_set = topic_entities(topic)
     event_entities_set = topic_entities(event_title)
-    score = len(topic_entities_set & event_entities_set) * 20
+    score = len(topic_entities_set & event_entities_set) * 4
 
     ignored_words = {
         "about", "after", "agent", "agentic", "artificial", "becoming", "business", "could",
         "from", "into", "latest", "larger", "model", "models", "news", "part", "platform",
         "products", "raises", "signals", "system", "technology", "this", "with",
     }
+    ignored_words.update(term for terms in TOPIC_ENTITY_TERMS.values() for term in terms)
     topic_words = {
         word
         for word in re.findall(r"[a-z0-9]{4,}", topic_normalized)

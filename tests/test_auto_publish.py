@@ -148,7 +148,7 @@ def test_events_for_topic_keeps_article_on_selected_story(monkeypatch):
         events,
     )
 
-    assert [event["source"] for event in focused] == ["TechTrendsKE", "Reuters"]
+    assert [event["source"] for event in focused] == ["TechTrendsKE"]
 
 
 def test_blank_github_action_env_values_fall_back_to_defaults(monkeypatch):
