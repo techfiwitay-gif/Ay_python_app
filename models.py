@@ -86,3 +86,33 @@ class DeletedGeneratedPost(db.Model):
         self.title = title
         self.slug = slug or None
         self.deleted_at = deleted_at
+
+
+class Subscriber(db.Model):
+    __tablename__ = "subscribers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(250), unique=True, nullable=False)
+    created_at = db.Column(db.String(250), nullable=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+
+    def __init__(self, email, created_at="", is_active=True):
+        self.email = email
+        self.created_at = created_at
+        self.is_active = is_active
+
+
+class PostEmailDelivery(db.Model):
+    __tablename__ = "post_email_deliveries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, unique=True, nullable=False)
+    post_title = db.Column(db.String(250), nullable=False)
+    sent_at = db.Column(db.String(250), nullable=False)
+    recipient_count = db.Column(db.Integer, nullable=False, default=0)
+
+    def __init__(self, post_id, post_title, sent_at="", recipient_count=0):
+        self.post_id = post_id
+        self.post_title = post_title
+        self.sent_at = sent_at
+        self.recipient_count = recipient_count

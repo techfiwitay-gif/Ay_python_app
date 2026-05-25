@@ -114,6 +114,101 @@ def test_sync_generated_content_posts_imports_repo_content(client, app_module, m
     assert author_email == "ayncode@gmail.com"
 
 
+def test_subscribe_adds_daily_email_subscriber(client, app_module):
+    response = client.post(
+        "/subscribe",
+        data={"email": "Reader@Example.com", "submit": "Subscribe"},
+        follow_redirects=True,
+    )
+
+    with app_module.app.app_context():
+        subscriber = app_module.Subscriber.query.filter_by(email="reader@example.com").first()
+
+    assert response.status_code == 200
+    assert subscriber is not None
+    assert subscriber.is_active is True
+    assert b"subscribed to daily AyNcode articles" in response.data
+
+
+def test_subscribe_reactivates_existing_subscriber(client, app_module):
+    with app_module.app.app_context():
+        app_module.db.session.add(
+            app_module.Subscriber(
+                email="reader@example.com",
+                created_at="2026-05-25T09:00:00+00:00",
+                is_active=False,
+            )
+        )
+        app_module.db.session.commit()
+
+    response = client.post(
+        "/subscribe",
+        data={"email": "reader@example.com", "submit": "Subscribe"},
+        follow_redirects=True,
+    )
+
+    with app_module.app.app_context():
+        subscribers = app_module.Subscriber.query.filter_by(email="reader@example.com").all()
+
+    assert response.status_code == 200
+    assert len(subscribers) == 1
+    assert subscribers[0].is_active is True
+
+
+def test_new_post_email_notification_is_sent_once(client, app_module, monkeypatch):
+    sent_messages = []
+
+    def fake_send_site_email(recipient, subject, text_body, html_body=None):
+        sent_messages.append((recipient, subject, text_body, html_body))
+        return True
+
+    monkeypatch.setattr(app_module, "send_site_email", fake_send_site_email)
+
+    with app_module.app.app_context():
+        author = create_user(app_module)
+        post = create_post(app_module, author, title="Daily AI Brief")
+        app_module.db.session.add(
+            app_module.Subscriber(
+                email="reader@example.com",
+                created_at="2026-05-25T09:00:00+00:00",
+            )
+        )
+        app_module.db.session.commit()
+
+        first_count = app_module.notify_subscribers_for_new_post(post)
+        second_count = app_module.notify_subscribers_for_new_post(post)
+        delivery = app_module.PostEmailDelivery.query.filter_by(post_id=post.id).first()
+
+    assert first_count == 1
+    assert second_count == 0
+    assert delivery is not None
+    assert delivery.recipient_count == 1
+    assert sent_messages[0][0] == "reader@example.com"
+    assert "Daily AI Brief" in sent_messages[0][1]
+    assert "https://www.ayncode.com/post/" in sent_messages[0][2]
+
+
+def test_unsubscribe_deactivates_subscriber(client, app_module):
+    with app_module.app.app_context():
+        app_module.db.session.add(
+            app_module.Subscriber(
+                email="reader@example.com",
+                created_at="2026-05-25T09:00:00+00:00",
+            )
+        )
+        app_module.db.session.commit()
+        token = app_module.generate_subscription_token("reader@example.com")
+
+    response = client.get(f"/unsubscribe/{token}", follow_redirects=True)
+
+    with app_module.app.app_context():
+        subscriber = app_module.Subscriber.query.filter_by(email="reader@example.com").first()
+
+    assert response.status_code == 200
+    assert subscriber.is_active is False
+    assert b"unsubscribed from daily AyNcode article emails" in response.data
+
+
 def test_deleted_generated_post_is_not_reimported(client, app_module, monkeypatch, tmp_path):
     monkeypatch.setenv("ADMIN_EMAIL", "admin@example.com")
     content_path = tmp_path / "generated_posts.json"

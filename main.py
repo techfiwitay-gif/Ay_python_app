@@ -1,4 +1,4 @@
-
+﻿
 from flask import Flask, Response, abort, flash, redirect, render_template, request, send_from_directory, url_for
 from flask_bootstrap import Bootstrap
 from flask_ckeditor import CKEditor
@@ -7,15 +7,16 @@ from email.utils import parsedate_to_datetime
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, LoginManager, login_required, current_user, logout_user
-from forms import CommentForm, CreatePostForm, ForgotPasswordForm, GenerateArticleForm, LoginForm, RegisterForm, ResetPasswordForm
+from forms import CommentForm, CreatePostForm, ForgotPasswordForm, GenerateArticleForm, LoginForm, RegisterForm, ResetPasswordForm, SubscribeForm
 from functools import wraps
-from models import BlogPost, Comment, DeletedGeneratedPost, Users, db
+from models import BlogPost, Comment, DeletedGeneratedPost, PostEmailDelivery, Subscriber, Users, db
 from sqlalchemy import func, inspect, or_, text
 import base64
 import os
 import json
 import re
 from pathlib import Path
+from email.message import EmailMessage
 from smtplib import SMTP, SMTPException
 from html import escape
 from urllib.error import HTTPError, URLError
@@ -49,6 +50,7 @@ DEFAULT_AUTOMATION_AUTHOR_NAME = "Ayotunde Oyeniyi"
 DEFAULT_ADMIN_EMAIL = DEFAULT_AUTOMATION_AUTHOR_EMAIL
 DEFAULT_GITHUB_REPOSITORY = "techfiwitay-gif/Ay_python_app"
 PASSWORD_RESET_SALT = "ayncoder-password-reset"
+SUBSCRIPTION_SALT = "ayncode-email-subscription"
 
 
 def ensure_engagement_columns():
@@ -297,6 +299,7 @@ def sync_generated_content_posts():
 
     author = get_or_create_automation_author()
     imported_count = 0
+    new_posts = []
     required_fields = {"title", "subtitle", "body", "img_url", "date"}
     deleted_posts = DeletedGeneratedPost.query.all()
     deleted_titles = {post.title for post in deleted_posts}
@@ -326,23 +329,131 @@ def sync_generated_content_posts():
                 imported_count += 1
             continue
 
-        db.session.add(
-            BlogPost(
-                title=post_data["title"],
-                subtitle=post_data["subtitle"],
-                body=post_data["body"],
-                img_url=post_data["img_url"],
-                author=author,
-                date=post_data["date"],
-                published_at=post_data.get("published_at", post_data["date"]),
-            )
+        new_post = BlogPost(
+            title=post_data["title"],
+            subtitle=post_data["subtitle"],
+            body=post_data["body"],
+            img_url=post_data["img_url"],
+            author=author,
+            date=post_data["date"],
+            published_at=post_data.get("published_at", post_data["date"]),
         )
+        db.session.add(new_post)
+        new_posts.append(new_post)
         imported_count += 1
 
     if imported_count:
         db.session.commit()
+        for post in new_posts:
+            notify_subscribers_for_new_post(post)
 
     return imported_count
+
+
+def mail_credentials():
+    sender = (
+        os.environ.get("GMAIL_EMAIL")
+        or os.environ.get("MAIL_USERNAME")
+        or os.environ.get("SMTP_USERNAME")
+        or os.environ.get("CONTACT_EMAIL")
+        or DEFAULT_ADMIN_EMAIL
+    ).strip()
+    password = (os.environ.get("GMAIL_PASSWORD") or os.environ.get("MAIL_PASSWORD") or "").replace(" ", "").strip()
+    return sender, password
+
+
+def send_site_email(recipient, subject, text_body, html_body=None):
+    sender, password = mail_credentials()
+    if not sender or not password:
+        return False
+
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = sender
+    message["To"] = recipient
+    message.set_content(text_body)
+    if html_body:
+        message.add_alternative(html_body, subtype="html")
+
+    try:
+        with SMTP("smtp.gmail.com", 587) as smtp:
+            smtp.starttls()
+            smtp.login(sender, password)
+            smtp.send_message(message)
+    except (OSError, SMTPException) as exc:
+        app.logger.warning("Site email failed for %s: %s", recipient, exc)
+        return False
+    return True
+
+
+def public_site_url():
+    return (os.environ.get("PUBLIC_SITE_URL") or os.environ.get("SITE_URL") or "https://www.ayncode.com").rstrip("/")
+
+
+def post_public_url(post):
+    return f"{public_site_url()}/post/{post.id}"
+
+
+def generate_subscription_token(email):
+    return URLSafeTimedSerializer(app.config["SECRET_KEY"]).dumps(email, salt=SUBSCRIPTION_SALT)
+
+
+def verify_subscription_token(token):
+    try:
+        return URLSafeTimedSerializer(app.config["SECRET_KEY"]).loads(token, salt=SUBSCRIPTION_SALT)
+    except BadSignature:
+        return None
+
+
+def notify_subscribers_for_new_post(post):
+    if not post or not getattr(post, "id", None):
+        return 0
+    if PostEmailDelivery.query.filter_by(post_id=post.id).first():
+        return 0
+
+    subscribers = Subscriber.query.filter_by(is_active=True).all()
+    if not subscribers:
+        return 0
+
+    post_url = post_public_url(post)
+    subject = f"New AyNcode article: {post.title}"
+    text_body = (
+        f"{post.title}\n\n"
+        f"{post.subtitle}\n\n"
+        f"Read it here: {post_url}\n\n"
+        "You are receiving this because you subscribed to daily AyNcode article emails."
+    )
+    html_body = (
+        f"<h1>{escape(post.title)}</h1>"
+        f"<p>{escape(post.subtitle)}</p>"
+        f'<p><a href="{escape(post_url)}">Read the article</a></p>'
+        "<p>You are receiving this because you subscribed to daily AyNcode article emails.</p>"
+    )
+    sent_count = 0
+    for subscriber in subscribers:
+        unsubscribe_url = f"{public_site_url()}/unsubscribe/{generate_subscription_token(subscriber.email)}"
+        subscriber_text = f"{text_body}\n\nUnsubscribe: {unsubscribe_url}"
+        subscriber_html = (
+            f"{html_body}"
+            f'<p><a href="{escape(unsubscribe_url)}">Unsubscribe from daily emails</a></p>'
+        )
+        if send_site_email(subscriber.email, subject, subscriber_text, subscriber_html):
+            sent_count += 1
+
+    if sent_count == 0:
+        app.logger.warning("No subscriber emails were sent for post %s.", post.id)
+        return 0
+
+    db.session.add(
+        PostEmailDelivery(
+            post_id=post.id,
+            post_title=post.title,
+            sent_at=datetime.now(timezone.utc).isoformat(),
+            recipient_count=sent_count,
+        )
+    )
+    db.session.commit()
+    return sent_count
 
 
 with app.app_context():
@@ -1023,7 +1134,11 @@ app.jinja_env.filters['gravatar'] = gravatar_url
 
 @app.context_processor
 def inject_template_globals():
-    return {"date": date.today().year, "is_admin": is_admin_user(current_user)}
+    return {
+        "date": date.today().year,
+        "is_admin": is_admin_user(current_user),
+        "subscribe_form": SubscribeForm(),
+    }
 
 
 def admin_only(f):
@@ -1071,6 +1186,47 @@ def get_all_posts():
         query=query,
         stats=stats,
     )
+
+
+@app.route("/subscribe", methods=["POST"])
+def subscribe():
+    form = SubscribeForm()
+    if form.validate_on_submit():
+        email = form.email.data.strip().lower()
+        subscriber = Subscriber.query.filter_by(email=email).first()
+        if subscriber:
+            subscriber.is_active = True
+            flash("You are subscribed to daily AyNcode articles.")
+        else:
+            db.session.add(
+                Subscriber(
+                    email=email,
+                    created_at=datetime.now(timezone.utc).isoformat(),
+                    is_active=True,
+                )
+            )
+            flash("You are subscribed to daily AyNcode articles.")
+        db.session.commit()
+    else:
+        flash("Enter a valid email address to subscribe.")
+
+    next_url = request.referrer if is_safe_redirect_url(request.referrer or "") else url_for("get_all_posts")
+    return redirect(next_url)
+
+
+@app.route("/unsubscribe/<token>")
+def unsubscribe(token):
+    email = verify_subscription_token(token)
+    if not email:
+        flash("That unsubscribe link is invalid.")
+        return redirect(url_for("get_all_posts"))
+
+    subscriber = Subscriber.query.filter_by(email=email.strip().lower()).first()
+    if subscriber:
+        subscriber.is_active = False
+        db.session.commit()
+    flash("You are unsubscribed from daily AyNcode article emails.")
+    return redirect(url_for("get_all_posts"))
 
 
 @app.route('/register',methods=['GET', 'POST'])
@@ -1298,6 +1454,7 @@ def add_new_post():
         )
         db.session.add(new_post)
         db.session.commit()
+        notify_subscribers_for_new_post(new_post)
         return redirect(url_for("get_all_posts"))
     return render_template("make-post.html", form=form,logged_in=current_user.is_authenticated)
 
@@ -1333,6 +1490,7 @@ def generate_post():
         )
         db.session.add(new_post)
         db.session.commit()
+        notify_subscribers_for_new_post(new_post)
         return redirect(url_for("show_post", post_id=new_post.id))
     return render_template("generate-post.html", form=form, logged_in=current_user.is_authenticated)
 

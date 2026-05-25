@@ -9,6 +9,23 @@
       </a>
       <p>My practical notes on software, automation, AI, and building useful tools.</p>
     </div>
+    <form class="footer-subscribe" action="{{ url_for('subscribe') }}" method="post" novalidate>
+      {{ subscribe_form.hidden_tag() }}
+      <label for="footer-subscribe-email">Daily article email</label>
+      <div class="footer-subscribe-row">
+        {{ subscribe_form.email(id="footer-subscribe-email", placeholder="you@example.com", autocomplete="email") }}
+        {{ subscribe_form.submit(class_="btn btn-primary") }}
+      </div>
+      {% with messages = get_flashed_messages() %}
+      {% if messages %}
+      <div class="footer-flash" role="status">
+        {% for message in messages %}
+        <p>{{ message }}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endwith %}
+    </form>
     <div class="footer-actions">
       <div class="footer-links">
         <a href="{{ url_for('get_all_posts') }}">Home</a>

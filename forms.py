@@ -1,4 +1,4 @@
-from flask_wtf import FlaskForm
+﻿from flask_wtf import FlaskForm
 from wtforms import BooleanField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, URL
 from flask_ckeditor import CKEditorField
@@ -67,6 +67,11 @@ class ResetPasswordForm(FlaskForm):
         validators=[DataRequired(), EqualTo("password", message="Passwords must match.")],
     )
     submit = SubmitField("Update Password")
+
+
+class SubscribeForm(FlaskForm):
+    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=250)])
+    submit = SubmitField("Subscribe")
 
 
 class CommentForm(FlaskForm):

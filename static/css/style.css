@@ -1002,6 +1002,53 @@ footer a:hover {
     margin-bottom: 0.8rem;
 }
 
+.footer-subscribe {
+    display: grid;
+    gap: 0.65rem;
+    max-width: 520px;
+    width: min(100%, 520px);
+}
+
+.footer-subscribe label {
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 800;
+}
+
+.footer-subscribe-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.6rem;
+}
+
+.footer-subscribe input {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: var(--radius);
+    color: #fff;
+    min-height: 46px;
+    padding: 0 0.9rem;
+    width: 100%;
+}
+
+.footer-subscribe input::placeholder {
+    color: rgba(255, 255, 255, 0.46);
+}
+
+.footer-flash {
+    background: rgba(17, 148, 136, 0.14);
+    border: 1px solid rgba(52, 211, 201, 0.25);
+    border-radius: var(--radius);
+    padding: 0.65rem 0.8rem;
+}
+
+.footer-flash p {
+    color: #c8fff9;
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin: 0;
+}
+
 .footer-actions,
 .footer-links,
 .social-links {
@@ -1116,6 +1163,13 @@ footer a:hover {
     .article-author-card img {
         height: 64px;
         width: 64px;
+    }
+
+    .button-row,
+    .form-actions,
+    .article-actions,
+    .footer-subscribe-row {
+        grid-template-columns: 1fr;
     }
 
     .button-row,
