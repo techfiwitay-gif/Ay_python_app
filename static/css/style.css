@@ -1416,6 +1416,24 @@ footer a:hover {
     .vocalframe-carousel {
         width: min(460px, 100%);
     }
+
+    .vocalframe-workflow {
+        padding-top: 3rem;
+        padding-bottom: 3.5rem;
+    }
+
+    .vocalframe-workflow-grid article {
+        min-height: 0;
+        padding: 1.2rem 1.15rem 1.3rem;
+    }
+
+    .vocalframe-workflow-grid h3 {
+        margin: 0.75rem 0 0.45rem;
+    }
+
+    .vocalframe-workflow-grid p {
+        margin: 0;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
