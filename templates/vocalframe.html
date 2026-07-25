@@ -32,13 +32,24 @@
   <section class="container vocalframe-statement"><p>Good communication isn’t about sounding perfect.</p><h2>It’s about feeling ready enough to be yourself.</h2></section>
   <section class="container vocalframe-showcase" aria-labelledby="vocalframe-showcase-title">
     <div class="vocalframe-section-heading">
-      <p class="section-kicker">See your progress</p>
-      <h2 id="vocalframe-showcase-title">Improve one take at a time.</h2>
-      <p>Compare your delivery, track meaningful changes, and see your personal best.</p>
+      <p class="section-kicker">Inside VocalFrame</p>
+      <h2 id="vocalframe-showcase-title">Prepare. Record. Improve.</h2>
+      <p>Move from a prepared script to a confident recording, then review meaningful progress.</p>
     </div>
-    <figure class="vocalframe-showcase-image">
-      <img src="{{ url_for('static', filename='img/vocalframe-progress-showcase.jpg') }}" alt="VocalFrame progress dashboard displayed on a phone">
-    </figure>
+    <div class="vocalframe-showcase-grid">
+      <figure class="vocalframe-showcase-card">
+        <img src="{{ url_for('static', filename='img/vocalframe-record-showcase.jpg') }}" alt="VocalFrame recording screen displayed on a phone">
+        <figcaption>Record with delivery cues in view.</figcaption>
+      </figure>
+      <figure class="vocalframe-showcase-card">
+        <img src="{{ url_for('static', filename='img/vocalframe-scripts-showcase.jpg') }}" alt="VocalFrame Scripts screen displayed on a phone">
+        <figcaption>Prepare scripts and shape your delivery.</figcaption>
+      </figure>
+      <figure class="vocalframe-showcase-card">
+        <img src="{{ url_for('static', filename='img/vocalframe-progress-showcase.jpg') }}" alt="VocalFrame progress dashboard displayed on a phone">
+        <figcaption>Compare takes and track improvement.</figcaption>
+      </figure>
+    </div>
   </section>
 </main>
 

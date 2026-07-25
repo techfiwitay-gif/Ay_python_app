@@ -1309,16 +1309,38 @@ footer a:hover {
     margin: 0.85rem 0 0;
 }
 
-.vocalframe-showcase-image {
-    max-width: 680px;
-    margin: 0 auto;
+.vocalframe-showcase-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
 }
 
-.vocalframe-showcase-image img {
+.vocalframe-showcase-card {
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+}
+
+.vocalframe-showcase-card img {
     display: block;
     width: 100%;
     height: auto;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 30px;
-    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.4);
+}
+
+.vocalframe-showcase-card figcaption {
+    padding: 1rem 1.1rem 1.15rem;
+    color: #d6d4e7;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+@media (max-width: 860px) {
+    .vocalframe-showcase-grid {
+        grid-template-columns: 1fr;
+        max-width: 460px;
+        margin-inline: auto;
+    }
 }
