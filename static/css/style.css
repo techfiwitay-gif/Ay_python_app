@@ -173,6 +173,13 @@ p {
     color: #fff;
 }
 
+.nav-link--strong:not(.is-active),
+.nav-link--strong:not(.is-active):hover {
+    background: transparent;
+    border-color: transparent;
+    color: #536171;
+}
+
 .nav-link--quiet {
     color: var(--muted);
 }
@@ -1070,30 +1077,7 @@ footer a:hover {
 }
 
 @media (max-width: 860px) {
-    .navbar-container {
-        overflow: hidden;
-    }
 
-    .navbar-nav {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        overscroll-behavior-x: contain;
-        scrollbar-width: none;
-        gap: 0.3rem;
-        padding-bottom: 0.2rem;
-    }
-
-    .navbar-nav::-webkit-scrollbar {
-        display: none;
-    }
-
-    .nav-item {
-        flex: 0 0 auto;
-    }
-
-    .nav-link {
-        white-space: nowrap;
-    }
     .navbar-container {
         align-items: flex-start;
         flex-direction: column;
