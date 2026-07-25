@@ -1289,7 +1289,8 @@ footer a:hover {
     border-radius: 34px;
     background: linear-gradient(145deg, rgba(255,255,255,0.17), rgba(42, 35, 82, 0.72));
     box-shadow: 0 32px 80px rgba(0, 0, 0, 0.48), 0 0 0 9px rgba(164, 244, 232, 0.035);
-    transform: rotate(2.2deg);
+    margin-inline: auto;
+    transform: none;
 }
 
 .vocalframe-app-frame img {
@@ -1303,8 +1304,8 @@ footer a:hover {
 
 .vocalframe-app-badge {
     position: absolute;
-    right: -1.1rem;
-    bottom: 1.25rem;
+    right: 0.8rem;
+    bottom: 0.8rem;
     display: inline-flex;
     align-items: center;
     gap: 0.48rem;
@@ -1335,7 +1336,7 @@ footer a:hover {
 @media (max-width: 860px) {
     .vocalframe-app-frame {
         width: min(318px, 82%);
-        transform: rotate(1.2deg);
+        transform: none;
     }
 
     .vocalframe-app-frame img {
@@ -1343,6 +1344,6 @@ footer a:hover {
     }
 
     .vocalframe-app-badge {
-        right: -0.65rem;
+        right: 0.65rem;
     }
 }
