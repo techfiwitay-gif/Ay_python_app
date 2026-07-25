@@ -1281,7 +1281,7 @@ footer a:hover {
     position: relative;
 }
 
-.vocalframe-hero-art--scripts {
+.vocalframe-hero-art--welcome {
     display: block;
     width: min(500px, 100%);
     height: auto;
@@ -1291,7 +1291,34 @@ footer a:hover {
 }
 
 @media (max-width: 860px) {
-    .vocalframe-hero-art--scripts {
+    .vocalframe-hero-art--welcome {
         width: min(460px, 100%);
     }
+}
+.vocalframe-showcase {
+    padding-block: 1.5rem 5rem;
+}
+
+.vocalframe-showcase .vocalframe-section-heading {
+    max-width: 42rem;
+    margin-bottom: 2rem;
+}
+
+.vocalframe-showcase .vocalframe-section-heading > p:last-child {
+    color: #bbb9d2;
+    margin: 0.85rem 0 0;
+}
+
+.vocalframe-showcase-image {
+    max-width: 680px;
+    margin: 0 auto;
+}
+
+.vocalframe-showcase-image img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 30px;
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.4);
 }
