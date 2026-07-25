@@ -15,8 +15,40 @@
         </div>
         <p class="vocalframe-note">Product preview · Built by Ayncode LLC</p>
       </div>
-      <div class="vocalframe-device-stage" aria-label="VocalFrame app preview">
-        <img class="vocalframe-hero-art vocalframe-hero-art--welcome" src="{{ url_for('static', filename='img/vocalframe-welcome.jpg') }}" alt="Welcome to VocalFrame guide displayed on a phone">
+      <div class="vocalframe-device-stage">
+        <div class="vocalframe-carousel" data-vocalframe-carousel aria-label="VocalFrame app preview">
+          <div class="vocalframe-carousel-viewport" tabindex="0">
+            <div class="vocalframe-carousel-track">
+              <figure class="vocalframe-carousel-slide">
+                <img src="{{ url_for('static', filename='img/vocalframe-welcome.jpg') }}" alt="Welcome to VocalFrame guide displayed on a phone">
+                <figcaption>Welcome to VocalFrame</figcaption>
+              </figure>
+              <figure class="vocalframe-carousel-slide">
+                <img src="{{ url_for('static', filename='img/vocalframe-settings-showcase.jpg') }}" alt="VocalFrame delivery and teleprompter settings displayed on a phone">
+                <figcaption>Choose your tone and pace</figcaption>
+              </figure>
+              <figure class="vocalframe-carousel-slide">
+                <img src="{{ url_for('static', filename='img/vocalframe-record-showcase.jpg') }}" alt="VocalFrame recording screen displayed on a phone">
+                <figcaption>Record with delivery cues</figcaption>
+              </figure>
+              <figure class="vocalframe-carousel-slide">
+                <img src="{{ url_for('static', filename='img/vocalframe-progress-showcase.jpg') }}" alt="VocalFrame progress dashboard displayed on a phone">
+                <figcaption>Review progress across takes</figcaption>
+              </figure>
+            </div>
+          </div>
+          <div class="vocalframe-carousel-controls">
+            <button class="vocalframe-carousel-arrow" type="button" data-carousel-prev aria-label="Show previous screenshot"><i class="fas fa-arrow-left"></i></button>
+            <div class="vocalframe-carousel-dots" aria-label="Choose a screenshot">
+              <button type="button" data-carousel-dot="0" aria-label="Show Welcome screenshot" aria-current="true"></button>
+              <button type="button" data-carousel-dot="1" aria-label="Show Settings screenshot"></button>
+              <button type="button" data-carousel-dot="2" aria-label="Show Recording screenshot"></button>
+              <button type="button" data-carousel-dot="3" aria-label="Show Progress screenshot"></button>
+            </div>
+            <button class="vocalframe-carousel-arrow" type="button" data-carousel-next aria-label="Show next screenshot"><i class="fas fa-arrow-right"></i></button>
+          </div>
+          <p class="sr-only" data-carousel-status aria-live="polite">Screenshot 1 of 4: Welcome to VocalFrame</p>
+        </div>
       </div>
     </div>
   </section>
@@ -30,27 +62,7 @@
     </div>
   </section>
   <section class="container vocalframe-statement"><p>Good communication isn’t about sounding perfect.</p><h2>It’s about feeling ready enough to be yourself.</h2></section>
-  <section class="container vocalframe-showcase" aria-labelledby="vocalframe-showcase-title">
-    <div class="vocalframe-section-heading">
-      <p class="section-kicker">Inside VocalFrame</p>
-      <h2 id="vocalframe-showcase-title">Prepare. Record. Improve.</h2>
-      <p>Move from a prepared script to a confident recording, then review meaningful progress.</p>
-    </div>
-    <div class="vocalframe-showcase-grid">
-      <figure class="vocalframe-showcase-card">
-        <img src="{{ url_for('static', filename='img/vocalframe-record-showcase.jpg') }}" alt="VocalFrame recording screen displayed on a phone">
-        <figcaption>Record with delivery cues in view.</figcaption>
-      </figure>
-      <figure class="vocalframe-showcase-card">
-        <img src="{{ url_for('static', filename='img/vocalframe-settings-showcase.jpg') }}" alt="VocalFrame delivery and teleprompter settings displayed on a phone">
-        <figcaption>Shape the tone, pace, and delivery cues.</figcaption>
-      </figure>
-      <figure class="vocalframe-showcase-card">
-        <img src="{{ url_for('static', filename='img/vocalframe-progress-showcase.jpg') }}" alt="VocalFrame progress dashboard displayed on a phone">
-        <figcaption>Compare takes and track improvement.</figcaption>
-      </figure>
-    </div>
-  </section>
 </main>
 
+<script src="{{ url_for('static', filename='js/vocalframe-carousel.js') }}"></script>
 {% include "footer.html" %}

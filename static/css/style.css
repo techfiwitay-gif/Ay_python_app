@@ -1276,71 +1276,151 @@ footer a:hover {
     }
 }
 
-/* User-supplied VocalFrame Scripts artwork is the complete hero composition. */
+/* Swipeable VocalFrame product tour. */
 .vocalframe-device-stage {
+    min-width: 0;
     position: relative;
 }
 
-.vocalframe-hero-art--welcome {
-    display: block;
-    width: min(500px, 100%);
-    height: auto;
+.vocalframe-carousel {
+    width: min(520px, 100%);
     margin-inline: auto;
+}
+
+.vocalframe-carousel-viewport {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-behavior: smooth;
+    scroll-snap-type: inline mandatory;
+    scrollbar-width: none;
     border-radius: 30px;
     box-shadow: 0 32px 80px rgba(0, 0, 0, 0.48);
 }
 
-@media (max-width: 860px) {
-    .vocalframe-hero-art--welcome {
-        width: min(460px, 100%);
-    }
-}
-.vocalframe-showcase {
-    padding-block: 1.5rem 5rem;
+.vocalframe-carousel-viewport::-webkit-scrollbar {
+    display: none;
 }
 
-.vocalframe-showcase .vocalframe-section-heading {
-    max-width: 42rem;
-    margin-bottom: 2rem;
+.vocalframe-carousel-viewport:focus-visible {
+    outline: 3px solid #a4f4e8;
+    outline-offset: 5px;
 }
 
-.vocalframe-showcase .vocalframe-section-heading > p:last-child {
-    color: #bbb9d2;
-    margin: 0.85rem 0 0;
+.vocalframe-carousel-track {
+    display: flex;
 }
 
-.vocalframe-showcase-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1.25rem;
-}
-
-.vocalframe-showcase-card {
+.vocalframe-carousel-slide {
+    flex: 0 0 100%;
     margin: 0;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 24px;
-    background: rgba(255, 255, 255, 0.04);
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+    position: relative;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
 }
 
-.vocalframe-showcase-card img {
+.vocalframe-carousel-slide img {
     display: block;
     width: 100%;
     height: auto;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 30px;
 }
 
-.vocalframe-showcase-card figcaption {
-    padding: 1rem 1.1rem 1.15rem;
-    color: #d6d4e7;
-    font-size: 0.9rem;
-    line-height: 1.5;
+.vocalframe-carousel-slide figcaption {
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+    left: 1rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    background: rgba(8, 10, 25, 0.82);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-align: center;
+    backdrop-filter: blur(12px);
+}
+
+.vocalframe-carousel-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.vocalframe-carousel-arrow,
+.vocalframe-carousel-dots button {
+    appearance: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.vocalframe-carousel-arrow {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.vocalframe-carousel-arrow:hover,
+.vocalframe-carousel-arrow:focus-visible {
+    background: #a4f4e8;
+    color: #102024;
+}
+
+.vocalframe-carousel-arrow:disabled {
+    cursor: default;
+    opacity: 0.32;
+}
+
+.vocalframe-carousel-dots {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.vocalframe-carousel-dots button {
+    width: 9px;
+    height: 9px;
+    padding: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.35);
+    transition: width 0.2s ease, background 0.2s ease;
+}
+
+.vocalframe-carousel-dots button[aria-current="true"] {
+    width: 28px;
+    background: #a4f4e8;
+}
+
+.vocalframe-carousel-dots button:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 3px;
 }
 
 @media (max-width: 860px) {
-    .vocalframe-showcase-grid {
-        grid-template-columns: 1fr;
-        max-width: 460px;
-        margin-inline: auto;
+    .vocalframe-hero {
+        padding-top: 2rem;
+    }
+
+    .vocalframe-device-stage {
+        min-height: 0;
+        order: -1;
+    }
+
+    .vocalframe-carousel {
+        width: min(460px, 100%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vocalframe-carousel-viewport {
+        scroll-behavior: auto;
     }
 }
