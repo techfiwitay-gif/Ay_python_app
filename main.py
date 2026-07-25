@@ -1244,6 +1244,15 @@ def about():
     return render_template("about.html",logged_in=current_user.is_authenticated)
 
 
+@app.route('/products')
+def products():
+    return render_template(
+        "products.html",
+        logged_in=current_user.is_authenticated,
+        openclaw_url=os.environ.get('OPENCLAW_URL', 'https://clawflow-studio-site.vercel.app/'),
+    )
+
+
 @app.route('/vocalframe')
 def vocalframe():
     return render_template("vocalframe.html", logged_in=current_user.is_authenticated)

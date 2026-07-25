@@ -1,0 +1,40 @@
+{% set page_title = "Products | Ayncode LLC" %}
+{% set hide_hero = true %}
+{% include "header.html" %}
+
+<main class="products-page">
+  <section class="products-hero">
+    <div class="container products-hero-content">
+      <p class="products-eyebrow">Ayncode LLC · Product studio</p>
+      <h1>Useful products,<br><em>made to move people forward.</em></h1>
+      <p>Explore the Ayncode projects in progress—from personal software to creative tools and new booking experiences.</p>
+    </div>
+  </section>
+
+  <section class="container products-grid" aria-label="Ayncode products">
+    <article class="product-card product-card--openclaw">
+      <div class="product-card-top"><span class="product-icon"><i class="fas fa-paw"></i></span><span class="product-status">Live</span></div>
+      <div><p class="product-type">Automation workspace</p><h2>OpenClaw</h2><p>A focused home for building workflows and moving projects from idea to action.</p></div>
+      <a class="product-link" href="{{ openclaw_url }}" target="_blank" rel="noopener noreferrer">Open OpenClaw <i class="fas fa-arrow-up-right-from-square"></i></a>
+    </article>
+
+    <article class="product-card product-card--vocalframe">
+      <div class="product-card-top"><span class="product-icon"><i class="fas fa-video"></i></span><span class="product-status">In review</span></div>
+      <div><p class="product-type">Camera-side speaking coach</p><h2>VocalFrame</h2><p>Practice with more clarity, confidence, and presence before the moment counts.</p></div>
+      <a class="product-link" href="{{ url_for('vocalframe') }}">Explore VocalFrame <i class="fas fa-arrow-right"></i></a>
+    </article>
+
+    <article class="product-card product-card--bookafriend">
+      <div class="product-card-top"><span class="product-icon"><i class="fas fa-calendar-check"></i></span><span class="product-status product-status--soft">Private preview</span></div>
+      <div><p class="product-type">Booking experience</p><h2>Bookafriend</h2><p>A warmer, simpler way to make plans, coordinate time, and turn an idea into a real meetup.</p></div>
+      <a class="product-link" href="{{ url_for('contact') }}">Ask about Bookafriend <i class="fas fa-arrow-right"></i></a>
+    </article>
+  </section>
+
+  <section class="container products-footer-callout">
+    <p>More experiments are on the way.</p>
+    <a class="btn btn-secondary" href="{{ url_for('contact') }}">Start a conversation</a>
+  </section>
+</main>
+
+{% include "footer.html" %}
