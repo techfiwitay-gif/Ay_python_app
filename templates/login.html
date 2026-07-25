@@ -1,55 +1,95 @@
 {% set page_title = "Log In | AyNcode" %}
-{% set hero_title = "Welcome Back" %}
-{% set hero_subtitle = "Return to the publishing workspace." %}
-{% set hero_kicker = "Account" %}
-{% set compact_hero = true %}
+{% set hide_hero = true %}
 {% include "header.html" %}
 
-<main class="container auth-layout">
-  <section class="form-shell">
-    <p class="section-kicker">Secure access</p>
-    <h2>Log in to AyNcode</h2>
+<main class="login-experience">
+  <div class="container login-experience__grid">
+    <aside class="login-brand-panel">
+      <div>
+        <span class="login-brand-mark" aria-hidden="true">A</span>
+        <p class="section-kicker">AyNcode account</p>
+        <h1>Welcome back.</h1>
+        <p class="login-brand-panel__intro">
+          Sign in to join discussions, follow the work, or manage publishing if you are an administrator.
+        </p>
+      </div>
 
-    {% with messages = get_flashed_messages() %}
-    {% if messages %}
-    <div class="alert alert-warning" role="alert">
-      {% for message in messages %}
-      <p>{{ message }}</p>
-      {% endfor %}
-    </div>
-    {% endif %}
-    {% endwith %}
+      <div class="login-benefits" aria-label="Account benefits">
+        <p><span aria-hidden="true">✓</span> One account for AyNcode</p>
+        <p><span aria-hidden="true">✓</span> Password reset available</p>
+        <p><span aria-hidden="true">✓</span> No paid membership required</p>
+      </div>
+    </aside>
 
-    <form method="post" novalidate>
-      {{ form.hidden_tag() }}
-      <div class="form-group">
-        {{ form.email.label }}
-        {{ form.email(class_="form-control", placeholder="you@example.com") }}
-        {% for error in form.email.errors %}
-        <p class="field-error">{{ error }}</p>
+    <section class="login-card" aria-labelledby="login-heading">
+      <header class="login-card__header">
+        <p class="section-kicker">Secure access</p>
+        <h2 id="login-heading">Log in</h2>
+        <p>Enter the email and password connected to your account.</p>
+      </header>
+
+      {% with messages = get_flashed_messages() %}
+      {% if messages %}
+      <div class="alert alert-warning" role="alert">
+        {% for message in messages %}
+        <p>{{ message }}</p>
         {% endfor %}
       </div>
-      <div class="form-group">
-        {{ form.password.label }}
-        {{ form.password(class_="form-control", placeholder="Your password") }}
-        {% for error in form.password.errors %}
-        <p class="field-error">{{ error }}</p>
-        {% endfor %}
-      </div>
-      <div class="form-actions form-actions--compact">
-        {{ form.login(class_="btn btn-primary") }}
-      </div>
-      <p class="field-hint">
-        <a href="{{ url_for('forgot_password') }}">Forgot password?</a>
-      </p>
-    </form>
-  </section>
+      {% endif %}
+      {% endwith %}
 
-  <aside class="side-panel">
-    <p class="section-kicker">Why sign in</p>
-    <h2>I manage posts, drafts, and site updates from here.</h2>
-    <p>This workspace keeps publishing, real-event drafts, discussion, and content updates in one place.</p>
-  </aside>
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+          {{ form.email.label }}
+          {{ form.email(class_="form-control", placeholder="you@example.com", autocomplete="email", inputmode="email", autocapitalize="none") }}
+          {% for error in form.email.errors %}
+          <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="form-group">
+          <div class="login-label-row">
+            {{ form.password.label }}
+            <a href="{{ url_for('forgot_password') }}">Forgot password?</a>
+          </div>
+          <div class="password-field">
+            {{ form.password(class_="form-control", placeholder="Your password", autocomplete="current-password") }}
+            <button class="password-toggle" type="button" aria-controls="{{ form.password.id }}" aria-pressed="false">
+              Show
+            </button>
+          </div>
+          {% for error in form.password.errors %}
+          <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="form-actions login-card__actions">
+          {{ form.login(class_="btn btn-primary") }}
+        </div>
+      </form>
+
+      <div class="login-card__footer">
+        <span>New to AyNcode?</span>
+        <a href="{{ url_for('register') }}">Create a free account</a>
+      </div>
+    </section>
+  </div>
 </main>
+
+<script>
+  (() => {
+    const toggle = document.querySelector(".password-toggle");
+    if (!toggle) return;
+    const password = document.getElementById(toggle.getAttribute("aria-controls"));
+    toggle.addEventListener("click", () => {
+      const isVisible = password.type === "text";
+      password.type = isVisible ? "password" : "text";
+      toggle.textContent = isVisible ? "Show" : "Hide";
+      toggle.setAttribute("aria-pressed", String(!isVisible));
+      password.focus();
+    });
+  })();
+</script>
 
 {% include "footer.html" %}
