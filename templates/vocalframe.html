@@ -15,7 +15,15 @@
         </div>
         <p class="vocalframe-note">Product preview · Built by Ayncode LLC</p>
       </div>
-      <div class="vocalframe-device-stage"><img class="vocalframe-hero-art" src="{{ url_for('static', filename='img/vocalframe-hero-concept.png') }}" alt="Illustrative concept of VocalFrame's camera coaching experience"></div>
+      <div class="vocalframe-device-stage" aria-label="VocalFrame app preview">
+        <div class="vocalframe-app-frame">
+          <img src="{{ url_for('static', filename='img/vocalframe-record.jpg') }}" alt="VocalFrame record screen with teleprompter controls">
+          <div class="vocalframe-app-badge" aria-hidden="true">
+            <span class="vocalframe-app-badge-mark">VF</span>
+            <span>VocalFrame</span>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 

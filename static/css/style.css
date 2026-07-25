@@ -1275,3 +1275,74 @@ footer a:hover {
         max-height: 38rem;
     }
 }
+
+/* Use the real VocalFrame interface as the product hero, with a restrained product mark. */
+.vocalframe-device-stage {
+    position: relative;
+}
+
+.vocalframe-app-frame {
+    position: relative;
+    width: min(348px, 88%);
+    padding: 9px;
+    border: 1px solid rgba(164, 244, 232, 0.28);
+    border-radius: 34px;
+    background: linear-gradient(145deg, rgba(255,255,255,0.17), rgba(42, 35, 82, 0.72));
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.48), 0 0 0 9px rgba(164, 244, 232, 0.035);
+    transform: rotate(2.2deg);
+}
+
+.vocalframe-app-frame img {
+    display: block;
+    width: 100%;
+    max-height: 535px;
+    border-radius: 26px;
+    object-fit: cover;
+    object-position: top;
+}
+
+.vocalframe-app-badge {
+    position: absolute;
+    right: -1.1rem;
+    bottom: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.48rem;
+    padding: 0.45rem 0.72rem 0.45rem 0.45rem;
+    border: 1px solid rgba(164, 244, 232, 0.34);
+    border-radius: 999px;
+    background: rgba(14, 17, 34, 0.82);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.26);
+    color: #f8f7ff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    backdrop-filter: blur(9px);
+}
+
+.vocalframe-app-badge-mark {
+    display: grid;
+    width: 1.45rem;
+    height: 1.45rem;
+    place-items: center;
+    border-radius: 50%;
+    background: #a4f4e8;
+    color: #102024;
+    font-size: 0.56rem;
+    letter-spacing: -0.04em;
+}
+
+@media (max-width: 860px) {
+    .vocalframe-app-frame {
+        width: min(318px, 82%);
+        transform: rotate(1.2deg);
+    }
+
+    .vocalframe-app-frame img {
+        max-height: 460px;
+    }
+
+    .vocalframe-app-badge {
+        right: -0.65rem;
+    }
+}
