@@ -33,6 +33,7 @@
       <label class="sr-only" for="search">Search posts</label>
       <input id="search" name="q" type="search" value="{{ query }}" placeholder="Search posts, tutorials, or ideas">
       <button class="btn btn-primary" type="submit">Search</button>
+      <a class="btn btn-secondary" href="{{ url_for('archive') }}">Archive</a>
       {% if query %}
       <a class="btn btn-secondary" href="{{ url_for('get_all_posts') }}">Clear</a>
       {% endif %}

@@ -1,0 +1,58 @@
+{% set page_title = "Archive | Ayncode LLC" %}
+{% set hero_title = "Article Archive" %}
+{% set hero_subtitle = "Image-backed articles older than one week, preserved and easy to revisit." %}
+{% set hero_kicker = "From the Ayncode journal" %}
+{% set compact_hero = true %}
+{% include "header.html" %}
+
+<main class="container page-stack">
+  <section class="content-toolbar">
+    <div>
+      <p class="section-kicker">Archive</p>
+      <h2>{% if query %}Archive results for "{{ query }}"{% else %}Earlier writing{% endif %}</h2>
+    </div>
+    <form class="search-panel" action="{{ url_for('archive') }}" method="get">
+      <label class="sr-only" for="archive-search">Search the archive</label>
+      <input id="archive-search" name="q" type="search" value="{{ query }}" placeholder="Search archived articles">
+      <button class="btn btn-primary" type="submit">Search</button>
+      {% if query %}
+      <a class="btn btn-secondary" href="{{ url_for('archive') }}">Clear</a>
+      {% endif %}
+    </form>
+  </section>
+
+  {% if all_posts|length == 0 %}
+  <section class="empty-state">
+    <div class="empty-state-icon"><i class="fas fa-archive"></i></div>
+    <h2>No archived articles yet</h2>
+    <p>Image-backed articles appear here automatically once they are more than seven days old.</p>
+    <a class="btn btn-primary" href="{{ url_for('get_all_posts') }}">View recent articles</a>
+  </section>
+  {% else %}
+  <div class="post-grid">
+    {% for post in all_posts %}
+    <article class="post-card">
+      <a href="{{ url_for('show_post', post_id=post.id) }}">
+        <img class="post-image" src="{{ article_image_url(post) }}" alt="{{ post.title }}">
+      </a>
+      <div class="post-content">
+        <p class="post-kicker">Archived article</p>
+        <h2 class="post-title"><a href="{{ url_for('show_post', post_id=post.id) }}">{{ post.title }}</a></h2>
+        <p class="post-subtitle">{{ post.subtitle }}</p>
+        <div class="post-meta">
+          <span>{{ post.author.name }}</span>
+          <span>{{ post.published_at or post.date }}</span>
+        </div>
+        <div class="post-stats">
+          <span>{{ post.reading_time }} min read</span>
+          <span>{{ post.views or 0 }} views</span>
+          <span>{{ post.likes or 0 }} likes</span>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% endif %}
+</main>
+
+{% include "footer.html" %}

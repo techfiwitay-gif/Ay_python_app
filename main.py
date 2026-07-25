@@ -49,6 +49,7 @@ DEFAULT_AUTOMATION_AUTHOR_NAME = "Ayotunde Oyeniyi"
 DEFAULT_ADMIN_EMAIL = DEFAULT_AUTOMATION_AUTHOR_EMAIL
 DEFAULT_GITHUB_REPOSITORY = "techfiwitay-gif/Ay_python_app"
 PASSWORD_RESET_SALT = "ayncoder-password-reset"
+ARTICLE_ARCHIVE_AGE_DAYS = 7
 
 
 def ensure_engagement_columns():
@@ -308,6 +309,10 @@ def sync_generated_content_posts():
             continue
         if post_data.get("title") in deleted_titles or post_data.get("slug") in deleted_slugs:
             continue
+        image_url = str(post_data.get("img_url") or "").strip()
+        if not image_url or "/generated-cover/" in image_url:
+            app.logger.warning("Skipping generated post without a real image: %s", post_data.get("title", "Untitled"))
+            continue
         existing_post = BlogPost.query.filter_by(title=post_data["title"]).first()
         if existing_post:
             updates = {
@@ -516,6 +521,18 @@ def article_image_url(post):
     if not image_url or "/generated-cover/" in image_url:
         return ""
     return image_url
+
+
+def post_has_real_image(post):
+    return bool(article_image_url(post))
+
+
+def post_is_archived(post, reference_time=None):
+    published_at = parse_post_timestamp(post)
+    if published_at == datetime.min:
+        return True
+    cutoff = (reference_time or datetime.now()) - timedelta(days=ARTICLE_ARCHIVE_AGE_DAYS)
+    return published_at < cutoff
 
 
 def render_topic_cover_svg(topic, audience):
@@ -1068,12 +1085,17 @@ def get_all_posts():
             )
         )
 
-    posts = decorate_posts(sort_posts_latest_first(posts_query.all()))
+    posts = [
+        post
+        for post in sort_posts_latest_first(posts_query.all())
+        if post_has_real_image(post) and (query or not post_is_archived(post))
+    ]
+    posts = decorate_posts(posts)
     stats = {
-        "posts": BlogPost.query.count(),
-        "comments": Comment.query.count(),
-        "views": db.session.query(func.coalesce(func.sum(BlogPost.views), 0)).scalar(),
-        "likes": db.session.query(func.coalesce(func.sum(BlogPost.likes), 0)).scalar(),
+        "posts": len(posts),
+        "comments": sum(len(post.comments) for post in posts),
+        "views": sum(post.views or 0 for post in posts),
+        "likes": sum(post.likes or 0 for post in posts),
         "minutes": sum(post.reading_time for post in posts),
     }
     return render_template(
@@ -1082,6 +1104,33 @@ def get_all_posts():
         logged_in=current_user.is_authenticated,
         query=query,
         stats=stats,
+    )
+
+
+@app.route('/archive')
+def archive():
+    query = request.args.get("q", "").strip()
+    posts_query = BlogPost.query
+    if query:
+        like_query = f"%{query}%"
+        posts_query = posts_query.filter(
+            or_(
+                BlogPost.title.ilike(like_query),
+                BlogPost.subtitle.ilike(like_query),
+                BlogPost.body.ilike(like_query),
+            )
+        )
+
+    posts = [
+        post
+        for post in sort_posts_latest_first(posts_query.all())
+        if post_has_real_image(post) and post_is_archived(post)
+    ]
+    return render_template(
+        "archive.html",
+        all_posts=decorate_posts(posts),
+        logged_in=current_user.is_authenticated,
+        query=query,
     )
 
 
@@ -1190,6 +1239,8 @@ def generated_cover(audience, slug):
 @app.route("/post/<int:post_id>", methods=['GET', 'POST'])
 def show_post(post_id):
     requested_post = db.get_or_404(BlogPost, post_id)
+    if not post_has_real_image(requested_post):
+        abort(404)
     if request.method == "GET" and not request.args.get("reacted"):
         requested_post.views = (requested_post.views or 0) + 1
         db.session.commit()

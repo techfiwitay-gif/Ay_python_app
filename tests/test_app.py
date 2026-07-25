@@ -92,7 +92,7 @@ def test_sync_generated_content_posts_imports_repo_content(client, app_module, m
     "title": "AI News (2026-04-28)",
     "subtitle": "A useful update.",
     "date": "April 28, 2026",
-    "img_url": "/generated-cover/general/ai-news.svg",
+    "img_url": "https://images.example.com/ai-news.jpg",
     "body": "<p>Recent AI news.</p>"
   }
 ]
@@ -125,7 +125,7 @@ def test_deleted_generated_post_is_not_reimported(client, app_module, monkeypatc
     "title": "AI News (2026-04-28)",
     "subtitle": "A useful update.",
     "date": "April 28, 2026",
-    "img_url": "/generated-cover/general/ai-news.svg",
+    "img_url": "https://images.example.com/ai-news.jpg",
     "body": "<p>Recent AI news.</p>"
   }
 ]
