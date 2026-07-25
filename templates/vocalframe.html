@@ -1,0 +1,33 @@
+{% set page_title = "VocalFrame | Ayncode LLC" %}
+{% set hide_hero = true %}
+{% include "header.html" %}
+
+<main class="vocalframe-page">
+  <section class="vocalframe-hero">
+    <div class="container vocalframe-hero-grid">
+      <div class="vocalframe-copy">
+        <p class="vocalframe-eyebrow">Ayncode LLC presents</p>
+        <h1>Find your frame.<br><em>Own the moment.</em></h1>
+        <p class="vocalframe-lede">VocalFrame is a camera-side speaking coach built to help you practice with more clarity, confidence, and presence before the moment counts.</p>
+        <div class="vocalframe-actions">
+          <a class="vocalframe-button vocalframe-button--primary" href="{{ url_for('contact') }}">Get launch updates <i class="fas fa-arrow-right"></i></a>
+          <a class="vocalframe-button vocalframe-button--quiet" href="#how-it-works">See how it works</a>
+        </div>
+        <p class="vocalframe-note">Product preview · Built by Ayncode LLC</p>
+      </div>
+      <div class="vocalframe-device-stage"><img class="vocalframe-hero-art" src="{{ url_for('static', filename='img/vocalframe-hero-concept.png') }}" alt="Illustrative concept of VocalFrame's camera coaching experience"></div>
+    </div>
+  </section>
+
+  <section class="container vocalframe-workflow" id="how-it-works">
+    <div class="vocalframe-section-heading"><p class="section-kicker">Practice with intention</p><h2>Turn a quick rehearsal into a better take.</h2></div>
+    <div class="vocalframe-workflow-grid">
+      <article><span>01</span><h3>Set the scene</h3><p>Choose the conversation, pitch, interview, or video you want to prepare for.</p></article>
+      <article><span>02</span><h3>Practice on camera</h3><p>Speak naturally while keeping your delivery, pace, and presence in view.</p></article>
+      <article><span>03</span><h3>Refine your next take</h3><p>Use a clear read on the moment to make the next attempt more intentional.</p></article>
+    </div>
+  </section>
+  <section class="container vocalframe-statement"><p>Good communication isn’t about sounding perfect.</p><h2>It’s about feeling ready enough to be yourself.</h2></section>
+</main>
+
+{% include "footer.html" %}

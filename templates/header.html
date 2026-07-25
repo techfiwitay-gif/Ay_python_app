@@ -44,6 +44,9 @@
         <li class="nav-item">
           <a class="nav-link" href="{{ url_for('openclaw') }}">OpenClaw</a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('vocalframe') }}">VocalFrame</a>
+        </li>
         {% if not logged_in: %}
         <li class="nav-item">
           <a class="nav-link nav-link--quiet" href="{{ url_for('login') }}">Login</a>
@@ -60,6 +63,7 @@
     </div>
   </nav>
 
+  {% if not hide_hero|default(false) %}
   <header class="hero-header{% if compact_hero|default(false) %} hero-header--compact{% endif %}"
     style="background-image: linear-gradient(90deg, rgba(5, 25, 23, 0.92) 0%, rgba(5, 25, 23, 0.72) 44%, rgba(5, 25, 23, 0.25) 100%), url('{{ hero_image|default(url_for('static', filename='img/home-image.jpg')) }}');">
     <div class="container">
@@ -70,3 +74,4 @@
       </div>
     </div>
   </header>
+  {% endif %}

@@ -1,6 +1,29 @@
+{% set page_title = "Ayncode LLC | Software, products, and useful ideas" %}
+{% set hero_title = "Ayncode LLC" %}
+{% set hero_subtitle = "An independent studio for software, media, products, and practical ideas." %}
+{% set hero_kicker = "Build broadly. Ship thoughtfully." %}
 {% include "header.html" %}
 
 <main class="container page-stack">
+  {% if not query %}
+  <section class="company-intro" aria-labelledby="company-intro-title">
+    <div class="company-intro-copy">
+      <p class="section-kicker">Independent studio</p>
+      <h2 id="company-intro-title">One company. Room to build what comes next.</h2>
+      <p>Ayncode LLC is the home for products and experiments across software, media, commerce, and future ventures. The journal stays here too—sharing the lessons behind the work as it ships.</p>
+      <div class="button-row button-row--left">
+        <a class="btn btn-primary" href="{{ url_for('vocalframe') }}">Explore VocalFrame</a>
+        <a class="btn btn-secondary" href="{{ url_for('about') }}">About Ayncode</a>
+      </div>
+    </div>
+    <div class="company-pillars" aria-label="Ayncode focus areas">
+      <article><span class="company-pillar-icon"><i class="fas fa-code"></i></span><strong>Software</strong><p>Apps, automation, and thoughtful tools.</p></article>
+      <article><span class="company-pillar-icon"><i class="fas fa-lightbulb"></i></span><strong>Products</strong><p>Useful ideas made real, one launch at a time.</p></article>
+      <article><span class="company-pillar-icon"><i class="fas fa-compass"></i></span><strong>Experiments</strong><p>New creative, commerce, and media projects.</p></article>
+    </div>
+  </section>
+  {% endif %}
+
   <section class="content-toolbar">
     <div>
       <p class="section-kicker">Latest writing</p>
