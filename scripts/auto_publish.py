@@ -20,7 +20,6 @@ from main import (
     enrich_events_with_research,
     fetch_recent_events,
     generate_article,
-    generate_topic_cover,
     safe_filename,
 )
 
@@ -869,12 +868,10 @@ def main() -> int:
     published_at = datetime.now().strftime("%B %d, %Y %I:%M %p")
 
     searched_image = find_topic_header_image(topic_for_generation, image_query, focused_events, existing_posts=posts) if not img_url else {}
-    generated_img_url = ""
-    if not img_url and not searched_image.get("url"):
-        try:
-            generated_img_url = generate_article_image(post_slug, image_prompt)
-        except Exception:
-            generated_img_url = ""
+    real_image_url = img_url or searched_image.get("url")
+    if not real_image_url:
+        print("No suitable real source image was found. Skipping auto publish.", file=sys.stderr)
+        return 7
 
     new_post = {
         "slug": post_slug,
@@ -886,7 +883,7 @@ def main() -> int:
         "topic": topic_for_generation,
         "audience": audience,
         "event_query": event_query,
-        "img_url": img_url or searched_image.get("url") or generated_img_url or generate_topic_cover(topic_for_generation, audience),
+        "img_url": real_image_url,
         "image_prompt": image_prompt,
         "image_query": image_query,
         "image_source_url": searched_image.get("source_url", ""),
@@ -919,8 +916,6 @@ def main() -> int:
     print(f"{action} repo content post: {final_title}")
 
     changed_paths = [CONTENT_POSTS_PATH]
-    if generated_img_url:
-        changed_paths.append(Path(app.root_path) / generated_img_url.lstrip("/"))
 
     if should_commit:
         try:

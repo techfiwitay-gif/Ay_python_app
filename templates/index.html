@@ -64,10 +64,13 @@
   {% if all_posts|length > 0 %}
   {% set featured = all_posts[0] %}
   {% if not query %}
-  <article class="featured-post">
+  {% set featured_image = article_image_url(featured) %}
+  <article class="featured-post{% if not featured_image %} featured-post--text{% endif %}">
+    {% if featured_image %}
     <a class="featured-media" href="{{ url_for('show_post', post_id=featured.id) }}">
-      <img src="{{ featured.img_url }}" alt="{{ featured.title }}">
+      <img src="{{ featured_image }}" alt="{{ featured.title }}">
     </a>
+    {% endif %}
     <div class="featured-content">
       <p class="section-kicker">Featured article</p>
       <h2><a href="{{ url_for('show_post', post_id=featured.id) }}">{{ featured.title }}</a></h2>
@@ -88,10 +91,13 @@
   <div class="post-grid">
     {% for post in all_posts %}
     {% if query or loop.index > 1 %}
+    {% set post_image = article_image_url(post) %}
     <article class="post-card">
+      {% if post_image %}
       <a href="{{ url_for('show_post', post_id=post.id) }}">
-        <img class="post-image" src="{{ post.img_url }}" alt="{{ post.title }}">
+        <img class="post-image" src="{{ post_image }}" alt="{{ post.title }}">
       </a>
+      {% endif %}
       <div class="post-content">
         <p class="post-kicker">Article</p>
         <h2 class="post-title">

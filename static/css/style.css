@@ -1162,3 +1162,108 @@ footer a:hover {
         flex-direction: column;
     }
 }
+
+/* A page-aware navigation state makes the current destination clear. */
+.nav-link.is-active {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: #fff;
+}
+
+.nav-link.is-active:hover {
+    background: var(--teal);
+    border-color: var(--teal);
+    color: #fff;
+}
+
+.vocalframe-screens {
+    padding-block: 1.5rem 5rem;
+}
+
+.vocalframe-screens .vocalframe-section-heading {
+    max-width: 42rem;
+    margin-bottom: 2rem;
+}
+
+.vocalframe-screens .vocalframe-section-heading > p:last-child {
+    color: var(--muted);
+    margin: 0.85rem 0 0;
+}
+
+.vocalframe-screens-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+}
+
+.vocalframe-screen-card {
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 1.25rem;
+    background: #fff;
+    box-shadow: 0 16px 34px rgba(9, 31, 29, 0.09);
+}
+
+.vocalframe-screen-card img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 0.56;
+    object-fit: cover;
+    object-position: top;
+    background: #111;
+}
+
+.vocalframe-screen-card figcaption {
+    display: grid;
+    gap: 0.35rem;
+    padding: 1.1rem 1.15rem 1.25rem;
+}
+
+.vocalframe-screen-card strong {
+    color: var(--ink);
+    font-size: 1rem;
+}
+
+.vocalframe-screen-card span {
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.55;
+}
+
+.featured-post--text {
+    grid-template-columns: 1fr;
+}
+
+.article-title-block {
+    max-width: 860px;
+    padding: 4rem 0 2.25rem;
+}
+
+.article-title-block h1 {
+    max-width: 22ch;
+    margin: 0.4rem 0 0.9rem;
+    color: var(--ink);
+    font-family: "Merriweather", Georgia, serif;
+    font-size: clamp(2rem, 5vw, 4rem);
+    line-height: 1.12;
+}
+
+.article-title-block > p:last-child {
+    max-width: 60ch;
+    margin: 0;
+    color: var(--muted);
+    font-size: 1.1rem;
+    line-height: 1.65;
+}
+
+@media (max-width: 860px) {
+    .vocalframe-screens-grid {
+        grid-template-columns: 1fr;
+        max-width: 28rem;
+    }
+
+    .vocalframe-screen-card img {
+        max-height: 38rem;
+    }
+}

@@ -510,6 +510,14 @@ def generate_topic_cover(topic, audience):
     return f"/generated-cover/{audience_slug}/{topic_slug}-{digest[:10]}.svg"
 
 
+def article_image_url(post):
+    """Return a real article image URL, never a generated placeholder cover."""
+    image_url = str(getattr(post, "img_url", "") or "").strip()
+    if not image_url or "/generated-cover/" in image_url:
+        return ""
+    return image_url
+
+
 def render_topic_cover_svg(topic, audience):
     digest = hashlib.sha256(f"{topic}|{audience}".encode("utf-8")).hexdigest()
     palettes = [
@@ -1023,7 +1031,11 @@ app.jinja_env.filters['gravatar'] = gravatar_url
 
 @app.context_processor
 def inject_template_globals():
-    return {"date": date.today().year, "is_admin": is_admin_user(current_user)}
+    return {
+        "date": date.today().year,
+        "is_admin": is_admin_user(current_user),
+        "article_image_url": article_image_url,
+    }
 
 
 def admin_only(f):
@@ -1322,6 +1334,11 @@ def add_new_post():
 def generate_post():
     form = GenerateArticleForm()
     if form.validate_on_submit():
+        image_url = (form.img_url.data or "").strip()
+        if not image_url:
+            flash("Add a real image URL before publishing. Placeholder cover images are disabled.")
+            return render_template("generate-post.html", form=form, logged_in=current_user.is_authenticated)
+
         events = []
         if form.use_real_events.data:
             event_query = form.event_query.data or form.topic.data
@@ -1340,7 +1357,7 @@ def generate_post():
             title=title,
             subtitle=subtitle,
             body=body,
-            img_url=form.img_url.data or generate_topic_cover(form.topic.data, form.audience.data),
+            img_url=image_url,
             author=current_user,
             date=date.today().strftime("%B %d, %Y"),
             published_at=datetime.now().strftime("%B %d, %Y %I:%M %p")

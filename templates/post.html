@@ -2,11 +2,19 @@
 {% set hero_title = post.title %}
 {% set hero_subtitle = post.subtitle %}
 {% set hero_kicker = "Article by " ~ post.author.name ~ " on " ~ (post.published_at or post.date) %}
-{% set hero_image = post.img_url %}
+{% set hero_image = article_image_url(post) %}
+{% set hide_hero = not hero_image %}
 {% set compact_hero = true %}
 {% include "header.html" %}
 
 <main class="container">
+  {% if not hero_image %}
+  <header class="article-title-block">
+    <p class="section-kicker">{{ hero_kicker }}</p>
+    <h1>{{ post.title }}</h1>
+    <p>{{ post.subtitle }}</p>
+  </header>
+  {% endif %}
   <article class="article-shell">
     <div class="post-body">
       {{ post.body|safe }}

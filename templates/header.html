@@ -24,6 +24,7 @@
 </head>
 
 <body>
+  {% set current_path = request.path %}
 
   <nav class="navbar">
     <div class="navbar-container">
@@ -33,23 +34,23 @@
       </a>
       <ul class="navbar-nav">
         <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('get_all_posts') }}">Home</a>
+          <a class="nav-link{% if current_path == '/' %} is-active{% endif %}"{% if current_path == '/' %} aria-current="page"{% endif %} href="{{ url_for('get_all_posts') }}">Home</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('about') }}">About</a>
+          <a class="nav-link{% if current_path == '/about' %} is-active{% endif %}"{% if current_path == '/about' %} aria-current="page"{% endif %} href="{{ url_for('about') }}">About</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('contact') }}">Contact</a>
+          <a class="nav-link{% if current_path == '/contact' %} is-active{% endif %}"{% if current_path == '/contact' %} aria-current="page"{% endif %} href="{{ url_for('contact') }}">Contact</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('products') }}">Products</a>
+          <a class="nav-link{% if current_path in ['/products', '/openclaw', '/openclaw/', '/open-claw', '/openclawweb', '/open-claw-web', '/OpenClaw', '/claw', '/ayncode', '/vocalframe'] %} is-active{% endif %}"{% if current_path in ['/products', '/openclaw', '/openclaw/', '/open-claw', '/openclawweb', '/open-claw-web', '/OpenClaw', '/claw', '/ayncode', '/vocalframe'] %} aria-current="page"{% endif %} href="{{ url_for('products') }}">Products</a>
         </li>
         {% if not logged_in: %}
         <li class="nav-item">
-          <a class="nav-link nav-link--quiet" href="{{ url_for('login') }}">Login</a>
+          <a class="nav-link nav-link--quiet{% if current_path == '/login' %} is-active{% endif %}"{% if current_path == '/login' %} aria-current="page"{% endif %} href="{{ url_for('login') }}">Login</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link nav-link--strong" href="{{ url_for('register') }}">Register</a>
+          <a class="nav-link nav-link--strong{% if current_path == '/register' %} is-active{% endif %}"{% if current_path == '/register' %} aria-current="page"{% endif %} href="{{ url_for('register') }}">Register</a>
         </li>
         {% else: %}
         <li class="nav-item">
