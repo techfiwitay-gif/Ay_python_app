@@ -37,28 +37,38 @@
       <span><i class="far fa-eye"></i> {{ post.views or 0 }} views</span>
     </div>
 
-    <section class="engagement-panel" aria-label="Article engagement">
-      <div class="engagement-stat">
-        <strong>{{ post.likes or 0 }}</strong>
-        <span>Likes</span>
+    <section class="article-feedback" aria-label="Article feedback">
+      <div class="feedback-copy">
+        <p class="section-kicker">Reader feedback</p>
+        <h2>Was this useful?</h2>
+        <p>Your reaction helps shape what I publish next.</p>
       </div>
-      <div class="engagement-stat">
-        <strong>{{ post.upvotes or 0 }}</strong>
-        <span>Upvotes</span>
+      <div class="feedback-actions">
+        <form method="post" action="{{ url_for('react_to_post', post_id=post.id, reaction='like') }}">
+          {{ reaction_form.hidden_tag() }}
+          <button class="feedback-button" type="submit" aria-label="Like this article, {{ post.likes or 0 }} likes">
+            <i class="far fa-heart" aria-hidden="true"></i>
+            <span>Likes</span>
+            <strong>{{ post.likes or 0 }}</strong>
+          </button>
+        </form>
+        <form method="post" action="{{ url_for('react_to_post', post_id=post.id, reaction='upvote') }}">
+          {{ reaction_form.hidden_tag() }}
+          <button class="feedback-button" type="submit" aria-label="Upvote this article, {{ post.upvotes or 0 }} upvotes">
+            <i class="far fa-thumbs-up" aria-hidden="true"></i>
+            <span>Upvotes</span>
+            <strong>{{ post.upvotes or 0 }}</strong>
+          </button>
+        </form>
+        <form method="post" action="{{ url_for('react_to_post', post_id=post.id, reaction='downvote') }}">
+          {{ reaction_form.hidden_tag() }}
+          <button class="feedback-button feedback-button--muted" type="submit" aria-label="Downvote this article, {{ post.downvotes or 0 }} downvotes">
+            <i class="far fa-thumbs-down" aria-hidden="true"></i>
+            <span>Downvotes</span>
+            <strong>{{ post.downvotes or 0 }}</strong>
+          </button>
+        </form>
       </div>
-      <div class="engagement-stat">
-        <strong>{{ post.downvotes or 0 }}</strong>
-        <span>Downvotes</span>
-      </div>
-      <form class="engagement-actions" method="post" action="{{ url_for('react_to_post', post_id=post.id, reaction='like') }}">
-        <button class="reaction-btn" type="submit"><i class="far fa-heart"></i> Like</button>
-      </form>
-      <form class="engagement-actions" method="post" action="{{ url_for('react_to_post', post_id=post.id, reaction='upvote') }}">
-        <button class="reaction-btn" type="submit"><i class="far fa-thumbs-up"></i> Upvote</button>
-      </form>
-      <form class="engagement-actions" method="post" action="{{ url_for('react_to_post', post_id=post.id, reaction='downvote') }}">
-        <button class="reaction-btn reaction-btn--muted" type="submit"><i class="far fa-thumbs-down"></i> Downvote</button>
-      </form>
     </section>
 
     {% if is_admin %}

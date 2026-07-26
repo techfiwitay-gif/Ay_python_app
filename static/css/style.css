@@ -1051,73 +1051,100 @@ textarea.form-control {
     padding-bottom: 1rem;
 }
 
-.engagement-panel {
-    max-width: 520px;
+.article-feedback {
     display: grid;
-    grid-template-columns: repeat(3, minmax(54px, 1fr)) repeat(3, auto);
+    grid-template-columns: minmax(0, 0.9fr) minmax(330px, 1.1fr);
     align-items: center;
-    gap: 0.25rem;
-    background: #f8fafc;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
+    gap: 1.25rem;
+    background: linear-gradient(145deg, #fbfefd, #f2f8f7);
+    border: 1px solid #d9e7e4;
+    border-radius: 18px;
+    box-shadow: 0 18px 44px -38px rgba(16, 24, 40, 0.7);
     margin: 0 auto 1.35rem;
-    padding: 0.38rem;
+    padding: 1.05rem 1.15rem;
 }
 
-.engagement-stat {
-    border-right: 1px solid var(--line);
-    padding: 0.18rem 0.38rem;
+.feedback-copy .section-kicker {
+    margin-bottom: 0.2rem;
 }
 
-.engagement-stat strong {
-    display: block;
+.feedback-copy h2 {
     color: var(--ink);
-    font-size: 0.72rem;
-    font-weight: 900;
-    line-height: 1;
-    margin-bottom: 0.1rem;
-}
-
-.engagement-stat span {
-    color: var(--muted);
-    font-size: 0.5rem;
-    font-weight: 900;
-    text-transform: uppercase;
-}
-
-.engagement-actions {
+    font-size: clamp(1.08rem, 2vw, 1.35rem);
     margin: 0;
 }
 
-.reaction-btn {
-    min-height: 26px;
-    display: inline-flex;
+.feedback-copy > p:last-child {
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    margin: 0.3rem 0 0;
+}
+
+.feedback-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
+}
+
+.feedback-actions form {
+    margin: 0;
+    min-width: 0;
+}
+
+.feedback-button {
+    width: 100%;
+    min-height: 56px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
-    justify-content: center;
-    gap: 0.24rem;
-    background: #ffffff;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
+    gap: 0.42rem;
+    background: #fff;
+    border: 1px solid #d3e2df;
+    border-radius: 13px;
     color: var(--ink);
     cursor: pointer;
     font: inherit;
-    font-size: 0.58rem;
-    font-weight: 900;
-    padding: 0.25rem 0.36rem;
-    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    padding: 0.62rem 0.7rem;
+    transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
-.reaction-btn:hover {
-    background: #eef8f6;
-    border-color: #b7d8d2;
+.feedback-button i {
     color: var(--teal);
+}
+
+.feedback-button span {
+    font-size: 0.76rem;
+    font-weight: 900;
+    text-align: left;
+}
+
+.feedback-button strong {
+    min-width: 26px;
+    background: #e7f5f2;
+    border-radius: 999px;
+    color: var(--teal);
+    font-size: 0.68rem;
+    line-height: 1;
+    padding: 0.28rem 0.4rem;
+    text-align: center;
+}
+
+.feedback-button:hover,
+.feedback-button:focus-visible {
+    background: #f4fbf9;
+    border-color: #9ecbc4;
+    box-shadow: 0 10px 24px -18px rgba(15, 118, 110, 0.8);
+    color: var(--teal);
+    outline: none;
     transform: translateY(-1px);
 }
 
-.reaction-btn--muted:hover {
-    background: #fff7ed;
-    border-color: #fed7aa;
-    color: #9a3412;
+.feedback-button--muted:hover,
+.feedback-button--muted:focus-visible {
+    background: #fff8f1;
+    border-color: #f5c99e;
+    color: #9a4c14;
 }
 
 .post-body {
@@ -1689,19 +1716,12 @@ footer a:hover {
     }
 
     .search-panel,
-    .engagement-panel,
     .field-grid {
         grid-template-columns: 1fr;
     }
 
-    .engagement-stat {
-        border-right: 0;
-        border-bottom: 1px solid var(--line);
-    }
-
-    .engagement-actions,
-    .reaction-btn {
-        width: 100%;
+    .article-feedback {
+        grid-template-columns: 1fr;
     }
 
     .article-author-card {
@@ -1773,6 +1793,38 @@ footer a:hover {
 
     .post-grid {
         grid-template-columns: 1fr;
+    }
+
+    .article-feedback {
+        gap: 0.8rem;
+        padding: 0.85rem;
+    }
+
+    .feedback-copy > p:last-child {
+        display: none;
+    }
+
+    .feedback-actions {
+        gap: 0.38rem;
+    }
+
+    .feedback-button {
+        min-height: 54px;
+        grid-template-columns: 1fr;
+        justify-items: center;
+        gap: 0.16rem;
+        padding: 0.48rem 0.2rem;
+    }
+
+    .feedback-button span {
+        font-size: 0.68rem;
+        text-align: center;
+    }
+
+    .feedback-button strong {
+        min-width: 22px;
+        font-size: 0.62rem;
+        padding: 0.22rem 0.35rem;
     }
 
     .comment-header {

@@ -1745,6 +1745,7 @@ def show_post(post_id):
         comment_threads=comment_threads,
         comment_count=len(requested_post.comments),
         comment_action_form=AdminUserActionForm(),
+        reaction_form=AdminUserActionForm(),
     )
 
 
@@ -1771,6 +1772,9 @@ def delete_comment(comment_id):
 
 @app.route("/post/<int:post_id>/react/<reaction>", methods=["POST"])
 def react_to_post(post_id, reaction):
+    form = AdminUserActionForm()
+    if not form.validate_on_submit():
+        abort(400)
     post = db.get_or_404(BlogPost, post_id)
     reaction_fields = {
         "like": "likes",
