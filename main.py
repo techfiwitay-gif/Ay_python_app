@@ -66,6 +66,7 @@ LOGIN_WINDOW = timedelta(minutes=15)
 LOGIN_LOCK_TIME = timedelta(minutes=15)
 LOGIN_EMAIL_LIMIT = 5
 LOGIN_IP_LIMIT = 30
+COMMENT_COOLDOWN = timedelta(seconds=10)
 DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_urlsafe(32))
 
 
@@ -132,6 +133,33 @@ def ensure_user_security_columns():
                 )
             else:
                 connection.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {column_definition}"))
+
+
+def ensure_comment_columns():
+    inspector = inspect(db.engine)
+    if not inspector.has_table("comments"):
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("comments")}
+    dialect = db.engine.dialect.name
+    comment_columns = {
+        "parent_id": "INTEGER",
+        "created_at": (
+            "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
+            if dialect == "postgresql"
+            else "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
+        ),
+    }
+    with db.engine.begin() as connection:
+        for column_name, column_definition in comment_columns.items():
+            if column_name in existing_columns:
+                continue
+            if dialect == "postgresql":
+                connection.execute(
+                    text(f"ALTER TABLE comments ADD COLUMN IF NOT EXISTS {column_name} {column_definition}")
+                )
+            else:
+                connection.execute(text(f"ALTER TABLE comments ADD COLUMN {column_name} {column_definition}"))
 
 
 def load_generated_content_posts():
@@ -448,6 +476,7 @@ def sync_generated_content_posts():
 with app.app_context():
     db.create_all()
     ensure_user_security_columns()
+    ensure_comment_columns()
     ensure_engagement_columns()
     ensure_admin_user()
     sync_generated_content_posts()
@@ -1666,22 +1695,78 @@ def show_post(post_id):
     if comment_data.validate_on_submit():
         if not current_user.is_authenticated:
             flash('Please login or Register to comment')
-            return redirect(url_for("login"))
-        else:
+            return redirect(url_for("login", next=url_for("show_post", post_id=requested_post.id)))
 
-            comment = Comment(
-                text=comment_data.body.data,
-                comment_author=current_user,
-                parent_post=requested_post
-            )
+        latest_comment = Comment.query.filter_by(author_id=current_user.id).order_by(
+            Comment.created_at.desc()
+        ).first()
+        now = datetime.utcnow()
+        if (
+            latest_comment
+            and latest_comment.created_at
+            and now - latest_comment.created_at < COMMENT_COOLDOWN
+        ):
+            flash("Please wait a few seconds before posting another comment.")
+            return redirect(url_for("show_post", post_id=requested_post.id) + "#discussion")
 
-            db.session.add(comment)
-            db.session.commit()
-            return redirect(url_for("show_post", post_id=requested_post.id))
+        parent = None
+        if comment_data.parent_id.data:
+            try:
+                parent_id = int(comment_data.parent_id.data)
+            except (TypeError, ValueError):
+                abort(400)
+            parent = db.session.get(Comment, parent_id)
+            if not parent or parent.post_id != requested_post.id:
+                abort(400)
+            if parent.parent is not None:
+                parent = parent.parent
 
-    return render_template("post.html", post=requested_post,
-                           logged_in=current_user.is_authenticated,
-                           form=comment_data)
+        comment = Comment(
+            text=comment_data.body.data.strip(),
+            comment_author=current_user,
+            parent_post=requested_post,
+            parent=parent,
+        )
+        db.session.add(comment)
+        db.session.commit()
+        return redirect(
+            url_for("show_post", post_id=requested_post.id) + f"#comment-{comment.id}"
+        )
+
+    comment_threads = sorted(
+        (comment for comment in requested_post.comments if comment.parent_id is None),
+        key=lambda comment: comment.created_at or datetime.min,
+    )
+    return render_template(
+        "post.html",
+        post=requested_post,
+        logged_in=current_user.is_authenticated,
+        form=comment_data,
+        comment_threads=comment_threads,
+        comment_count=len(requested_post.comments),
+        comment_action_form=AdminUserActionForm(),
+    )
+
+
+@app.route("/comment/<int:comment_id>/delete", methods=["POST"])
+@login_required
+def delete_comment(comment_id):
+    form = AdminUserActionForm()
+    if not form.validate_on_submit():
+        abort(400)
+    comment = db.get_or_404(Comment, comment_id)
+    if comment.author_id != current_user.id and not is_admin_user(current_user):
+        abort(403)
+
+    post_id = comment.post_id
+    if comment.replies:
+        comment.text = "Comment removed by its author."
+        comment.comment_author = get_or_create_deleted_user()
+    else:
+        db.session.delete(comment)
+    db.session.commit()
+    flash("Comment removed.")
+    return redirect(url_for("show_post", post_id=post_id) + "#discussion")
 
 
 @app.route("/post/<int:post_id>/react/<reaction>", methods=["POST"])

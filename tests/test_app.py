@@ -2,6 +2,7 @@ import base64
 import importlib
 import json
 import sys
+from datetime import datetime, timedelta
 
 import pytest
 import smtplib
@@ -393,6 +394,39 @@ def test_logged_in_user_can_comment(client, app_module):
 
     assert response.status_code == 200
     assert b"Nice write up" in response.data
+
+
+def test_comment_text_is_escaped_and_replies_are_threaded(client, app_module):
+    with app_module.app.app_context():
+        author = create_user(app_module, email="writer@example.com", role="admin")
+        reader = create_user(app_module, email="thread-reader@example.com", name="Reader")
+        post = create_post(app_module, author)
+        parent = app_module.Comment(
+            text="Original thought",
+            comment_author=author,
+            parent_post=post,
+        )
+        parent.created_at = datetime.utcnow() - timedelta(minutes=1)
+        app_module.db.session.add(parent)
+        app_module.db.session.commit()
+        post_id = post.id
+        parent_id = parent.id
+
+    login(client, email="thread-reader@example.com")
+    response = client.post(
+        f"/post/{post_id}",
+        data={
+            "parent_id": str(parent_id),
+            "body": "<script>alert('xss')</script> Useful reply",
+            "submit": "Submit Comment",
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"&lt;script&gt;alert" in response.data
+    assert b"<script>alert" not in response.data
+    assert b"comment--reply" in response.data
 
 
 def test_post_view_increments_view_count(client, app_module):

@@ -69,43 +69,149 @@
     </div>
     {% endif %}
 
-    <section class="comments-area">
-      <div class="section-heading">
+    <section class="comments-area" id="discussion">
+      <div class="discussion-heading">
         <div>
           <p class="section-kicker">Discussion</p>
-          <h2>Join the conversation</h2>
+          <h2>{{ comment_count }} {{ "comment" if comment_count == 1 else "comments" }}</h2>
         </div>
+        <p>Thoughtful questions, useful context, and practical perspectives are welcome.</p>
       </div>
 
+      {% with messages = get_flashed_messages() %}
+      {% if messages %}
+      <div class="alert alert-warning" role="status">
+        {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+      </div>
+      {% endif %}
+      {% endwith %}
+
+      {% if logged_in %}
       <form class="comment-form" method="post" novalidate>
         {{ form.hidden_tag() }}
+        {{ form.parent_id(id="comment-parent-id") }}
+        <div class="comment-composer-profile">
+          <span class="comment-avatar" aria-hidden="true">{{ current_user.name[0]|upper }}</span>
+          <div>
+            <strong>{{ current_user.name }}</strong>
+            <span id="reply-context">Add to the discussion</span>
+          </div>
+          <button class="reply-cancel" id="reply-cancel" type="button" hidden>Cancel reply</button>
+        </div>
         <div class="field-block">
-          {{ form.body.label }}
-          {{ form.body(class_="form-control comment-textarea", placeholder="Share a thought, question, or useful note...") }}
+          {{ form.body.label(class_="sr-only") }}
+          {{ form.body(class_="form-control comment-textarea", placeholder="Share a thoughtful response…", maxlength="2000", aria_describedby="comment-guidance comment-count") }}
           {% for error in form.body.errors %}
           <p class="field-error">{{ error }}</p>
           {% endfor %}
         </div>
-        <div class="form-actions form-actions--compact">
+        <div class="comment-form-footer">
+          <span id="comment-guidance">Keep it constructive and relevant to the article.</span>
+          <span id="comment-count" aria-live="polite">0 / 2000</span>
           {{ form.submit(class_="btn btn-primary") }}
         </div>
       </form>
+      {% else %}
+      <div class="comment-signin">
+        <span class="comment-avatar" aria-hidden="true">A</span>
+        <div>
+          <h3>Join the discussion</h3>
+          <p>Sign in to share a comment or reply to another reader.</p>
+        </div>
+        <a class="btn btn-primary" href="{{ url_for('login', next=url_for('show_post', post_id=post.id) ~ '#discussion') }}">Log in</a>
+        <a class="btn btn-secondary" href="{{ url_for('register') }}">Create account</a>
+      </div>
+      {% endif %}
 
       <div class="comment-list">
-        {% for comment in post.comments: %}
-        <div class="comment">
-          <div class="commenter-image">
-            <img src="{{ comment.comment_author.email | gravatar }}" alt="{{ comment.comment_author.name }}">
+        {% macro comment_card(comment, is_reply=false) %}
+        <article class="comment{% if is_reply %} comment--reply{% endif %}" id="comment-{{ comment.id }}">
+          <div class="comment-avatar" aria-hidden="true">{{ comment.comment_author.name[0]|upper }}</div>
+          <div class="comment-content">
+            <header class="comment-header">
+              <div>
+                <strong>{{ comment.comment_author.name }}</strong>
+                {% if comment.comment_author.email_verified and comment.comment_author.role != "system" %}
+                <span class="verified-badge" title="Verified email">Verified</span>
+                {% endif %}
+              </div>
+              {% if comment.created_at %}
+              <time datetime="{{ comment.created_at.isoformat() }}">{{ comment.created_at.strftime("%b %d, %Y · %I:%M %p") }}</time>
+              {% endif %}
+            </header>
+            <p class="comment-body">{{ comment.text }}</p>
+            <footer class="comment-actions">
+              {% if logged_in and not is_reply %}
+              <button class="comment-action reply-trigger" type="button" data-comment-id="{{ comment.id }}" data-author="{{ comment.comment_author.name }}">Reply</button>
+              {% endif %}
+              {% if logged_in and (current_user.id == comment.author_id or is_admin) %}
+              <form method="post" action="{{ url_for('delete_comment', comment_id=comment.id) }}">
+                {{ comment_action_form.hidden_tag() }}
+                <button class="comment-action comment-action--danger" type="submit">Delete</button>
+              </form>
+              {% endif %}
+            </footer>
           </div>
-          <div class="comment-text">
-            <p>{{ comment.text|safe }}</p>
-            <span class="date sub-text">{{ comment.comment_author.name }}</span>
+        </article>
+        {% endmacro %}
+
+        {% for comment in comment_threads %}
+        <div class="comment-thread">
+          {{ comment_card(comment) }}
+          {% if comment.replies %}
+          <div class="comment-replies" aria-label="Replies to {{ comment.comment_author.name }}">
+            {% for reply in comment.replies %}
+            {{ comment_card(reply, true) }}
+            {% endfor %}
           </div>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="comment-empty">
+          <span class="comment-empty-icon" aria-hidden="true">💬</span>
+          <h3>Start the conversation</h3>
+          <p>Be the first to share a useful thought about this article.</p>
         </div>
         {% endfor %}
       </div>
     </section>
   </article>
 </main>
+
+<script>
+  (() => {
+    const textarea = document.querySelector(".comment-textarea");
+    const counter = document.getElementById("comment-count");
+    if (textarea && counter) {
+      const updateCount = () => {
+        counter.textContent = `${textarea.value.length} / 2000`;
+      };
+      textarea.addEventListener("input", updateCount);
+      updateCount();
+    }
+
+    const parentInput = document.getElementById("comment-parent-id");
+    const replyContext = document.getElementById("reply-context");
+    const cancel = document.getElementById("reply-cancel");
+    if (!textarea || !parentInput || !replyContext || !cancel) return;
+
+    document.querySelectorAll(".reply-trigger").forEach((button) => {
+      button.addEventListener("click", () => {
+        parentInput.value = button.dataset.commentId;
+        replyContext.textContent = `Replying to ${button.dataset.author}`;
+        cancel.hidden = false;
+        textarea.focus();
+        document.querySelector(".comment-form").scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
+
+    cancel.addEventListener("click", () => {
+      parentInput.value = "";
+      replyContext.textContent = "Add to the discussion";
+      cancel.hidden = true;
+      textarea.focus();
+    });
+  })();
+</script>
 
 {% include "footer.html" %}

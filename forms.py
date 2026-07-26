@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms import BooleanField, HiddenField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, URL
 from flask_ckeditor import CKEditorField
 
@@ -92,5 +92,6 @@ class LogoutForm(FlaskForm):
 
 
 class CommentForm(FlaskForm):
+    parent_id = HiddenField(validators=[Optional()])
     body = TextAreaField("Comment", validators=[DataRequired(), Length(max=2000)])
     submit = SubmitField("Submit Comment")

@@ -103,12 +103,22 @@ class Comment(db.Model):
     comment_author = relationship("Users", back_populates="comments")
     post_id = db.Column(db.Integer, db.ForeignKey("blog_posts.id", ondelete="CASCADE"))
     parent_post = relationship("BlogPost", back_populates="comments")
+    parent_id = db.Column(db.Integer, db.ForeignKey("comments.id", ondelete="CASCADE"), nullable=True)
+    parent = relationship("Comment", remote_side=[id], back_populates="replies")
+    replies = relationship(
+        "Comment",
+        back_populates="parent",
+        cascade="all, delete-orphan",
+        order_by="Comment.created_at",
+    )
     text = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-    def __init__(self, text, comment_author, parent_post):
+    def __init__(self, text, comment_author, parent_post, parent=None):
         self.text = text
         self.comment_author = comment_author
         self.parent_post = parent_post
+        self.parent = parent
 
 
 class DeletedGeneratedPost(db.Model):
