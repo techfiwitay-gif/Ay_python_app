@@ -70,8 +70,8 @@
       </form>
 
       <div class="login-card__footer">
-        <span>New to AyNcode?</span>
-        <a href="{{ url_for('register') }}">Create a free account</a>
+        <div><span>New to AyNcode?</span> <a href="{{ url_for('register') }}">Create a free account</a></div>
+        <a href="{{ url_for('resend_verification') }}">Resend verification email</a>
       </div>
     </section>
   </div>

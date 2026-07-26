@@ -1,0 +1,59 @@
+{% set page_title = "Manage Users | AyNcode" %}
+{% set hero_title = "User Management" %}
+{% set hero_subtitle = "Review, disable, restore, or safely remove AyNcode accounts." %}
+{% set hero_kicker = "Administration" %}
+{% set compact_hero = true %}
+{% include "header.html" %}
+
+<main class="container">
+  {% with messages = get_flashed_messages() %}
+  {% if messages %}
+  <div class="alert alert-warning" role="alert">
+    {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <section class="user-management">
+    <div class="section-heading">
+      <div>
+        <p class="section-kicker">Accounts</p>
+        <h2>{{ users|length }} registered users</h2>
+      </div>
+    </div>
+
+    <div class="user-list">
+      {% for user in users %}
+      <article class="user-row">
+        <div>
+          <h3>{{ user.name }}</h3>
+          <p>{{ user.email }}</p>
+        </div>
+        <div class="user-badges">
+          <span>{{ user.role|title }}</span>
+          <span>{% if user.email_verified %}Verified{% else %}Unverified{% endif %}</span>
+          {% if user.is_disabled %}<span class="is-disabled">Disabled</span>{% endif %}
+        </div>
+        <div class="user-actions">
+          {% if user.role == "user" %}
+          <form method="post" action="{{ url_for('admin_user_action', user_id=user.id, action='enable' if user.is_disabled else 'disable') }}">
+            {{ action_form.hidden_tag() }}
+            <button class="btn btn-secondary" type="submit">{{ "Enable" if user.is_disabled else "Disable" }}</button>
+          </form>
+          <form method="post" action="{{ url_for('admin_user_action', user_id=user.id, action='delete') }}" onsubmit="return confirm('Permanently delete this user account?');">
+            {{ action_form.hidden_tag() }}
+            <button class="btn btn-danger" type="submit">Delete</button>
+          </form>
+          {% else %}
+          <span class="field-hint">Protected</span>
+          {% endif %}
+        </div>
+      </article>
+      {% else %}
+      <p class="empty-state">No user accounts were found.</p>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+
+{% include "footer.html" %}

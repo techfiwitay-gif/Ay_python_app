@@ -1,0 +1,42 @@
+{% set page_title = "Verify Email | AyNcode" %}
+{% set hero_title = "Verify Your Email" %}
+{% set hero_subtitle = "Request a fresh activation link for your AyNcode account." %}
+{% set hero_kicker = "Account security" %}
+{% set compact_hero = true %}
+{% include "header.html" %}
+
+<main class="container auth-layout">
+  <section class="form-shell">
+    <p class="section-kicker">Email confirmation</p>
+    <h2>Send a new verification link</h2>
+
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="alert alert-warning" role="alert">
+      {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      <div class="form-group">
+        {{ form.email.label }}
+        {{ form.email(class_="form-control", placeholder="you@example.com", autocomplete="email", inputmode="email", autocapitalize="none") }}
+        {% for error in form.email.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+      </div>
+      <div class="form-actions form-actions--compact">
+        {{ form.submit(class_="btn btn-primary") }}
+        <a class="btn btn-secondary" href="{{ url_for('login') }}">Back to login</a>
+      </div>
+    </form>
+  </section>
+
+  <aside class="side-panel">
+    <p class="section-kicker">Why verify</p>
+    <h2>Verification protects account ownership.</h2>
+    <p>AyNcode uses the link to confirm that new accounts control the email address used during registration.</p>
+  </aside>
+</main>
+
+{% include "footer.html" %}

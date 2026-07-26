@@ -385,6 +385,17 @@ p {
 }
 
 .btn-danger {
+    background: #b42318;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: #8f1c13;
+    color: #fff;
+    transform: translateY(-2px);
+}
+
+.btn-danger {
     background: #fff5f5;
     border-color: #fecaca;
     color: #b42318;
@@ -761,13 +772,131 @@ p {
 
 .login-card__footer {
     display: flex;
+    align-items: center;
     justify-content: center;
-    gap: 0.4rem;
+    gap: 0.75rem 1.1rem;
+    flex-wrap: wrap;
     margin-top: 1.5rem;
     padding-top: 1.25rem;
     border-top: 1px solid var(--line);
     color: var(--muted);
     font-size: 0.86rem;
+}
+
+.account-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(320px, 1fr);
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.account-details {
+    display: grid;
+    gap: 0;
+    margin: 1.5rem 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.account-details div {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.account-details div:last-child {
+    border-bottom: 0;
+}
+
+.account-details dt {
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 900;
+}
+
+.account-details dd {
+    margin: 0;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+
+.danger-zone {
+    border-color: #fecaca;
+}
+
+.danger-zone .section-kicker {
+    color: #b42318;
+}
+
+.user-management {
+    padding: clamp(1.25rem, 3vw, 2rem);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: var(--shadow-md);
+}
+
+.user-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.user-row {
+    display: grid;
+    grid-template-columns: minmax(200px, 1fr) auto auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: #fff;
+}
+
+.user-row h3 {
+    margin: 0 0 0.2rem;
+    font-size: 1rem;
+}
+
+.user-row p {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.user-badges,
+.user-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.user-badges span {
+    padding: 0.32rem 0.5rem;
+    border-radius: 999px;
+    background: #eef8f6;
+    color: var(--teal);
+    font-size: 0.7rem;
+    font-weight: 900;
+}
+
+.user-badges .is-disabled {
+    background: #fee2e2;
+    color: #b42318;
+}
+
+.user-actions form,
+.nav-logout-form {
+    margin: 0;
+}
+
+.nav-logout-form .nav-link {
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
 }
 
 .form-group,
@@ -1355,6 +1484,15 @@ footer a:hover {
 
     .login-brand-panel {
         min-height: 360px;
+    }
+
+    .account-layout,
+    .user-row {
+        grid-template-columns: 1fr;
+    }
+
+    .user-actions .btn {
+        width: auto;
     }
 }
 

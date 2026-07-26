@@ -1,0 +1,58 @@
+{% set page_title = "Account | AyNcode" %}
+{% set hero_title = "Account Settings" %}
+{% set hero_subtitle = "Review account access and manage your AyNcode profile." %}
+{% set hero_kicker = "Account" %}
+{% set compact_hero = true %}
+{% include "header.html" %}
+
+<main class="container account-layout">
+  <section class="form-shell">
+    <p class="section-kicker">Signed in</p>
+    <h2>{{ current_user.name }}</h2>
+    <dl class="account-details">
+      <div><dt>Email</dt><dd>{{ current_user.email }}</dd></div>
+      <div><dt>Status</dt><dd>{% if current_user.email_verified %}Verified{% else %}Verification required{% endif %}</dd></div>
+      <div><dt>Account type</dt><dd>{{ current_user.role|title }}</dd></div>
+    </dl>
+    {% if is_admin %}
+    <a class="btn btn-secondary" href="{{ url_for('admin_users') }}">Manage users</a>
+    {% endif %}
+  </section>
+
+  <section class="form-shell danger-zone">
+    <p class="section-kicker">Account removal</p>
+    <h2>Delete account</h2>
+    <p>Deletion removes your sign-in credentials. Existing comments are anonymized so article discussions remain readable.</p>
+
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="alert alert-warning" role="alert">
+      {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    {% if not is_admin %}
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      <div class="form-group">
+        {{ form.password.label }}
+        {{ form.password(class_="form-control", autocomplete="current-password", placeholder="Confirm your password") }}
+        {% for error in form.password.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+      </div>
+      <label class="checkbox-field">
+        {{ form.confirm() }}
+        <span>{{ form.confirm.label.text }}</span>
+      </label>
+      {% for error in form.confirm.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+      <div class="form-actions form-actions--compact">
+        {{ form.submit(class_="btn btn-danger") }}
+      </div>
+    </form>
+    {% else %}
+    <p class="field-hint">The primary administrator account is protected from deletion here.</p>
+    {% endif %}
+  </section>
+</main>
+
+{% include "footer.html" %}

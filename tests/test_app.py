@@ -40,11 +40,13 @@ def client(app_module):
     return app_module.app.test_client()
 
 
-def create_user(main, email="admin@example.com", name="Admin", password="password123"):
+def create_user(main, email="admin@example.com", name="Admin", password="password123", role="user", email_verified=True):
     user = main.Users(
         email=email,
         name=name,
         password=generate_password_hash(password, method="pbkdf2:sha256", salt_length=8),
+        role=role,
+        email_verified=email_verified,
     )
     main.db.session.add(user)
     main.db.session.commit()
@@ -135,7 +137,7 @@ def test_deleted_generated_post_is_not_reimported(client, app_module, monkeypatc
     monkeypatch.setattr(app_module, "CONTENT_POSTS_PATH", content_path)
 
     with app_module.app.app_context():
-        create_user(app_module, email="admin@example.com", name="Admin")
+        create_user(app_module, email="admin@example.com", name="Admin", role="admin")
         app_module.sync_generated_content_posts()
         post = app_module.BlogPost.query.filter_by(title="AI News (2026-04-28)").first()
         post_id = post.id
@@ -297,7 +299,7 @@ def test_duplicate_registration_redirects_to_login(client, app_module):
     )
 
     assert response.status_code == 200
-    assert b"Email already exist.Please login" in response.data
+    assert b"If this email can be registered" in response.data
 
 
 def test_forgot_password_without_smtp_credentials_does_not_crash(client, app_module):
@@ -311,7 +313,7 @@ def test_forgot_password_without_smtp_credentials_does_not_crash(client, app_mod
     )
 
     assert response.status_code == 200
-    assert b"Password reset email is temporarily unavailable" in response.data
+    assert b"If that email is registered" in response.data
 
 
 def test_forgot_password_with_bad_smtp_credentials_does_not_crash(client, app_module, monkeypatch):
@@ -344,7 +346,7 @@ def test_forgot_password_with_bad_smtp_credentials_does_not_crash(client, app_mo
     )
 
     assert response.status_code == 200
-    assert b"Password reset email is temporarily unavailable" in response.data
+    assert b"If that email is registered" in response.data
 
 
 def test_reset_password_updates_password(client, app_module):
@@ -445,7 +447,7 @@ def test_configured_admin_email_can_access_admin_routes(client, app_module, monk
 
     with app_module.app.app_context():
         create_user(app_module, email="reader@example.com", name="Reader")
-        admin = create_user(app_module, email="admin@example.com", name="Admin")
+        admin = create_user(app_module, email="admin@example.com", name="Admin", role="admin")
         admin_id = admin.id
 
     assert admin_id != 1
@@ -465,7 +467,7 @@ def test_admin_sees_delete_button_on_post_page(client, app_module, monkeypatch):
     monkeypatch.setenv("ADMIN_EMAIL", "admin@example.com")
 
     with app_module.app.app_context():
-        admin = create_user(app_module, email="admin@example.com", name="Admin")
+        admin = create_user(app_module, email="admin@example.com", name="Admin", role="admin")
         post = create_post(app_module, admin)
         post_id = post.id
 
@@ -493,6 +495,95 @@ def test_ensure_admin_user_repairs_existing_automation_account(app_module, monke
 
     assert user.name == "Ayotunde Oyeniyi"
     assert app_module.check_password_hash(user.password, "new-admin-password")
+    assert user.role == "admin"
+    assert user.email_verified is True
+
+
+def test_email_verification_token_is_single_use(client, app_module):
+    with app_module.app.app_context():
+        user = create_user(
+            app_module,
+            email="verify@example.com",
+            email_verified=False,
+        )
+        token = app_module.generate_email_verification_token(user)
+
+    first_response = client.get(f"/verify-email/{token}", follow_redirects=True)
+    second_response = client.get(f"/verify-email/{token}", follow_redirects=True)
+
+    assert first_response.status_code == 200
+    assert b"Email verified" in first_response.data
+    assert b"invalid, expired, or already used" in second_response.data
+
+
+def test_password_reset_token_is_single_use(client, app_module):
+    with app_module.app.app_context():
+        user = create_user(app_module, email="single-reset@example.com")
+        token = app_module.generate_password_reset_token(user)
+
+    response = client.post(
+        f"/reset-password/{token}",
+        data={
+            "password": "newpassword123",
+            "confirm_password": "newpassword123",
+            "submit": "Update Password",
+        },
+        follow_redirects=True,
+    )
+    reused_response = client.get(f"/reset-password/{token}", follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b"Password updated" in response.data
+    assert b"invalid or expired" in reused_response.data
+
+
+def test_login_is_throttled_after_repeated_failures(client, app_module):
+    with app_module.app.app_context():
+        create_user(app_module, email="locked@example.com")
+
+    for _ in range(app_module.LOGIN_EMAIL_LIMIT):
+        client.post(
+            "/login",
+            data={"email": "locked@example.com", "password": "wrong-password", "login": "Log in"},
+        )
+
+    response = client.post(
+        "/login",
+        data={"email": "locked@example.com", "password": "password123", "login": "Log in"},
+    )
+
+    assert response.status_code == 429
+    assert b"temporarily unavailable" in response.data
+
+
+def test_user_can_delete_account_and_anonymize_comments(client, app_module):
+    with app_module.app.app_context():
+        admin = create_user(app_module, email="owner@example.com", role="admin")
+        reader = create_user(app_module, email="reader-delete@example.com", name="Reader")
+        post = create_post(app_module, admin)
+        comment = app_module.Comment(text="Keep this discussion", comment_author=reader, parent_post=post)
+        app_module.db.session.add(comment)
+        app_module.db.session.commit()
+
+    login(client, email="reader-delete@example.com")
+    response = client.post(
+        "/account",
+        data={
+            "password": "password123",
+            "confirm": "y",
+            "submit": "Delete My Account",
+        },
+        follow_redirects=True,
+    )
+
+    with app_module.app.app_context():
+        deleted_user = app_module.Users.query.filter_by(email="reader-delete@example.com").first()
+        preserved_comment = app_module.Comment.query.filter_by(text="Keep this discussion").first()
+        comment_author_name = preserved_comment.comment_author.name
+
+    assert response.status_code == 200
+    assert deleted_user is None
+    assert comment_author_name == "Deleted user"
 
 
 def test_contact_without_smtp_credentials_does_not_crash(client):

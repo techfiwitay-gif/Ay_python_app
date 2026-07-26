@@ -1,5 +1,5 @@
 
-from flask import Flask, Response, abort, flash, redirect, render_template, request, send_from_directory, url_for
+from flask import Flask, Response, abort, flash, redirect, render_template, request, send_from_directory, session, url_for
 from flask_bootstrap import Bootstrap
 from flask_ckeditor import CKEditor
 from datetime import date, datetime, timedelta, timezone
@@ -7,14 +7,17 @@ from email.utils import parsedate_to_datetime
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, LoginManager, login_required, current_user, logout_user
-from forms import CommentForm, CreatePostForm, ForgotPasswordForm, GenerateArticleForm, LoginForm, RegisterForm, ResetPasswordForm
+from forms import AdminUserActionForm, CommentForm, CreatePostForm, DeleteAccountForm, ForgotPasswordForm, GenerateArticleForm, LoginForm, LogoutForm, RegisterForm, ResendVerificationForm, ResetPasswordForm
 from functools import wraps
-from models import BlogPost, Comment, DeletedGeneratedPost, Users, db
+from models import BlogPost, Comment, DeletedGeneratedPost, LoginThrottle, Users, db
 from sqlalchemy import func, inspect, or_, text
+from sqlalchemy.exc import IntegrityError
 import base64
+import hmac
 import os
 import json
 import re
+import secrets
 from pathlib import Path
 from smtplib import SMTP, SMTPException
 from html import escape
@@ -35,6 +38,14 @@ app.config.from_mapping(
     SQLALCHEMY_DATABASE_URI=database_url,
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     PASSWORD_RESET_MAX_AGE=int(os.environ.get("PASSWORD_RESET_MAX_AGE", "3600")),
+    EMAIL_VERIFICATION_MAX_AGE=int(os.environ.get("EMAIL_VERIFICATION_MAX_AGE", "86400")),
+    SESSION_COOKIE_SECURE=os.environ.get(
+        "SESSION_COOKIE_SECURE",
+        "1" if os.environ.get("VERCEL") else "0",
+    ) == "1",
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=12),
 )
 ckeditor = CKEditor(app)
 Bootstrap(app)
@@ -49,7 +60,13 @@ DEFAULT_AUTOMATION_AUTHOR_NAME = "Ayotunde Oyeniyi"
 DEFAULT_ADMIN_EMAIL = DEFAULT_AUTOMATION_AUTHOR_EMAIL
 DEFAULT_GITHUB_REPOSITORY = "techfiwitay-gif/Ay_python_app"
 PASSWORD_RESET_SALT = "ayncoder-password-reset"
+EMAIL_VERIFICATION_SALT = "ayncoder-email-verification"
 ARTICLE_ARCHIVE_AGE_DAYS = 7
+LOGIN_WINDOW = timedelta(minutes=15)
+LOGIN_LOCK_TIME = timedelta(minutes=15)
+LOGIN_EMAIL_LIMIT = 5
+LOGIN_IP_LIMIT = 30
+DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_urlsafe(32))
 
 
 def ensure_engagement_columns():
@@ -77,6 +94,44 @@ def ensure_engagement_columns():
                 )
             else:
                 connection.execute(text(f"ALTER TABLE blog_posts ADD COLUMN {column_name} {column_definition}"))
+
+
+def ensure_user_security_columns():
+    inspector = inspect(db.engine)
+    if not inspector.has_table("users"):
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("users")}
+    dialect = db.engine.dialect.name
+    if dialect == "postgresql":
+        security_columns = {
+            "role": "VARCHAR(32) NOT NULL DEFAULT 'user'",
+            "email_verified": "BOOLEAN NOT NULL DEFAULT TRUE",
+            "email_verification_nonce": "VARCHAR(64)",
+            "password_reset_nonce": "VARCHAR(64)",
+            "is_disabled": "BOOLEAN NOT NULL DEFAULT FALSE",
+            "created_at": "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
+        }
+    else:
+        security_columns = {
+            "role": "VARCHAR(32) NOT NULL DEFAULT 'user'",
+            "email_verified": "BOOLEAN NOT NULL DEFAULT 1",
+            "email_verification_nonce": "VARCHAR(64)",
+            "password_reset_nonce": "VARCHAR(64)",
+            "is_disabled": "BOOLEAN NOT NULL DEFAULT 0",
+            "created_at": "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
+        }
+
+    with db.engine.begin() as connection:
+        for column_name, column_definition in security_columns.items():
+            if column_name in existing_columns:
+                continue
+            if dialect == "postgresql":
+                connection.execute(
+                    text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {column_name} {column_definition}")
+                )
+            else:
+                connection.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {column_definition}"))
 
 
 def load_generated_content_posts():
@@ -206,10 +261,14 @@ def remove_generated_post_from_source(slug, title):
     return removed_locally or removed_remotely
 
 
+def normalize_email(value):
+    return (value or "").strip().lower()
+
+
 def get_or_create_automation_author():
-    email = (os.environ.get("AUTO_POST_AUTHOR_EMAIL") or DEFAULT_AUTOMATION_AUTHOR_EMAIL).strip()
+    email = normalize_email(os.environ.get("AUTO_POST_AUTHOR_EMAIL") or DEFAULT_AUTOMATION_AUTHOR_EMAIL)
     name = (os.environ.get("AUTO_POST_AUTHOR_NAME") or DEFAULT_AUTOMATION_AUTHOR_NAME).strip()
-    author = Users.query.filter_by(email=email).first()
+    author = Users.query.filter(func.lower(Users.email) == email).first()
     if author:
         return author
 
@@ -217,7 +276,8 @@ def get_or_create_automation_author():
     author = Users(
         email=email,
         name=name or DEFAULT_AUTOMATION_AUTHOR_NAME,
-        password=generate_password_hash(password_seed, method="pbkdf2:sha256", salt_length=8),
+        password=generate_password_hash(password_seed),
+        email_verified=True,
     )
     db.session.add(author)
     db.session.commit()
@@ -225,7 +285,7 @@ def get_or_create_automation_author():
 
 
 def configured_admin_email():
-    return (os.environ.get("ADMIN_EMAIL") or os.environ.get("AUTO_POST_AUTHOR_EMAIL") or DEFAULT_ADMIN_EMAIL).strip().lower()
+    return normalize_email(os.environ.get("ADMIN_EMAIL") or os.environ.get("AUTO_POST_AUTHOR_EMAIL") or DEFAULT_ADMIN_EMAIL)
 
 
 def configured_admin_name():
@@ -235,9 +295,7 @@ def configured_admin_name():
 def is_admin_user(user):
     if not user or not getattr(user, "is_authenticated", False):
         return False
-    admin_email = configured_admin_email()
-    user_email = (getattr(user, "email", "") or "").strip().lower()
-    return bool(admin_email and user_email == admin_email)
+    return getattr(user, "role", "user") == "admin" and not getattr(user, "is_disabled", False)
 
 
 def ensure_admin_user():
@@ -250,10 +308,16 @@ def ensure_admin_user():
         return None
 
     name = configured_admin_name()
-    user = Users.query.filter_by(email=email).first()
-    password_hash = generate_password_hash(password, method="pbkdf2:sha256", salt_length=8)
+    user = Users.query.filter(func.lower(Users.email) == email).first()
+    password_hash = generate_password_hash(password)
     if not user:
-        user = Users(email=email, name=name, password=password_hash)
+        user = Users(
+            email=email,
+            name=name,
+            password=password_hash,
+            role="admin",
+            email_verified=True,
+        )
         db.session.add(user)
         db.session.commit()
         return user
@@ -264,6 +328,37 @@ def ensure_admin_user():
         changed = True
     if not check_password_hash(user.password, password):
         user.password = password_hash
+        changed = True
+    if user.role != "admin":
+        user.role = "admin"
+        changed = True
+    if not user.email_verified:
+        user.email_verified = True
+        changed = True
+    if user.is_disabled:
+        user.is_disabled = False
+        changed = True
+    if changed:
+        db.session.commit()
+    return user
+
+
+def ensure_admin_role():
+    email = configured_admin_email()
+    if not email:
+        return None
+    user = Users.query.filter(func.lower(Users.email) == email).first()
+    if not user:
+        return None
+    changed = False
+    if user.role != "admin":
+        user.role = "admin"
+        changed = True
+    if not user.email_verified:
+        user.email_verified = True
+        changed = True
+    if user.is_disabled:
+        user.is_disabled = False
         changed = True
     if changed:
         db.session.commit()
@@ -352,9 +447,11 @@ def sync_generated_content_posts():
 
 with app.app_context():
     db.create_all()
+    ensure_user_security_columns()
     ensure_engagement_columns()
     ensure_admin_user()
     sync_generated_content_posts()
+    ensure_admin_role()
 
 
 def is_safe_redirect_url(target):
@@ -366,19 +463,66 @@ def password_reset_serializer():
 
 
 def generate_password_reset_token(user):
-    return password_reset_serializer().dumps(user.email, salt=PASSWORD_RESET_SALT)
+    user.password_reset_nonce = secrets.token_urlsafe(24)
+    db.session.commit()
+    return password_reset_serializer().dumps(
+        {"user_id": user.id, "nonce": user.password_reset_nonce},
+        salt=PASSWORD_RESET_SALT,
+    )
 
 
 def verify_password_reset_token(token):
     try:
-        email = password_reset_serializer().loads(
+        payload = password_reset_serializer().loads(
             token,
             salt=PASSWORD_RESET_SALT,
             max_age=app.config["PASSWORD_RESET_MAX_AGE"],
         )
     except (BadSignature, SignatureExpired):
         return None
-    return Users.query.filter_by(email=email).first()
+    if not isinstance(payload, dict):
+        return None
+    user = db.session.get(Users, payload.get("user_id"))
+    if (
+        not user
+        or user.is_disabled
+        or not user.password_reset_nonce
+        or not hmac.compare_digest(user.password_reset_nonce, payload.get("nonce", ""))
+    ):
+        return None
+    return user
+
+
+def generate_email_verification_token(user):
+    user.email_verification_nonce = secrets.token_urlsafe(24)
+    db.session.commit()
+    return password_reset_serializer().dumps(
+        {"user_id": user.id, "nonce": user.email_verification_nonce},
+        salt=EMAIL_VERIFICATION_SALT,
+    )
+
+
+def verify_email_verification_token(token):
+    try:
+        payload = password_reset_serializer().loads(
+            token,
+            salt=EMAIL_VERIFICATION_SALT,
+            max_age=app.config["EMAIL_VERIFICATION_MAX_AGE"],
+        )
+    except (BadSignature, SignatureExpired):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    user = db.session.get(Users, payload.get("user_id"))
+    if (
+        not user
+        or user.is_disabled
+        or user.email_verified
+        or not user.email_verification_nonce
+        or not hmac.compare_digest(user.email_verification_nonce, payload.get("nonce", ""))
+    ):
+        return None
+    return user
 
 
 def send_password_reset_email(user, reset_url):
@@ -407,6 +551,37 @@ def send_password_reset_email(user, reset_url):
             smtp.sendmail(my_email, user.email, msg=message)
     except (OSError, SMTPException) as exc:
         app.logger.warning("Password reset email failed: %s", exc)
+        return False
+    return True
+
+
+def send_email_verification(user):
+    password = (os.environ.get("GMAIL_PASSWORD") or "").replace(" ", "").strip()
+    my_email = (
+        os.environ.get("GMAIL_EMAIL")
+        or os.environ.get("SMTP_USERNAME")
+        or os.environ.get("CONTACT_EMAIL")
+        or DEFAULT_ADMIN_EMAIL
+    ).strip()
+    if not password:
+        return False
+
+    token = generate_email_verification_token(user)
+    verify_url = url_for("verify_email", token=token, _external=True)
+    message = (
+        "Subject:Verify your AyNcode email\n\n"
+        f"Hi {user.name},\n\n"
+        "Confirm this email address to activate your AyNcode account.\n\n"
+        f"Verify email: {verify_url}\n\n"
+        "This link expires in 24 hours. If this account was not created by you, this email can be ignored.\n"
+    )
+    try:
+        with SMTP("smtp.gmail.com", 587) as smtp:
+            smtp.starttls()
+            smtp.login(my_email, password)
+            smtp.sendmail(my_email, user.email, msg=message)
+    except (OSError, SMTPException) as exc:
+        app.logger.warning("Email verification failed: %s", exc)
         return False
     return True
 
@@ -1063,12 +1238,134 @@ def admin_only(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
+def login_client_ip():
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    return (forwarded.split(",", 1)[0].strip() or request.remote_addr or "unknown")[:128]
+
+
+def login_bucket(scope, value):
+    key = app.config["SECRET_KEY"].encode("utf-8")
+    digest = hmac.new(key, f"{scope}:{value}".encode("utf-8"), "sha256").hexdigest()
+    return f"{scope}:{digest}"
+
+
+def login_throttle_buckets(email):
+    return (
+        (login_bucket("email", normalize_email(email)), LOGIN_EMAIL_LIMIT),
+        (login_bucket("ip", login_client_ip()), LOGIN_IP_LIMIT),
+    )
+
+
+def is_login_throttled(email):
+    now = datetime.utcnow()
+    for bucket, _limit in login_throttle_buckets(email):
+        throttle = LoginThrottle.query.filter_by(bucket=bucket).first()
+        if throttle and throttle.blocked_until and throttle.blocked_until > now:
+            return True
+    return False
+
+
+def record_login_failure(email):
+    now = datetime.utcnow()
+    LoginThrottle.query.filter(
+        LoginThrottle.last_attempt < now - timedelta(days=1)
+    ).delete(synchronize_session=False)
+    for bucket, limit in login_throttle_buckets(email):
+        throttle = LoginThrottle.query.filter_by(bucket=bucket).first()
+        if not throttle:
+            throttle = LoginThrottle(
+                bucket=bucket,
+                attempts=0,
+                window_started=now,
+                last_attempt=now,
+            )
+            db.session.add(throttle)
+        if now - throttle.window_started > LOGIN_WINDOW:
+            throttle.attempts = 0
+            throttle.window_started = now
+            throttle.blocked_until = None
+        throttle.attempts += 1
+        throttle.last_attempt = now
+        if throttle.attempts >= limit:
+            throttle.blocked_until = now + LOGIN_LOCK_TIME
+    db.session.commit()
+
+
+def clear_login_throttles(email):
+    buckets = [bucket for bucket, _limit in login_throttle_buckets(email)]
+    LoginThrottle.query.filter(LoginThrottle.bucket.in_(buckets)).delete(synchronize_session=False)
+    db.session.commit()
+
+
+def password_hash_needs_upgrade(password_hash):
+    return not (password_hash or "").startswith("scrypt:")
+
+
 login_manager = LoginManager()
 login_manager.init_app(app)
+login_manager.login_view = "login"
+login_manager.session_protection = "strong"
 
 @login_manager.user_loader
 def load_user(user_id):#This callback is used to reload the user object from the user ID stored in the session
-    return db.session.get(Users, int(user_id))
+    user = db.session.get(Users, int(user_id))
+    if not user or user.is_disabled:
+        return None
+    return user
+
+
+@app.context_processor
+def account_context():
+    return {
+        "logged_in": current_user.is_authenticated,
+        "is_admin": is_admin_user(current_user),
+        "logout_form": LogoutForm(),
+    }
+
+
+def get_or_create_deleted_user():
+    deleted_email = "deleted-user@ayncode.invalid"
+    user = Users.query.filter_by(email=deleted_email).first()
+    if user:
+        return user
+    user = Users(
+        email=deleted_email,
+        password=generate_password_hash(secrets.token_urlsafe(32)),
+        name="Deleted user",
+        role="system",
+        email_verified=True,
+        is_disabled=True,
+    )
+    db.session.add(user)
+    db.session.flush()
+    return user
+
+
+def remove_user_account(user):
+    if user.role in {"admin", "system"}:
+        return False
+
+    deleted_user = get_or_create_deleted_user()
+    replacement_author = Users.query.filter(
+        Users.role == "admin",
+        Users.is_disabled.is_(False),
+        Users.id != user.id,
+    ).first()
+    if user.posts and not replacement_author:
+        db.session.rollback()
+        return False
+
+    for comment in list(user.comments):
+        comment.comment_author = deleted_user
+    for post in list(user.posts):
+        post.author = replacement_author
+
+    db.session.flush()
+    db.session.delete(user)
+    db.session.commit()
+    return True
+
 
 @app.route('/')
 
@@ -1136,22 +1433,61 @@ def archive():
 
 @app.route('/register',methods=['GET', 'POST'])
 def register():
+    if current_user.is_authenticated:
+        return redirect(url_for("get_all_posts"))
+
     form = RegisterForm()
     if form.validate_on_submit():
-        email = form.email.data
-        user = Users.query.filter_by(email=email).first()
+        email = normalize_email(form.email.data)
+        user = Users.query.filter(func.lower(Users.email) == email).first()
         if not user:
-            password = form.password.data
-            name= form.name.data
-            hashed_password = generate_password_hash(password, method='pbkdf2:sha256', salt_length=8)
-            user = Users(email=email, password=hashed_password,name=name)
+            user = Users(
+                email=email,
+                password=generate_password_hash(form.password.data),
+                name=form.name.data.strip(),
+                role="user",
+                email_verified=False,
+            )
             db.session.add(user)
-            db.session.commit()
-            login_user(user)
-            return redirect(url_for("get_all_posts"))
-        flash("Email already exist.Please login")
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                user = None
+            if user and not send_email_verification(user):
+                app.logger.warning("Verification email could not be delivered for user id %s", user.id)
+        flash("If this email can be registered, a verification message will arrive shortly.")
         return redirect(url_for("login"))
     return render_template("register.html",form=form)
+
+
+@app.route("/verify-email/<token>")
+def verify_email(token):
+    user = verify_email_verification_token(token)
+    if not user:
+        flash("That verification link is invalid, expired, or already used.")
+        return redirect(url_for("resend_verification"))
+    user.email_verified = True
+    user.email_verification_nonce = None
+    db.session.commit()
+    flash("Email verified. You can now log in.")
+    return redirect(url_for("login"))
+
+
+@app.route("/resend-verification", methods=["GET", "POST"])
+def resend_verification():
+    if current_user.is_authenticated:
+        return redirect(url_for("get_all_posts"))
+    form = ResendVerificationForm()
+    if form.validate_on_submit():
+        email = normalize_email(form.email.data)
+        user = Users.query.filter(func.lower(Users.email) == email).first()
+        if user and not user.email_verified and not user.is_disabled:
+            if not send_email_verification(user):
+                app.logger.warning("Verification resend could not be delivered for user id %s", user.id)
+        flash("If an unverified account exists, a new verification message will arrive shortly.")
+        return redirect(url_for("login"))
+    return render_template("resend-verification.html", form=form, logged_in=False)
 
 
 
@@ -1162,22 +1498,36 @@ def login():
 
     form = LoginForm()
     if form.validate_on_submit():
-        email = form.email.data
-        user = Users.query.filter_by(email=email).first()
-        if user:
-            password = form.password.data
-            validate_paswd = check_password_hash(user.password,password)
+        email = normalize_email(form.email.data)
+        if is_login_throttled(email):
+            flash("Sign-in is temporarily unavailable after several attempts. Please wait and try again.")
+            return render_template("login.html", form=form), 429
 
-            if validate_paswd:
-                login_user(user)#logs in user
-                next_url = request.args.get("next")
-                if is_safe_redirect_url(next_url):
-                    return redirect(next_url)
-                return redirect(url_for("get_all_posts"))
-            flash('Wrong password. Please try again')
-        else:
-            flash('This email is not signed up yet register to login.')  #flashes msg on screen when email not found
-            return redirect(url_for("register"))
+        user = Users.query.filter(func.lower(Users.email) == email).first()
+        password_hash = user.password if user else DUMMY_PASSWORD_HASH
+        password_matches = check_password_hash(password_hash, form.password.data)
+        can_login = bool(
+            user
+            and password_matches
+            and user.email_verified
+            and not user.is_disabled
+        )
+
+        if can_login:
+            clear_login_throttles(email)
+            if password_hash_needs_upgrade(user.password):
+                user.password = generate_password_hash(form.password.data)
+                db.session.commit()
+            session.clear()
+            session.permanent = True
+            login_user(user, fresh=True)
+            next_url = request.args.get("next")
+            if is_safe_redirect_url(next_url):
+                return redirect(next_url)
+            return redirect(url_for("get_all_posts"))
+
+        record_login_failure(email)
+        flash("Sign-in could not be completed. Check your credentials and verify your email.")
 
     return render_template("login.html",form=form)
 
@@ -1189,13 +1539,13 @@ def forgot_password():
 
     form = ForgotPasswordForm()
     if form.validate_on_submit():
-        user = Users.query.filter_by(email=form.email.data).first()
-        if user:
+        email = normalize_email(form.email.data)
+        user = Users.query.filter(func.lower(Users.email) == email).first()
+        if user and not user.is_disabled:
             token = generate_password_reset_token(user)
             reset_url = url_for("reset_password", token=token, _external=True)
             if not send_password_reset_email(user, reset_url):
-                flash("Password reset email is temporarily unavailable. Please try again later.")
-                return render_template("forgot-password.html", form=form, logged_in=False)
+                app.logger.warning("Password reset email could not be delivered for user id %s", user.id)
 
         flash("If that email is registered, I sent a password reset link.")
         return redirect(url_for("login"))
@@ -1215,7 +1565,9 @@ def reset_password(token):
 
     form = ResetPasswordForm()
     if form.validate_on_submit():
-        user.password = generate_password_hash(form.password.data, method="pbkdf2:sha256", salt_length=8)
+        user.password = generate_password_hash(form.password.data)
+        user.password_reset_nonce = None
+        clear_login_throttles(user.email)
         db.session.commit()
         flash("Password updated. I can log in with the new password now.")
         return redirect(url_for("login"))
@@ -1224,10 +1576,74 @@ def reset_password(token):
 
 
 
-@app.route('/logout')
+@app.route('/logout', methods=["POST"])
+@login_required
 def logout():
+    form = LogoutForm()
+    if not form.validate_on_submit():
+        abort(400)
     logout_user()
+    session.clear()
     return redirect(url_for('get_all_posts'))
+
+
+@app.route("/account", methods=["GET", "POST"])
+@login_required
+def account():
+    form = DeleteAccountForm()
+    if form.validate_on_submit():
+        user = current_user._get_current_object()
+        if is_admin_user(user):
+            flash("The primary administrator account cannot be deleted here.")
+            return render_template("account.html", form=form)
+        if not check_password_hash(user.password, form.password.data):
+            flash("The current password was not correct.")
+            return render_template("account.html", form=form)
+        logout_user()
+        session.clear()
+        if remove_user_account(user):
+            flash("Your account was deleted. Existing comments now appear under Deleted user.")
+            return redirect(url_for("get_all_posts"))
+        flash("The account could not be deleted safely. Please contact AyNcode.")
+    return render_template("account.html", form=form)
+
+
+@app.route("/admin/users")
+@login_required
+@admin_only
+def admin_users():
+    users = Users.query.filter(Users.role != "system").order_by(Users.created_at.desc()).all()
+    action_form = AdminUserActionForm()
+    return render_template("admin-users.html", users=users, action_form=action_form)
+
+
+@app.route("/admin/users/<int:user_id>/<action>", methods=["POST"])
+@login_required
+@admin_only
+def admin_user_action(user_id, action):
+    form = AdminUserActionForm()
+    if not form.validate_on_submit():
+        abort(400)
+    user = db.get_or_404(Users, user_id)
+    if user.role in {"admin", "system"}:
+        flash("Administrator and system accounts cannot be changed here.")
+        return redirect(url_for("admin_users"))
+    if action == "disable":
+        user.is_disabled = True
+        db.session.commit()
+        flash("User access disabled.")
+    elif action == "enable":
+        user.is_disabled = False
+        db.session.commit()
+        flash("User access restored.")
+    elif action == "delete":
+        if remove_user_account(user):
+            flash("User account deleted and existing comments anonymized.")
+        else:
+            flash("The user could not be deleted safely.")
+    else:
+        abort(404)
+    return redirect(url_for("admin_users"))
 
 
 @app.route("/generated-cover/<audience>/<path:slug>.svg")

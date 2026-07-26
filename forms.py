@@ -69,6 +69,28 @@ class ResetPasswordForm(FlaskForm):
     submit = SubmitField("Update Password")
 
 
+class ResendVerificationForm(FlaskForm):
+    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=250)])
+    submit = SubmitField("Send Verification Email")
+
+
+class DeleteAccountForm(FlaskForm):
+    password = PasswordField("Current Password", validators=[DataRequired(), Length(max=250)])
+    confirm = BooleanField(
+        "I understand that my account will be permanently removed.",
+        validators=[DataRequired()],
+    )
+    submit = SubmitField("Delete My Account")
+
+
+class AdminUserActionForm(FlaskForm):
+    submit = SubmitField("Confirm")
+
+
+class LogoutForm(FlaskForm):
+    submit = SubmitField("Log Out")
+
+
 class CommentForm(FlaskForm):
     body = TextAreaField("Comment", validators=[DataRequired(), Length(max=2000)])
     submit = SubmitField("Submit Comment")

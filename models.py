@@ -1,6 +1,7 @@
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship
+from datetime import datetime
 
 
 db = SQLAlchemy()
@@ -13,13 +14,49 @@ class Users(UserMixin, db.Model):
     email = db.Column(db.String(250), unique=True, nullable=False)
     password = db.Column(db.String(250), nullable=False)
     name = db.Column(db.String(250), nullable=False)
+    role = db.Column(db.String(32), nullable=False, default="user")
+    email_verified = db.Column(db.Boolean, nullable=False, default=True)
+    email_verification_nonce = db.Column(db.String(64), nullable=True)
+    password_reset_nonce = db.Column(db.String(64), nullable=True)
+    is_disabled = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     posts = relationship("BlogPost", back_populates="author")
     comments = relationship("Comment", back_populates="comment_author")
 
-    def __init__(self, email, password, name):
+    def __init__(
+        self,
+        email,
+        password,
+        name,
+        role="user",
+        email_verified=True,
+        email_verification_nonce=None,
+        password_reset_nonce=None,
+        is_disabled=False,
+    ):
         self.email = email
         self.password = password
         self.name = name
+        self.role = role
+        self.email_verified = email_verified
+        self.email_verification_nonce = email_verification_nonce
+        self.password_reset_nonce = password_reset_nonce
+        self.is_disabled = is_disabled
+
+    @property
+    def is_active(self):
+        return not self.is_disabled
+
+
+class LoginThrottle(db.Model):
+    __tablename__ = "login_throttles"
+
+    id = db.Column(db.Integer, primary_key=True)
+    bucket = db.Column(db.String(96), unique=True, nullable=False, index=True)
+    attempts = db.Column(db.Integer, nullable=False, default=0)
+    window_started = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    last_attempt = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    blocked_until = db.Column(db.DateTime, nullable=True)
 
 
 class BlogPost(db.Model):
