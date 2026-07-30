@@ -33,7 +33,14 @@
   <nav class="navbar">
     <div class="navbar-container">
       <a class="navbar-brand" href="{{ url_for('get_all_posts') }}">
-        <span class="brand-mark">A</span>
+        <img
+          class="brand-mark"
+          src="{{ url_for('static', filename='img/android-chrome-192.png') }}"
+          alt=""
+          width="34"
+          height="34"
+          aria-hidden="true"
+        >
         <span>AyNcode</span>
       </a>
       <ul class="navbar-nav">

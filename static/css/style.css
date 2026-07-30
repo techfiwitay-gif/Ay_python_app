@@ -126,14 +126,11 @@ p {
 .brand-mark {
     width: 34px;
     height: 34px;
-    display: inline-grid;
-    place-items: center;
-    background: linear-gradient(135deg, var(--teal), var(--navy));
+    display: block;
+    flex: 0 0 34px;
     border-radius: var(--radius);
     box-shadow: 0 16px 28px -20px rgba(15, 118, 110, 0.95);
-    color: #fff;
-    font-size: 0.92rem;
-    line-height: 1;
+    object-fit: cover;
 }
 
 .navbar-nav {
