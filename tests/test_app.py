@@ -103,6 +103,7 @@ def test_ay_logo_is_used_across_brand_surfaces(client, app_module):
     assert post_page.data.count(logo_path) >= 3
     assert b'<span class="brand-mark"' not in homepage.data
     assert b'<span class="login-brand-mark"' not in login_page.data
+    assert b"<small>by Ayncode LLC</small>" not in homepage.data
 
 
 def test_sync_generated_content_posts_imports_repo_content(client, app_module, monkeypatch, tmp_path):
