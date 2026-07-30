@@ -639,15 +639,11 @@ p {
 .login-brand-mark {
     width: 52px;
     height: 52px;
-    display: grid;
-    place-items: center;
+    display: block;
     margin-bottom: 2.5rem;
     border: 1px solid rgba(255, 255, 255, 0.22);
     border-radius: 16px;
-    background: linear-gradient(145deg, #1a9c94, #0e3258);
-    color: #fff;
-    font-size: 1.25rem;
-    font-weight: 900;
+    object-fit: cover;
 }
 
 .login-brand-panel .section-kicker {
@@ -1286,6 +1282,12 @@ textarea.form-control {
     color: #fff;
     font-size: 0.9rem;
     font-weight: 900;
+}
+
+.comment-avatar--brand {
+    display: block;
+    background: none;
+    object-fit: cover;
 }
 
 .reply-cancel {

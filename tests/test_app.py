@@ -85,6 +85,26 @@ def test_homepage_shows_empty_state(client):
     assert b"Latest writing" in response.data
 
 
+def test_ay_logo_is_used_across_brand_surfaces(client, app_module):
+    logo_path = b"/static/img/android-chrome-192.png"
+
+    homepage = client.get("/")
+    login_page = client.get("/login")
+
+    with app_module.app.app_context():
+        author = create_user(app_module)
+        post = create_post(app_module, author)
+        post_id = post.id
+
+    post_page = client.get(f"/post/{post_id}")
+
+    assert homepage.data.count(logo_path) >= 2
+    assert login_page.data.count(logo_path) >= 3
+    assert post_page.data.count(logo_path) >= 3
+    assert b'<span class="brand-mark"' not in homepage.data
+    assert b'<span class="login-brand-mark"' not in login_page.data
+
+
 def test_sync_generated_content_posts_imports_repo_content(client, app_module, monkeypatch, tmp_path):
     content_path = tmp_path / "generated_posts.json"
     content_path.write_text(
