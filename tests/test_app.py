@@ -106,6 +106,18 @@ def test_ay_logo_is_used_across_brand_surfaces(client, app_module):
     assert b"<small>by Ayncode LLC</small>" not in homepage.data
 
 
+def test_footer_keeps_only_unique_shortcuts(client):
+    response = client.get("/")
+    footer = response.data.split(b'<nav class="footer-actions"', 1)[1].split(b"</nav>", 1)[0]
+
+    assert b'href="/archive"' in footer
+    assert b'href="/about"' not in footer
+    assert b'href="/contact"' not in footer
+    assert b'href="/products"' not in footer
+    assert b">Home</a>" not in footer
+    assert footer.count(b'class="footer-icon"') == 4
+
+
 def test_sync_generated_content_posts_imports_repo_content(client, app_module, monkeypatch, tmp_path):
     content_path = tmp_path / "generated_posts.json"
     content_path.write_text(

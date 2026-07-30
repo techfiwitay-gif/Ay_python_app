@@ -14,26 +14,20 @@
       </a>
       <p>Software, products, and practical ideas.</p>
     </div>
-    <div class="footer-actions">
-      <div class="footer-links">
-        <a href="{{ url_for('get_all_posts') }}">Home</a>
-        <a href="{{ url_for('archive') }}">Archive</a>
-        <a href="{{ url_for('about') }}">About</a>
-        <a href="{{ url_for('contact') }}">Contact</a>
-        <a href="{{ url_for('products') }}">Products</a>
-      </div>
-      <div class="social-links">
-        <a href="https://x.com/ayncode" class="social-icon" aria-label="X" target="_blank" rel="noopener noreferrer">
-          <i class="fab fa-twitter"></i>
-        </a>
-        <a href="https://github.com/ay1ncode" class="social-icon" aria-label="GitHub">
-          <i class="fab fa-github"></i>
-        </a>
-        <a href="https://www.tiktok.com/@ayncode?_r=1&_t=ZP-95u7S85FmOs" class="social-icon" aria-label="TikTok" target="_blank" rel="noopener noreferrer">
-          <i class="fab fa-tiktok"></i>
-        </a>
-      </div>
-    </div>
+    <nav class="footer-actions" aria-label="Footer shortcuts">
+      <a href="{{ url_for('archive') }}" class="footer-icon" aria-label="Archive" title="Archive">
+        <i class="fas fa-archive" aria-hidden="true"></i>
+      </a>
+      <a href="https://x.com/ayncode" class="footer-icon" aria-label="X" title="X" target="_blank" rel="noopener noreferrer">
+        <i class="fab fa-twitter" aria-hidden="true"></i>
+      </a>
+      <a href="https://github.com/ay1ncode" class="footer-icon" aria-label="GitHub" title="GitHub" target="_blank" rel="noopener noreferrer">
+        <i class="fab fa-github" aria-hidden="true"></i>
+      </a>
+      <a href="https://www.tiktok.com/@ayncode?_r=1&_t=ZP-95u7S85FmOs" class="footer-icon" aria-label="TikTok" title="TikTok" target="_blank" rel="noopener noreferrer">
+        <i class="fab fa-tiktok" aria-hidden="true"></i>
+      </a>
+    </nav>
   </div>
   <div class="container footer-bottom">
     <p>Copyright &copy; Ayncode LLC {{ date }}</p>

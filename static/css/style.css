@@ -1612,59 +1612,33 @@ footer a:hover {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.15rem;
+    gap: 1rem;
     text-align: center;
 }
 
 .footer-brand {
     justify-content: center;
     color: #fff;
-    margin-bottom: 0.8rem;
-}
-
-.footer-actions,
-.footer-links,
-.social-links {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    margin-bottom: 0.65rem;
 }
 
 .footer-actions {
-    justify-content: center;
-    gap: 1rem;
-}
-
-.footer-links {
-    justify-content: center;
-    gap: 0.35rem;
-}
-
-.footer-links a {
-    border-radius: var(--radius);
-    font-weight: 800;
-    padding: 0.45rem 0.65rem;
-}
-
-.footer-links a:hover {
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.social-links {
+    display: flex;
+    align-items: center;
     justify-content: center;
     gap: 0.55rem;
 }
 
-.social-icon {
-    width: 40px;
-    height: 40px;
+.footer-icon {
+    width: 38px;
+    height: 38px;
     display: inline-grid;
     place-items: center;
     border: 1px solid rgba(255, 255, 255, 0.16);
     border-radius: var(--radius);
 }
 
-.social-icon:hover {
+.footer-icon:hover {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.32);
 }
