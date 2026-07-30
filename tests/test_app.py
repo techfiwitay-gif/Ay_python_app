@@ -82,7 +82,7 @@ def test_homepage_shows_empty_state(client):
 
     assert response.status_code == 200
     assert b"The blog is ready" in response.data
-    assert b"Latest writing" in response.data
+    assert b"Technology journal" in response.data
 
 
 def test_ay_logo_is_used_across_brand_surfaces(client, app_module):
@@ -116,6 +116,21 @@ def test_footer_keeps_only_unique_shortcuts(client):
     assert b'href="/products"' not in footer
     assert b">Home</a>" not in footer
     assert footer.count(b'class="footer-icon"') == 4
+
+
+def test_public_pages_share_company_positioning(client):
+    homepage = client.get("/")
+    about_page = client.get("/about")
+    products_page = client.get("/products")
+    contact_page = client.get("/contact")
+
+    assert b"founder-led technology studio" in homepage.data.lower()
+    assert b"AI software, automation, and digital products" in homepage.data
+    assert b"About AyNcode" in about_page.data
+    assert b"Software for the way" in products_page.data
+    assert b"Talk to AyNcode" in contact_page.data
+    assert b'name="phone" required' not in contact_page.data
+    assert b"Ayncode LLC" not in homepage.data.split(b"<footer>", 1)[0]
 
 
 def test_sync_generated_content_posts_imports_repo_content(client, app_module, monkeypatch, tmp_path):
@@ -409,7 +424,7 @@ def test_reset_password_updates_password(client, app_module):
     )
 
     assert login_response.status_code == 200
-    assert b"Latest writing" in login_response.data
+    assert b"Technology journal" in login_response.data
 
 
 def test_logged_in_user_can_comment(client, app_module):

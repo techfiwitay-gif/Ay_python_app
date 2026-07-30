@@ -1,7 +1,7 @@
 {% set page_title = "About | AyNcode" %}
-{% set hero_title = "About Ayotunde Oyeniyi" %}
-{% set hero_subtitle = "Software, automation, and builder lessons from my own work." %}
-{% set hero_kicker = "Profile" %}
+{% set hero_title = "About AyNcode" %}
+{% set hero_subtitle = "A founder-led technology studio building useful software for the way work is changing." %}
+{% set hero_kicker = "Company" %}
 {% set hero_image = url_for('static', filename='img/about-bg.jpg') %}
 {% set compact_hero = true %}
 {% include "header.html" %}
@@ -9,31 +9,42 @@
 <main class="container page-stack">
   <section class="split-panel">
     <div>
-      <p class="section-kicker">What this space is for</p>
-      <h2>Clear notes on what I am building, learning, and shipping.</h2>
+      <p class="section-kicker">Our point of view</p>
+      <h2>Useful technology starts with a real problem.</h2>
     </div>
     <div class="prose-block">
-      <p>I use this space to share practical notes from software projects, automation work, debugging decisions, and the product lessons that show up when ideas become real tools.</p>
-      <p>My goal is simple: make complex work easier to understand and easier to act on.</p>
+      <p>AyNcode is operated by founder Ayotunde Oyeniyi. The studio builds AI-enabled software, automation systems, and digital products that make complex work clearer, faster, or more human.</p>
+      <p>We favor focused products over vague technology promises: understand the job, build the smallest useful system, learn from real use, and improve with intent.</p>
     </div>
   </section>
 
   <section class="value-grid">
     <article>
       <i class="fas fa-code"></i>
-      <h3>Software Notes</h3>
-      <p>Patterns, fixes, and technical decisions explained in plain language.</p>
+      <h3>Build useful software</h3>
+      <p>Turn strong ideas into reliable products with a clear purpose and a thoughtful interface.</p>
     </article>
     <article>
       <i class="fas fa-bolt"></i>
-      <h3>Automation</h3>
-      <p>How I use tools and AI to reduce repetitive work and ship faster.</p>
+      <h3>Automate real work</h3>
+      <p>Use AI and connected workflows to reduce friction without losing human judgment.</p>
     </article>
     <article>
-      <i class="fas fa-compass"></i>
-      <h3>Product Thinking</h3>
-      <p>How I decide what matters, what can wait, and what to improve next.</p>
+      <i class="fas fa-signal"></i>
+      <h3>Share the thinking</h3>
+      <p>Publish practical product and technology analysis for builders making consequential decisions.</p>
     </article>
+  </section>
+
+  <section class="company-cta">
+    <div>
+      <p class="section-kicker">Founder-led, product-minded</p>
+      <h2>Small enough to move quickly. Serious enough to build for the long term.</h2>
+    </div>
+    <div class="button-row">
+      <a class="btn btn-primary" href="{{ url_for('products') }}">See the products</a>
+      <a class="btn btn-secondary" href="{{ url_for('contact') }}">Start a conversation</a>
+    </div>
   </section>
 </main>
 

@@ -1,15 +1,15 @@
 {% set page_title = "Contact | AyNcode" %}
-{% set hero_title = "Contact" %}
-{% set hero_subtitle = "Send me a project note, question, or collaboration idea." %}
-{% set hero_kicker = "Contact" %}
+{% set hero_title = "Talk to AyNcode" %}
+{% set hero_subtitle = "Reach out about a product, automation opportunity, partnership, or software idea." %}
+{% set hero_kicker = "Projects and partnerships" %}
 {% set hero_image = url_for('static', filename='img/contact-bg.jpg') %}
 {% set compact_hero = true %}
 {% include "header.html" %}
 
 <main class="container auth-layout">
   <section class="form-shell">
-    <p class="section-kicker">Message</p>
-    <h2>Start the conversation.</h2>
+    <p class="section-kicker">Project inquiry</p>
+    <h2>Tell me what you want to make possible.</h2>
 
     {% with messages = get_flashed_messages() %}
     {% if messages %}
@@ -37,23 +37,28 @@
         <input type="email" class="form-control" placeholder="you@example.com" id="email" name="email" required>
       </div>
       <div class="form-group">
-        <label for="phone">Phone Number</label>
-        <input type="tel" class="form-control" placeholder="Optional phone number" id="phone" name="phone" required>
+        <label for="phone">Phone Number <span class="field-optional">(optional)</span></label>
+        <input type="tel" class="form-control" placeholder="Optional phone number" id="phone" name="phone">
       </div>
       <div class="form-group">
         <label for="message">Message</label>
         <textarea rows="5" class="form-control" placeholder="What would you like to discuss?" id="message" name="message" required></textarea>
       </div>
       <div class="form-actions form-actions--compact">
-        <button type="submit" class="btn btn-primary" id="sendMessageButton">Send Message</button>
+        <button type="submit" class="btn btn-primary" id="sendMessageButton">Send inquiry</button>
       </div>
     </form>
   </section>
 
   <aside class="side-panel">
-    <p class="section-kicker">Response focus</p>
-    <h2>Good messages include context.</h2>
-    <p>I can respond more usefully when I know what is being built, what has already been tried, and what outcome matters most.</p>
+    <p class="section-kicker">What helps</p>
+    <h2>A little context goes a long way.</h2>
+    <p>I can respond more usefully when your note includes:</p>
+    <ul class="contact-points">
+      <li><strong>The goal</strong><span>What should be easier, faster, or possible?</span></li>
+      <li><strong>The current state</strong><span>What exists today, and where is the friction?</span></li>
+      <li><strong>The timing</strong><span>Is this an active project, early idea, or future partnership?</span></li>
+    </ul>
   </aside>
 </main>
 

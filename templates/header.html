@@ -4,11 +4,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta name="description" content="AyNcode publishes practical notes on software, automation, AI, and building useful tools.">
+  <meta name="description" content="{{ meta_description|default('AyNcode is a founder-led technology studio building AI software, automation, and useful digital products.') }}">
   <meta name="author" content="AyNcode">
 
   <title>{{ page_title|default("AyNcode") }}</title>
-<link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
   <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/favicon-16.png') }}">
   <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
   <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='img/android-chrome-192.png') }}">
@@ -21,7 +21,7 @@
     rel="stylesheet">
 
   <!-- Font Awesome -->
-  <script src="https://use.fontawesome.com/releases/v5.15.3/js/all.js" crossorigin="anonymous"></script>
+  <link href="{{ url_for('static', filename='vendor/fontawesome-free/css/all.min.css') }}" rel="stylesheet">
 
   <!-- Custom Styles -->
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
@@ -45,16 +45,16 @@
       </a>
       <ul class="navbar-nav">
         <li class="nav-item">
-          <a class="nav-link{% if current_path == '/' %} is-active{% endif %}"{% if current_path == '/' %} aria-current="page"{% endif %} href="{{ url_for('get_all_posts') }}">Home</a>
+          <a class="nav-link{% if current_path in ['/products', '/openclaw', '/openclaw/', '/open-claw', '/openclawweb', '/open-claw-web', '/OpenClaw', '/claw', '/ayncode', '/vocalframe'] %} is-active{% endif %}"{% if current_path in ['/products', '/openclaw', '/openclaw/', '/open-claw', '/openclawweb', '/open-claw-web', '/OpenClaw', '/claw', '/ayncode', '/vocalframe'] %} aria-current="page"{% endif %} href="{{ url_for('products') }}">Products</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link{% if current_path == '/about' %} is-active{% endif %}"{% if current_path == '/about' %} aria-current="page"{% endif %} href="{{ url_for('about') }}">About</a>
+          <a class="nav-link{% if current_path in ['/', '/archive'] or current_path.startswith('/post/') %} is-active{% endif %}"{% if current_path in ['/', '/archive'] or current_path.startswith('/post/') %} aria-current="page"{% endif %} href="{{ url_for('get_all_posts') }}#journal">Journal</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link{% if current_path == '/about' %} is-active{% endif %}"{% if current_path == '/about' %} aria-current="page"{% endif %} href="{{ url_for('about') }}">Company</a>
         </li>
         <li class="nav-item">
           <a class="nav-link{% if current_path == '/contact' %} is-active{% endif %}"{% if current_path == '/contact' %} aria-current="page"{% endif %} href="{{ url_for('contact') }}">Contact</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link{% if current_path in ['/products', '/openclaw', '/openclaw/', '/open-claw', '/openclawweb', '/open-claw-web', '/OpenClaw', '/claw', '/ayncode', '/vocalframe'] %} is-active{% endif %}"{% if current_path in ['/products', '/openclaw', '/openclaw/', '/open-claw', '/openclawweb', '/open-claw-web', '/OpenClaw', '/claw', '/ayncode', '/vocalframe'] %} aria-current="page"{% endif %} href="{{ url_for('products') }}">Products</a>
         </li>
         {% if not logged_in: %}
         <li class="nav-item">
@@ -85,12 +85,20 @@
 
   {% if not hide_hero|default(false) %}
   <header class="hero-header{% if compact_hero|default(false) %} hero-header--compact{% endif %}"
-    style="background-image: linear-gradient(90deg, rgba(5, 25, 23, 0.92) 0%, rgba(5, 25, 23, 0.72) 44%, rgba(5, 25, 23, 0.25) 100%), url('{{ hero_image|default(url_for('static', filename='img/home-image.jpg')) }}');">
+    style="background-image: linear-gradient(90deg, rgba(4, 9, 20, 0.96) 0%, rgba(4, 9, 20, 0.82) 48%, rgba(4, 9, 20, 0.36) 100%), url('{{ hero_image|default(url_for('static', filename='img/ayhome-image.jpg')) }}');">
     <div class="container">
       <div class="hero-content">
-        <p class="hero-kicker">{{ hero_kicker|default("Software, automation, and AI") }}</p>
+        <p class="hero-kicker">{{ hero_kicker|default("Founder-led technology studio") }}</p>
         <h1 class="hero-title">{{ hero_title|default("AyNcode") }}</h1>
-        <p class="hero-subtitle">{{ hero_subtitle|default("Practical notes on code, projects, and the craft of building better software.") }}</p>
+        <p class="hero-subtitle">{{ hero_subtitle|default("AI software, automation, and digital products built for real work.") }}</p>
+        {% if hero_primary_label|default(false) %}
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="{{ hero_primary_url }}">{{ hero_primary_label }}</a>
+          {% if hero_secondary_label|default(false) %}
+          <a class="btn btn-hero-secondary" href="{{ hero_secondary_url }}">{{ hero_secondary_label }}</a>
+          {% endif %}
+        </div>
+        {% endif %}
       </div>
     </div>
   </header>
