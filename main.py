@@ -1833,6 +1833,7 @@ def contact():
         name = request.form.get("name", "").strip()
         email = request.form.get("email", "").strip()
         num = request.form.get("phone", "").strip()
+        topic = request.form.get("topic", "General support").strip() or "General support"
         msg = request.form.get("message", "").strip()
         password = (os.environ.get('GMAIL_PASSWORD') or '').replace(" ", "").strip()
         my_email = (
@@ -1853,7 +1854,11 @@ def contact():
                 smtp.sendmail(
                     my_email,
                     my_email,
-                    msg=f"Subject:{name or 'Website Contact'}\n\nNumber:{num}\n\nEmail from: {email}\n\n{msg}",
+                    msg=(
+                        f"Subject:AyNcode support request\n\n"
+                        f"Name: {name}\n\nEmail: {email}\n\nPhone: {num or 'Not provided'}\n\n"
+                        f"Support topic: {topic}\n\n{msg}"
+                    ),
                 )
         except (SMTPException, OSError) as exc:
             app.logger.warning("Contact email failed: %s", exc)

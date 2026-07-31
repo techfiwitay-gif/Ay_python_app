@@ -2377,9 +2377,9 @@ body {
 }
 
 .products-hero h1 {
-    max-width: 900px;
-    font-size: clamp(2.8rem, 6vw, 5.5rem);
-    line-height: 0.98;
+    max-width: 780px;
+    font-size: clamp(2.35rem, 5vw, 4.5rem);
+    line-height: 1;
 }
 
 .products-hero h1 em {
@@ -2461,6 +2461,68 @@ body {
 .contact-points span {
     color: var(--muted);
     font-size: 0.82rem;
+}
+
+.support-intro {
+    margin: 0.55rem 0 1.4rem;
+    color: var(--muted);
+}
+
+.support-layout .form-shell {
+    border-top: 3px solid var(--electric);
+}
+
+.support-layout .side-panel {
+    border-top: 3px solid var(--cyan);
+}
+
+.support-layout select.form-control {
+    cursor: pointer;
+    padding-right: 2.5rem;
+}
+
+.support-note {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: start;
+    margin-top: 1.25rem;
+    padding: 0.9rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--paper-2);
+}
+
+.support-note > i {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border-radius: var(--radius);
+    background: #e8f7f4;
+    color: var(--teal);
+}
+
+.support-note p,
+.support-note span {
+    margin: 0;
+}
+
+.support-note strong,
+.support-note span {
+    display: block;
+}
+
+.support-note strong {
+    color: var(--ink);
+    font-size: 0.84rem;
+}
+
+.support-note span {
+    margin-top: 0.15rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.45;
 }
 
 .vocalframe-hero::before {

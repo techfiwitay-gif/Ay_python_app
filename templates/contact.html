@@ -1,15 +1,17 @@
-{% set page_title = "Contact | AyNcode" %}
-{% set hero_title = "Talk to AyNcode" %}
-{% set hero_subtitle = "Reach out about a product, automation opportunity, partnership, or software idea." %}
-{% set hero_kicker = "Projects and partnerships" %}
+{% set page_title = "Customer Support | AyNcode" %}
+{% set meta_description = "Get help with your AyNcode account, products, access, or a technical issue." %}
+{% set hero_title = "How can we help?" %}
+{% set hero_subtitle = "Get support with your AyNcode account, products, access, or a technical issue." %}
+{% set hero_kicker = "Customer support" %}
 {% set hero_image = url_for('static', filename='img/contact-bg.jpg') %}
 {% set compact_hero = true %}
 {% include "header.html" %}
 
-<main class="container auth-layout">
+<main class="container auth-layout support-layout">
   <section class="form-shell">
-    <p class="section-kicker">Project inquiry</p>
-    <h2>Tell me what you want to make possible.</h2>
+    <p class="section-kicker">Support request</p>
+    <h2>Tell us what you need help with.</h2>
+    <p class="support-intro">Share a few details and we will follow up by email.</p>
 
     {% with messages = get_flashed_messages() %}
     {% if messages %}
@@ -23,7 +25,7 @@
 
     {% if confirm: %}
     <div class="alert alert-success" role="alert">
-      Message sent successfully.
+      Support request sent. We will follow up by email.
     </div>
     {% endif %}
 
@@ -37,28 +39,40 @@
         <input type="email" class="form-control" placeholder="you@example.com" id="email" name="email" required>
       </div>
       <div class="form-group">
-        <label for="phone">Phone Number <span class="field-optional">(optional)</span></label>
-        <input type="tel" class="form-control" placeholder="Optional phone number" id="phone" name="phone">
+        <label for="topic">What can we help with?</label>
+        <select class="form-control" id="topic" name="topic" required>
+          <option value="" selected disabled>Select a support topic</option>
+          <option value="Account and access">Account and access</option>
+          <option value="OpenClaw">OpenClaw</option>
+          <option value="VocalFrame">VocalFrame</option>
+          <option value="Bookafriend">Bookafriend</option>
+          <option value="Website or journal">Website or journal</option>
+          <option value="Something else">Something else</option>
+        </select>
       </div>
       <div class="form-group">
-        <label for="message">Message</label>
-        <textarea rows="5" class="form-control" placeholder="What would you like to discuss?" id="message" name="message" required></textarea>
+        <label for="message">How can we help?</label>
+        <textarea rows="6" class="form-control" placeholder="Describe what happened, what you expected, and any error message you saw." id="message" name="message" required></textarea>
       </div>
       <div class="form-actions form-actions--compact">
-        <button type="submit" class="btn btn-primary" id="sendMessageButton">Send inquiry</button>
+        <button type="submit" class="btn btn-primary" id="sendMessageButton">Submit support request</button>
       </div>
     </form>
   </section>
 
   <aside class="side-panel">
-    <p class="section-kicker">What helps</p>
-    <h2>A little context goes a long way.</h2>
-    <p>I can respond more usefully when your note includes:</p>
+    <p class="section-kicker">Faster support</p>
+    <h2>Help us understand the issue.</h2>
+    <p>Include these details when they apply:</p>
     <ul class="contact-points">
-      <li><strong>The goal</strong><span>What should be easier, faster, or possible?</span></li>
-      <li><strong>The current state</strong><span>What exists today, and where is the friction?</span></li>
-      <li><strong>The timing</strong><span>Is this an active project, early idea, or future partnership?</span></li>
+      <li><strong>Product or account</strong><span>Tell us which AyNcode experience you were using.</span></li>
+      <li><strong>What happened</strong><span>Share the steps you took and what you expected instead.</span></li>
+      <li><strong>Useful evidence</strong><span>Add the exact error message, device, or browser when relevant.</span></li>
     </ul>
+    <div class="support-note">
+      <i class="fas fa-envelope" aria-hidden="true"></i>
+      <p><strong>Reply by email</strong><span>Use an address you check so we can continue the conversation.</span></p>
+    </div>
   </aside>
 </main>
 

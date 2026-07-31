@@ -130,7 +130,9 @@ def test_public_pages_share_company_positioning(client):
     assert b"AI software, automation, and digital products" in homepage.data
     assert b"About AyNcode" in about_page.data
     assert b"Software for the way" in products_page.data
-    assert b"Talk to AyNcode" in contact_page.data
+    assert b"How can we help?" in contact_page.data
+    assert b"Customer support" in contact_page.data
+    assert b'name="topic" required' in contact_page.data
     assert b'name="phone" required' not in contact_page.data
     assert b"Ayncode LLC" not in homepage.data.split(b"<footer>", 1)[0]
 
