@@ -116,6 +116,8 @@ def test_footer_keeps_only_unique_shortcuts(client):
     assert b'href="/products"' not in footer
     assert b">Home</a>" not in footer
     assert footer.count(b'class="footer-icon"') == 4
+    assert b'class="fab fa-tiktok"' in footer
+    assert b'class="fas fa-music"' not in footer
 
 
 def test_public_pages_share_company_positioning(client):
