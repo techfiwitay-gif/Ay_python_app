@@ -115,7 +115,9 @@ def test_footer_keeps_only_unique_shortcuts(client):
     assert b'href="/contact"' not in footer
     assert b'href="/products"' not in footer
     assert b">Home</a>" not in footer
-    assert footer.count(b'class="footer-icon"') == 4
+    assert footer.count(b'class="footer-icon"') == 3
+    assert b"github.com" not in footer
+    assert b"fa-github" not in footer
     assert b'class="fab fa-tiktok"' in footer
     assert b'class="fas fa-music"' not in footer
 
