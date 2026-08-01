@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, HiddenField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms import BooleanField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, URL
 from flask_ckeditor import CKEditorField
 
@@ -43,12 +43,6 @@ class GenerateArticleForm(FlaskForm):
     submit = SubmitField("Generate Article")
 
 
-class RegisterForm(FlaskForm):
-    email = StringField('Email', validators=[DataRequired(), Email(), Length(max=250)])
-    password = PasswordField('Password', validators=[DataRequired(), Length(min=8, max=250)])
-    name = StringField('Name', validators=[DataRequired(), Length(max=250)])
-    sign_up = SubmitField('Create Account')
-
 class LoginForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email(), Length(max=250)])
     password = PasswordField('Password', validators=[DataRequired(), Length(max=250)])
@@ -69,29 +63,5 @@ class ResetPasswordForm(FlaskForm):
     submit = SubmitField("Update Password")
 
 
-class ResendVerificationForm(FlaskForm):
-    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=250)])
-    submit = SubmitField("Send Verification Email")
-
-
-class DeleteAccountForm(FlaskForm):
-    password = PasswordField("Current Password", validators=[DataRequired(), Length(max=250)])
-    confirm = BooleanField(
-        "I understand that my account will be permanently removed.",
-        validators=[DataRequired()],
-    )
-    submit = SubmitField("Delete My Account")
-
-
-class AdminUserActionForm(FlaskForm):
-    submit = SubmitField("Confirm")
-
-
 class LogoutForm(FlaskForm):
     submit = SubmitField("Log Out")
-
-
-class CommentForm(FlaskForm):
-    parent_id = HiddenField(validators=[Optional()])
-    body = TextAreaField("Comment", validators=[DataRequired(), Length(max=2000)])
-    submit = SubmitField("Submit Comment")

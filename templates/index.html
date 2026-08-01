@@ -48,12 +48,10 @@
   {% if not query and all_posts|length == 0 %}
   <section class="empty-state">
     <div class="empty-state-icon"><i class="fas fa-pen-nib"></i></div>
-    <h2>The blog is ready</h2>
-    <p>I can publish the first article whenever there is a useful idea to shape.</p>
+    <h2>The journal is ready</h2>
+    <p>New product notes, technical ideas, and lessons from the work will appear here.</p>
     {% if is_admin %}
     <a class="btn btn-primary" href="{{ url_for('generate_post') }}">Generate first article</a>
-    {% else %}
-    <a class="btn btn-primary" href="{{ url_for('register') }}">Create an account</a>
     {% endif %}
   </section>
   {% endif %}
@@ -83,10 +81,6 @@
       <p>{{ featured.subtitle }}</p>
       <div class="post-stats">
         <span>{{ featured.reading_time }} min read</span>
-        <span>{{ featured.views or 0 }} views</span>
-        <span>{{ featured.likes or 0 }} likes</span>
-        <span>{{ featured.upvotes or 0 }} upvotes</span>
-        <span>{{ featured.comment_count }} comments</span>
         <span>{{ featured.published_at or featured.date }}</span>
       </div>
       <a class="btn btn-primary" href="{{ url_for('show_post', post_id=featured.id) }}">Read article</a>
@@ -116,10 +110,6 @@
         </div>
         <div class="post-stats">
           <span>{{ post.reading_time }} min read</span>
-          <span>{{ post.views or 0 }} views</span>
-          <span>{{ post.likes or 0 }} likes</span>
-          <span>{{ post.upvotes or 0 }} upvotes</span>
-          <span>{{ post.comment_count }} comments</span>
         </div>
         {% if is_admin %}
         <div class="admin-actions">

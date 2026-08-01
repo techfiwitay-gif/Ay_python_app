@@ -14,6 +14,7 @@ def app_module(tmp_path, monkeypatch):
     db_path = tmp_path / "test.db"
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
     monkeypatch.setenv("SECRET_KEY", "test-secret-key")
+    monkeypatch.setenv("ADMIN_EMAIL", "admin@example.com")
     monkeypatch.delenv("GMAIL_PASSWORD", raising=False)
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     monkeypatch.delenv("GH_TOKEN", raising=False)
@@ -71,7 +72,7 @@ def create_post(main, author, title="Flask Search", subtitle="A useful tutorial"
 
 def login(client, email="admin@example.com", password="password123"):
     return client.post(
-        "/login",
+        "/admin",
         data={"email": email, "password": password, "login": "Log in"},
         follow_redirects=True,
     )
@@ -81,7 +82,7 @@ def test_homepage_shows_empty_state(client):
     response = client.get("/")
 
     assert response.status_code == 200
-    assert b"The blog is ready" in response.data
+    assert b"The journal is ready" in response.data
     assert b"Technology journal" in response.data
 
 
@@ -89,7 +90,7 @@ def test_ay_logo_is_used_across_brand_surfaces(client, app_module):
     logo_path = b"/static/img/android-chrome-192.png"
 
     homepage = client.get("/")
-    login_page = client.get("/login")
+    login_page = client.get("/admin")
 
     with app_module.app.app_context():
         author = create_user(app_module)
@@ -198,7 +199,7 @@ def test_deleted_generated_post_is_not_reimported(client, app_module, monkeypatc
         post_id = post.id
 
     client.post(
-        "/login",
+        "/admin",
         data={"email": "admin@example.com", "password": "password123", "login": "Log in"},
         follow_redirects=True,
     )
@@ -335,40 +336,26 @@ def test_homepage_search_filters_posts(client, app_module):
     assert b"Flask Search" in response.data
     assert b"Deployment Notes" not in response.data
     assert b"min read" in response.data
-    assert b"comments" in response.data
+    assert b"comments" not in response.data
 
 
-def test_duplicate_registration_redirects_to_login(client, app_module):
-    with app_module.app.app_context():
-        create_user(app_module, email="taken@example.com")
-
-    response = client.post(
-        "/register",
-        data={
-            "email": "taken@example.com",
-            "password": "password123",
-            "name": "Taken",
-            "sign_up": "sign me up",
-        },
-        follow_redirects=True,
-    )
-
-    assert response.status_code == 200
-    assert b"If this email can be registered" in response.data
+def test_public_account_routes_are_unavailable(client):
+    for path in ("/login", "/register", "/account", "/resend-verification", "/admin/users"):
+        assert client.get(path).status_code == 404
 
 
 def test_forgot_password_without_smtp_credentials_does_not_crash(client, app_module):
     with app_module.app.app_context():
-        create_user(app_module, email="reset@example.com")
+        create_user(app_module, email="admin@example.com", role="admin")
 
     response = client.post(
-        "/forgot-password",
-        data={"email": "reset@example.com", "submit": "Send Reset Link"},
+        "/admin/forgot-password",
+        data={"email": "admin@example.com", "submit": "Send Reset Link"},
         follow_redirects=True,
     )
 
     assert response.status_code == 200
-    assert b"If that email is registered" in response.data
+    assert b"belongs to the administrator" in response.data
 
 
 def test_forgot_password_with_bad_smtp_credentials_does_not_crash(client, app_module, monkeypatch):
@@ -389,29 +376,29 @@ def test_forgot_password_with_bad_smtp_credentials_does_not_crash(client, app_mo
             raise smtplib.SMTPAuthenticationError(535, b"bad credentials")
 
     with app_module.app.app_context():
-        create_user(app_module, email="reset@example.com")
+        create_user(app_module, email="admin@example.com", role="admin")
 
     monkeypatch.setenv("GMAIL_PASSWORD", "bad-password")
     monkeypatch.setattr(app_module, "SMTP", FailingSMTP)
 
     response = client.post(
-        "/forgot-password",
-        data={"email": "reset@example.com", "submit": "Send Reset Link"},
+        "/admin/forgot-password",
+        data={"email": "admin@example.com", "submit": "Send Reset Link"},
         follow_redirects=True,
     )
 
     assert response.status_code == 200
-    assert b"If that email is registered" in response.data
+    assert b"belongs to the administrator" in response.data
 
 
 def test_reset_password_updates_password(client, app_module):
     with app_module.app.app_context():
-        create_user(app_module, email="reset@example.com", password="oldpassword123")
-        user = app_module.Users.query.filter_by(email="reset@example.com").first()
+        create_user(app_module, email="admin@example.com", password="oldpassword123", role="admin")
+        user = app_module.Users.query.filter_by(email="admin@example.com").first()
         token = app_module.generate_password_reset_token(user)
 
     response = client.post(
-        f"/reset-password/{token}",
+        f"/admin/reset-password/{token}",
         data={
             "password": "newpassword123",
             "confirm_password": "newpassword123",
@@ -424,95 +411,31 @@ def test_reset_password_updates_password(client, app_module):
     assert b"Password updated" in response.data
 
     login_response = client.post(
-        "/login",
-        data={"email": "reset@example.com", "password": "newpassword123", "login": "Log in"},
+        "/admin",
+        data={"email": "admin@example.com", "password": "newpassword123", "login": "Log in"},
         follow_redirects=True,
     )
 
     assert login_response.status_code == 200
-    assert b"Technology journal" in login_response.data
+    assert b"Journal publishing" in login_response.data
 
 
-def test_logged_in_user_can_comment(client, app_module):
-    with app_module.app.app_context():
-        author = create_user(app_module)
-        post = create_post(app_module, author)
-        post_id = post.id
-
-    login(client)
-    response = client.post(
-        f"/post/{post_id}",
-        data={"body": "Nice write up", "submit": "Submit Comment"},
-        follow_redirects=True,
-    )
-
-    assert response.status_code == 200
-    assert b"Nice write up" in response.data
-
-
-def test_comment_text_is_escaped_and_replies_are_threaded(client, app_module):
-    with app_module.app.app_context():
-        author = create_user(app_module, email="writer@example.com", role="admin")
-        reader = create_user(app_module, email="thread-reader@example.com", name="Reader")
-        post = create_post(app_module, author)
-        parent = app_module.Comment(
-            text="Original thought",
-            comment_author=author,
-            parent_post=post,
-        )
-        parent.created_at = datetime.utcnow() - timedelta(minutes=1)
-        app_module.db.session.add(parent)
-        app_module.db.session.commit()
-        post_id = post.id
-        parent_id = parent.id
-
-    login(client, email="thread-reader@example.com")
-    response = client.post(
-        f"/post/{post_id}",
-        data={
-            "parent_id": str(parent_id),
-            "body": "<script>alert('xss')</script> Useful reply",
-            "submit": "Submit Comment",
-        },
-        follow_redirects=True,
-    )
-
-    assert response.status_code == 200
-    assert b"&lt;script&gt;alert" in response.data
-    assert b"<script>alert" not in response.data
-    assert b"comment--reply" in response.data
-
-
-def test_post_view_increments_view_count(client, app_module):
+def test_post_is_read_only_and_has_no_social_controls(client, app_module):
     with app_module.app.app_context():
         author = create_user(app_module)
         post = create_post(app_module, author)
         post_id = post.id
 
     response = client.get(f"/post/{post_id}")
+    post_response = client.post(f"/post/{post_id}", data={"body": "No comments"})
+    reaction_response = client.post(f"/post/{post_id}/react/like")
 
     assert response.status_code == 200
-    assert b"1 views" in response.data
     assert b"09:15 AM" in response.data
-
-
-def test_post_reactions_increment_counts(client, app_module):
-    with app_module.app.app_context():
-        author = create_user(app_module)
-        post = create_post(app_module, author)
-        post_id = post.id
-
-    like_response = client.post(f"/post/{post_id}/react/like", follow_redirects=True)
-    upvote_response = client.post(f"/post/{post_id}/react/upvote", follow_redirects=True)
-    downvote_response = client.post(f"/post/{post_id}/react/downvote", follow_redirects=True)
-
-    assert like_response.status_code == 200
-    assert upvote_response.status_code == 200
-    assert downvote_response.status_code == 200
-    assert b"1</strong>" in downvote_response.data
-    assert b"Likes" in downvote_response.data
-    assert b"Upvotes" in downvote_response.data
-    assert b"Downvotes" in downvote_response.data
+    assert post_response.status_code == 405
+    assert reaction_response.status_code == 404
+    for label in (b"Reader feedback", b"Discussion", b"Likes", b"Upvotes", b"Downvotes", b"views"):
+        assert label not in response.data
 
 
 def test_admin_routes_are_protected(client, app_module):
@@ -520,14 +443,16 @@ def test_admin_routes_are_protected(client, app_module):
         create_user(app_module, email="admin@example.com", name="Admin")
         create_user(app_module, email="reader@example.com", name="Reader")
 
-    client.post(
-        "/login",
+    login_response = client.post(
+        "/admin",
         data={"email": "reader@example.com", "password": "password123", "login": "Log in"},
         follow_redirects=True,
     )
     response = client.get("/new-post")
 
-    assert response.status_code == 403
+    assert b"Sign-in could not be completed" in login_response.data
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/admin?next=%2Fnew-post")
 
 
 def test_configured_admin_email_can_access_admin_routes(client, app_module, monkeypatch):
@@ -541,7 +466,7 @@ def test_configured_admin_email_can_access_admin_routes(client, app_module, monk
     assert admin_id != 1
 
     client.post(
-        "/login",
+        "/admin",
         data={"email": "admin@example.com", "password": "password123", "login": "Log in"},
         follow_redirects=True,
     )
@@ -560,7 +485,7 @@ def test_admin_sees_delete_button_on_post_page(client, app_module, monkeypatch):
         post_id = post.id
 
     client.post(
-        "/login",
+        "/admin",
         data={"email": "admin@example.com", "password": "password123", "login": "Log in"},
         follow_redirects=True,
     )
@@ -587,30 +512,17 @@ def test_ensure_admin_user_repairs_existing_automation_account(app_module, monke
     assert user.email_verified is True
 
 
-def test_email_verification_token_is_single_use(client, app_module):
-    with app_module.app.app_context():
-        user = create_user(
-            app_module,
-            email="verify@example.com",
-            email_verified=False,
-        )
-        token = app_module.generate_email_verification_token(user)
-
-    first_response = client.get(f"/verify-email/{token}", follow_redirects=True)
-    second_response = client.get(f"/verify-email/{token}", follow_redirects=True)
-
-    assert first_response.status_code == 200
-    assert b"Email verified" in first_response.data
-    assert b"invalid, expired, or already used" in second_response.data
+def test_email_verification_is_not_exposed(client):
+    assert client.get("/verify-email/unused-token").status_code == 404
 
 
 def test_password_reset_token_is_single_use(client, app_module):
     with app_module.app.app_context():
-        user = create_user(app_module, email="single-reset@example.com")
+        user = create_user(app_module, email="admin@example.com", role="admin")
         token = app_module.generate_password_reset_token(user)
 
     response = client.post(
-        f"/reset-password/{token}",
+        f"/admin/reset-password/{token}",
         data={
             "password": "newpassword123",
             "confirm_password": "newpassword123",
@@ -618,7 +530,7 @@ def test_password_reset_token_is_single_use(client, app_module):
         },
         follow_redirects=True,
     )
-    reused_response = client.get(f"/reset-password/{token}", follow_redirects=True)
+    reused_response = client.get(f"/admin/reset-password/{token}", follow_redirects=True)
 
     assert response.status_code == 200
     assert b"Password updated" in response.data
@@ -627,51 +539,36 @@ def test_password_reset_token_is_single_use(client, app_module):
 
 def test_login_is_throttled_after_repeated_failures(client, app_module):
     with app_module.app.app_context():
-        create_user(app_module, email="locked@example.com")
+        create_user(app_module, email="admin@example.com", role="admin")
 
     for _ in range(app_module.LOGIN_EMAIL_LIMIT):
         client.post(
-            "/login",
-            data={"email": "locked@example.com", "password": "wrong-password", "login": "Log in"},
+            "/admin",
+            data={"email": "admin@example.com", "password": "wrong-password", "login": "Log in"},
         )
 
     response = client.post(
-        "/login",
-        data={"email": "locked@example.com", "password": "password123", "login": "Log in"},
+        "/admin",
+        data={"email": "admin@example.com", "password": "password123", "login": "Log in"},
     )
 
     assert response.status_code == 429
     assert b"temporarily unavailable" in response.data
 
 
-def test_user_can_delete_account_and_anonymize_comments(client, app_module):
+def test_public_user_cannot_log_in_or_delete_an_account(client, app_module):
     with app_module.app.app_context():
-        admin = create_user(app_module, email="owner@example.com", role="admin")
-        reader = create_user(app_module, email="reader-delete@example.com", name="Reader")
-        post = create_post(app_module, admin)
-        comment = app_module.Comment(text="Keep this discussion", comment_author=reader, parent_post=post)
-        app_module.db.session.add(comment)
-        app_module.db.session.commit()
+        create_user(app_module, email="reader-delete@example.com", name="Reader")
 
-    login(client, email="reader-delete@example.com")
-    response = client.post(
-        "/account",
-        data={
-            "password": "password123",
-            "confirm": "y",
-            "submit": "Delete My Account",
-        },
+    login_response = client.post(
+        "/admin",
+        data={"email": "reader-delete@example.com", "password": "password123", "login": "Log in"},
         follow_redirects=True,
     )
+    account_response = client.post("/account")
 
-    with app_module.app.app_context():
-        deleted_user = app_module.Users.query.filter_by(email="reader-delete@example.com").first()
-        preserved_comment = app_module.Comment.query.filter_by(text="Keep this discussion").first()
-        comment_author_name = preserved_comment.comment_author.name
-
-    assert response.status_code == 200
-    assert deleted_user is None
-    assert comment_author_name == "Deleted user"
+    assert b"Sign-in could not be completed" in login_response.data
+    assert account_response.status_code == 404
 
 
 def test_contact_without_smtp_credentials_does_not_crash(client):

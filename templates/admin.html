@@ -1,0 +1,119 @@
+{% set page_title = "Admin | AyNcode" %}
+{% set hide_hero = true %}
+{% include "header.html" %}
+
+{% if is_admin %}
+<main class="container page-stack admin-workspace">
+  <section class="content-toolbar">
+    <div>
+      <p class="section-kicker">Private workspace</p>
+      <h1>Journal publishing</h1>
+      <p>Create, generate, and maintain AyNcode articles.</p>
+    </div>
+    <div class="button-row">
+      <a class="btn btn-primary" href="{{ url_for('generate_post') }}">Generate article</a>
+      <a class="btn btn-secondary" href="{{ url_for('add_new_post') }}">New post</a>
+    </div>
+  </section>
+
+  <section aria-labelledby="admin-posts-heading">
+    <div class="section-heading">
+      <p class="section-kicker">Published journal</p>
+      <h2 id="admin-posts-heading">Articles</h2>
+    </div>
+    <div class="post-grid">
+      {% for post in posts %}
+      <article class="post-card">
+        <div class="post-content">
+          <p class="post-kicker">{{ post.published_at or post.date }}</p>
+          <h2 class="post-title"><a href="{{ url_for('show_post', post_id=post.id) }}">{{ post.title }}</a></h2>
+          <p class="post-subtitle">{{ post.subtitle }}</p>
+          <div class="post-stats"><span>{{ post.reading_time }} min read</span></div>
+          <div class="admin-actions">
+            <a class="btn btn-secondary" href="{{ url_for('edit_post', post_id=post.id) }}">Edit</a>
+            <a class="btn-delete" href="{{ url_for('delete_post', post_id=post.id) }}">Delete</a>
+          </div>
+        </div>
+      </article>
+      {% else %}
+      <div class="empty-state">
+        <h2>No articles yet</h2>
+        <p>Create the first journal entry when you are ready.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% else %}
+<main class="login-experience">
+  <div class="container login-experience__grid">
+    <aside class="login-brand-panel">
+      <div>
+        <img class="login-brand-mark" src="{{ url_for('static', filename='img/android-chrome-192.png') }}" alt="" width="52" height="52" aria-hidden="true">
+        <p class="section-kicker">Private administration</p>
+        <h1>AyNcode publishing.</h1>
+        <p class="login-brand-panel__intro">Owner access for creating and maintaining the company journal.</p>
+      </div>
+      <div class="login-benefits" aria-label="Administrator capabilities">
+        <p><span aria-hidden="true">&#10003;</span> Create and edit articles</p>
+        <p><span aria-hidden="true">&#10003;</span> Generate researched drafts</p>
+        <p><span aria-hidden="true">&#10003;</span> Private owner access</p>
+      </div>
+    </aside>
+
+    <section class="login-card" aria-labelledby="login-heading">
+      <header class="login-card__header">
+        <p class="section-kicker">Secure access</p>
+        <h2 id="login-heading">Administrator login</h2>
+        <p>Enter the owner credentials to continue.</p>
+      </header>
+
+      {% with messages = get_flashed_messages() %}
+      {% if messages %}
+      <div class="alert alert-warning" role="alert">
+        {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+      </div>
+      {% endif %}
+      {% endwith %}
+
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+          {{ form.email.label }}
+          {{ form.email(class_="form-control", placeholder="Administrator email", autocomplete="email", inputmode="email", autocapitalize="none") }}
+          {% for error in form.email.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-group">
+          <div class="login-label-row">
+            {{ form.password.label }}
+            <a href="{{ url_for('forgot_password') }}">Forgot password?</a>
+          </div>
+          <div class="password-field">
+            {{ form.password(class_="form-control", placeholder="Administrator password", autocomplete="current-password") }}
+            <button class="password-toggle" type="button" aria-controls="{{ form.password.id }}" aria-pressed="false">Show</button>
+          </div>
+          {% for error in form.password.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-actions login-card__actions">{{ form.login(class_="btn btn-primary") }}</div>
+      </form>
+    </section>
+  </div>
+</main>
+
+<script>
+  (() => {
+    const toggle = document.querySelector(".password-toggle");
+    if (!toggle) return;
+    const password = document.getElementById(toggle.getAttribute("aria-controls"));
+    toggle.addEventListener("click", () => {
+      const isVisible = password.type === "text";
+      password.type = isVisible ? "password" : "text";
+      toggle.textContent = isVisible ? "Show" : "Hide";
+      toggle.setAttribute("aria-pressed", String(!isVisible));
+      password.focus();
+    });
+  })();
+</script>
+{% endif %}
+
+{% include "footer.html" %}

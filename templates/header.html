@@ -56,22 +56,10 @@
         <li class="nav-item">
           <a class="nav-link{% if current_path == '/contact' %} is-active{% endif %}"{% if current_path == '/contact' %} aria-current="page"{% endif %} href="{{ url_for('contact') }}">Support</a>
         </li>
-        {% if not logged_in: %}
-        <li class="nav-item">
-          <a class="nav-link nav-link--quiet{% if current_path == '/login' %} is-active{% endif %}"{% if current_path == '/login' %} aria-current="page"{% endif %} href="{{ url_for('login') }}">Login</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link nav-link--strong{% if current_path == '/register' %} is-active{% endif %}"{% if current_path == '/register' %} aria-current="page"{% endif %} href="{{ url_for('register') }}">Register</a>
-        </li>
-        {% else: %}
-        <li class="nav-item">
-          <a class="nav-link nav-link--quiet{% if current_path == '/account' %} is-active{% endif %}"{% if current_path == '/account' %} aria-current="page"{% endif %} href="{{ url_for('account') }}">Account</a>
-        </li>
         {% if is_admin %}
         <li class="nav-item">
-          <a class="nav-link nav-link--quiet{% if current_path == '/admin/users' %} is-active{% endif %}"{% if current_path == '/admin/users' %} aria-current="page"{% endif %} href="{{ url_for('admin_users') }}">Users</a>
+          <a class="nav-link nav-link--quiet{% if current_path == '/admin' %} is-active{% endif %}"{% if current_path == '/admin' %} aria-current="page"{% endif %} href="{{ url_for('admin') }}">Admin</a>
         </li>
-        {% endif %}
         <li class="nav-item">
           <form class="nav-logout-form" method="post" action="{{ url_for('logout') }}">
             {{ logout_form.hidden_tag() }}

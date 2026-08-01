@@ -15,6 +15,7 @@
     <p>{{ post.subtitle }}</p>
   </header>
   {% endif %}
+
   <article class="article-shell">
     <div class="post-body">
       {{ post.body|safe }}
@@ -34,42 +35,7 @@
       {% if post.reading_time %}
       <span><i class="far fa-clock"></i> {{ post.reading_time }} min read</span>
       {% endif %}
-      <span><i class="far fa-eye"></i> {{ post.views or 0 }} views</span>
     </div>
-
-    <section class="article-feedback" aria-label="Article feedback">
-      <div class="feedback-copy">
-        <p class="section-kicker">Reader feedback</p>
-        <h2>Was this useful?</h2>
-        <p>Your reaction helps shape what I publish next.</p>
-      </div>
-      <div class="feedback-actions">
-        <form method="post" action="{{ url_for('react_to_post', post_id=post.id, reaction='like') }}">
-          {{ reaction_form.hidden_tag() }}
-          <button class="feedback-button" type="submit" aria-label="Like this article, {{ post.likes or 0 }} likes">
-            <i class="far fa-heart" aria-hidden="true"></i>
-            <span>Likes</span>
-            <strong>{{ post.likes or 0 }}</strong>
-          </button>
-        </form>
-        <form method="post" action="{{ url_for('react_to_post', post_id=post.id, reaction='upvote') }}">
-          {{ reaction_form.hidden_tag() }}
-          <button class="feedback-button" type="submit" aria-label="Upvote this article, {{ post.upvotes or 0 }} upvotes">
-            <i class="far fa-thumbs-up" aria-hidden="true"></i>
-            <span>Upvotes</span>
-            <strong>{{ post.upvotes or 0 }}</strong>
-          </button>
-        </form>
-        <form method="post" action="{{ url_for('react_to_post', post_id=post.id, reaction='downvote') }}">
-          {{ reaction_form.hidden_tag() }}
-          <button class="feedback-button feedback-button--muted" type="submit" aria-label="Downvote this article, {{ post.downvotes or 0 }} downvotes">
-            <i class="far fa-thumbs-down" aria-hidden="true"></i>
-            <span>Downvotes</span>
-            <strong>{{ post.downvotes or 0 }}</strong>
-          </button>
-        </form>
-      </div>
-    </section>
 
     {% if is_admin %}
     <div class="article-actions">
@@ -78,157 +44,7 @@
       <a class="btn btn-primary" href="{{ url_for('generate_post') }}">Generate another</a>
     </div>
     {% endif %}
-
-    <section class="comments-area" id="discussion">
-      <div class="discussion-heading">
-        <div>
-          <p class="section-kicker">Discussion</p>
-          <h2>{{ comment_count }} {{ "comment" if comment_count == 1 else "comments" }}</h2>
-        </div>
-        <p>Thoughtful questions, useful context, and practical perspectives are welcome.</p>
-      </div>
-
-      {% with messages = get_flashed_messages() %}
-      {% if messages %}
-      <div class="alert alert-warning" role="status">
-        {% for message in messages %}<p>{{ message }}</p>{% endfor %}
-      </div>
-      {% endif %}
-      {% endwith %}
-
-      {% if logged_in %}
-      <form class="comment-form" method="post" novalidate>
-        {{ form.hidden_tag() }}
-        {{ form.parent_id(id="comment-parent-id") }}
-        <div class="comment-composer-profile">
-          <span class="comment-avatar" aria-hidden="true">{{ current_user.name[0]|upper }}</span>
-          <div>
-            <strong>{{ current_user.name }}</strong>
-            <span id="reply-context">Add to the discussion</span>
-          </div>
-          <button class="reply-cancel" id="reply-cancel" type="button" hidden>Cancel reply</button>
-        </div>
-        <div class="field-block">
-          {{ form.body.label(class_="sr-only") }}
-          {{ form.body(class_="form-control comment-textarea", placeholder="Share a thoughtful response…", maxlength="2000", aria_describedby="comment-guidance comment-count") }}
-          {% for error in form.body.errors %}
-          <p class="field-error">{{ error }}</p>
-          {% endfor %}
-        </div>
-        <div class="comment-form-footer">
-          <span id="comment-guidance">Keep it constructive and relevant to the article.</span>
-          <span id="comment-count" aria-live="polite">0 / 2000</span>
-          {{ form.submit(class_="btn btn-primary") }}
-        </div>
-      </form>
-      {% else %}
-      <div class="comment-signin">
-        <img
-          class="comment-avatar comment-avatar--brand"
-          src="{{ url_for('static', filename='img/android-chrome-192.png') }}"
-          alt=""
-          width="42"
-          height="42"
-          aria-hidden="true"
-        >
-        <div>
-          <h3>Join the discussion</h3>
-          <p>Sign in to share a comment or reply to another reader.</p>
-        </div>
-        <a class="btn btn-primary" href="{{ url_for('login', next=url_for('show_post', post_id=post.id) ~ '#discussion') }}">Log in</a>
-        <a class="btn btn-secondary" href="{{ url_for('register') }}">Create account</a>
-      </div>
-      {% endif %}
-
-      <div class="comment-list">
-        {% macro comment_card(comment, is_reply=false) %}
-        <article class="comment{% if is_reply %} comment--reply{% endif %}" id="comment-{{ comment.id }}">
-          <div class="comment-avatar" aria-hidden="true">{{ comment.comment_author.name[0]|upper }}</div>
-          <div class="comment-content">
-            <header class="comment-header">
-              <div>
-                <strong>{{ comment.comment_author.name }}</strong>
-                {% if comment.comment_author.email_verified and comment.comment_author.role != "system" %}
-                <span class="verified-badge" title="Verified email">Verified</span>
-                {% endif %}
-              </div>
-              {% if comment.created_at %}
-              <time datetime="{{ comment.created_at.isoformat() }}">{{ comment.created_at.strftime("%b %d, %Y · %I:%M %p") }}</time>
-              {% endif %}
-            </header>
-            <p class="comment-body">{{ comment.text }}</p>
-            <footer class="comment-actions">
-              {% if logged_in and not is_reply %}
-              <button class="comment-action reply-trigger" type="button" data-comment-id="{{ comment.id }}" data-author="{{ comment.comment_author.name }}">Reply</button>
-              {% endif %}
-              {% if logged_in and (current_user.id == comment.author_id or is_admin) %}
-              <form method="post" action="{{ url_for('delete_comment', comment_id=comment.id) }}">
-                {{ comment_action_form.hidden_tag() }}
-                <button class="comment-action comment-action--danger" type="submit">Delete</button>
-              </form>
-              {% endif %}
-            </footer>
-          </div>
-        </article>
-        {% endmacro %}
-
-        {% for comment in comment_threads %}
-        <div class="comment-thread">
-          {{ comment_card(comment) }}
-          {% if comment.replies %}
-          <div class="comment-replies" aria-label="Replies to {{ comment.comment_author.name }}">
-            {% for reply in comment.replies %}
-            {{ comment_card(reply, true) }}
-            {% endfor %}
-          </div>
-          {% endif %}
-        </div>
-        {% else %}
-        <div class="comment-empty">
-          <span class="comment-empty-icon" aria-hidden="true">💬</span>
-          <h3>Start the conversation</h3>
-          <p>Be the first to share a useful thought about this article.</p>
-        </div>
-        {% endfor %}
-      </div>
-    </section>
   </article>
 </main>
-
-<script>
-  (() => {
-    const textarea = document.querySelector(".comment-textarea");
-    const counter = document.getElementById("comment-count");
-    if (textarea && counter) {
-      const updateCount = () => {
-        counter.textContent = `${textarea.value.length} / 2000`;
-      };
-      textarea.addEventListener("input", updateCount);
-      updateCount();
-    }
-
-    const parentInput = document.getElementById("comment-parent-id");
-    const replyContext = document.getElementById("reply-context");
-    const cancel = document.getElementById("reply-cancel");
-    if (!textarea || !parentInput || !replyContext || !cancel) return;
-
-    document.querySelectorAll(".reply-trigger").forEach((button) => {
-      button.addEventListener("click", () => {
-        parentInput.value = button.dataset.commentId;
-        replyContext.textContent = `Replying to ${button.dataset.author}`;
-        cancel.hidden = false;
-        textarea.focus();
-        document.querySelector(".comment-form").scrollIntoView({ behavior: "smooth", block: "center" });
-      });
-    });
-
-    cancel.addEventListener("click", () => {
-      parentInput.value = "";
-      replyContext.textContent = "Add to the discussion";
-      cancel.hidden = true;
-      textarea.focus();
-    });
-  })();
-</script>
 
 {% include "footer.html" %}

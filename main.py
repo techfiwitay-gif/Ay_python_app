@@ -7,11 +7,10 @@ from email.utils import parsedate_to_datetime
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, LoginManager, login_required, current_user, logout_user
-from forms import AdminUserActionForm, CommentForm, CreatePostForm, DeleteAccountForm, ForgotPasswordForm, GenerateArticleForm, LoginForm, LogoutForm, RegisterForm, ResendVerificationForm, ResetPasswordForm
+from forms import CreatePostForm, ForgotPasswordForm, GenerateArticleForm, LoginForm, LogoutForm, ResetPasswordForm
 from functools import wraps
-from models import BlogPost, Comment, DeletedGeneratedPost, LoginThrottle, Users, db
+from models import BlogPost, DeletedGeneratedPost, LoginThrottle, Users, db
 from sqlalchemy import func, inspect, or_, text
-from sqlalchemy.exc import IntegrityError
 import base64
 import hmac
 import os
@@ -38,7 +37,6 @@ app.config.from_mapping(
     SQLALCHEMY_DATABASE_URI=database_url,
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     PASSWORD_RESET_MAX_AGE=int(os.environ.get("PASSWORD_RESET_MAX_AGE", "3600")),
-    EMAIL_VERIFICATION_MAX_AGE=int(os.environ.get("EMAIL_VERIFICATION_MAX_AGE", "86400")),
     SESSION_COOKIE_SECURE=os.environ.get(
         "SESSION_COOKIE_SECURE",
         "1" if os.environ.get("VERCEL") else "0",
@@ -60,13 +58,11 @@ DEFAULT_AUTOMATION_AUTHOR_NAME = "Ayotunde Oyeniyi"
 DEFAULT_ADMIN_EMAIL = DEFAULT_AUTOMATION_AUTHOR_EMAIL
 DEFAULT_GITHUB_REPOSITORY = "techfiwitay-gif/Ay_python_app"
 PASSWORD_RESET_SALT = "ayncoder-password-reset"
-EMAIL_VERIFICATION_SALT = "ayncoder-email-verification"
 ARTICLE_ARCHIVE_AGE_DAYS = 7
 LOGIN_WINDOW = timedelta(minutes=15)
 LOGIN_LOCK_TIME = timedelta(minutes=15)
 LOGIN_EMAIL_LIMIT = 5
 LOGIN_IP_LIMIT = 30
-COMMENT_COOLDOWN = timedelta(seconds=10)
 DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_urlsafe(32))
 
 
@@ -323,7 +319,11 @@ def configured_admin_name():
 def is_admin_user(user):
     if not user or not getattr(user, "is_authenticated", False):
         return False
-    return getattr(user, "role", "user") == "admin" and not getattr(user, "is_disabled", False)
+    return bool(
+        getattr(user, "role", "user") == "admin"
+        and not getattr(user, "is_disabled", False)
+        and normalize_email(getattr(user, "email", "")) == configured_admin_email()
+    )
 
 
 def ensure_admin_user():
@@ -522,38 +522,6 @@ def verify_password_reset_token(token):
     return user
 
 
-def generate_email_verification_token(user):
-    user.email_verification_nonce = secrets.token_urlsafe(24)
-    db.session.commit()
-    return password_reset_serializer().dumps(
-        {"user_id": user.id, "nonce": user.email_verification_nonce},
-        salt=EMAIL_VERIFICATION_SALT,
-    )
-
-
-def verify_email_verification_token(token):
-    try:
-        payload = password_reset_serializer().loads(
-            token,
-            salt=EMAIL_VERIFICATION_SALT,
-            max_age=app.config["EMAIL_VERIFICATION_MAX_AGE"],
-        )
-    except (BadSignature, SignatureExpired):
-        return None
-    if not isinstance(payload, dict):
-        return None
-    user = db.session.get(Users, payload.get("user_id"))
-    if (
-        not user
-        or user.is_disabled
-        or user.email_verified
-        or not user.email_verification_nonce
-        or not hmac.compare_digest(user.email_verification_nonce, payload.get("nonce", ""))
-    ):
-        return None
-    return user
-
-
 def send_password_reset_email(user, reset_url):
     password = (os.environ.get("GMAIL_PASSWORD") or "").replace(" ", "").strip()
     my_email = (
@@ -584,37 +552,6 @@ def send_password_reset_email(user, reset_url):
     return True
 
 
-def send_email_verification(user):
-    password = (os.environ.get("GMAIL_PASSWORD") or "").replace(" ", "").strip()
-    my_email = (
-        os.environ.get("GMAIL_EMAIL")
-        or os.environ.get("SMTP_USERNAME")
-        or os.environ.get("CONTACT_EMAIL")
-        or DEFAULT_ADMIN_EMAIL
-    ).strip()
-    if not password:
-        return False
-
-    token = generate_email_verification_token(user)
-    verify_url = url_for("verify_email", token=token, _external=True)
-    message = (
-        "Subject:Verify your AyNcode email\n\n"
-        f"Hi {user.name},\n\n"
-        "Confirm this email address to activate your AyNcode account.\n\n"
-        f"Verify email: {verify_url}\n\n"
-        "This link expires in 24 hours. If this account was not created by you, this email can be ignored.\n"
-    )
-    try:
-        with SMTP("smtp.gmail.com", 587) as smtp:
-            smtp.starttls()
-            smtp.login(my_email, password)
-            smtp.sendmail(my_email, user.email, msg=message)
-    except (OSError, SMTPException) as exc:
-        app.logger.warning("Email verification failed: %s", exc)
-        return False
-    return True
-
-
 def text_word_count(html):
     text = re.sub(r"<[^>]+>", " ", html or "")
     return len(re.findall(r"\b\w+\b", text))
@@ -628,7 +565,6 @@ def decorate_posts(posts):
     for post in posts:
         post.word_count = text_word_count(post.body)
         post.reading_time = reading_time_minutes(post.body)
-        post.comment_count = len(post.comments)
     return posts
 
 
@@ -1333,13 +1269,13 @@ def password_hash_needs_upgrade(password_hash):
 
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = "login"
+login_manager.login_view = "admin"
 login_manager.session_protection = "strong"
 
 @login_manager.user_loader
 def load_user(user_id):#This callback is used to reload the user object from the user ID stored in the session
     user = db.session.get(Users, int(user_id))
-    if not user or user.is_disabled:
+    if not is_admin_user(user):
         return None
     return user
 
@@ -1351,49 +1287,6 @@ def account_context():
         "is_admin": is_admin_user(current_user),
         "logout_form": LogoutForm(),
     }
-
-
-def get_or_create_deleted_user():
-    deleted_email = "deleted-user@ayncode.invalid"
-    user = Users.query.filter_by(email=deleted_email).first()
-    if user:
-        return user
-    user = Users(
-        email=deleted_email,
-        password=generate_password_hash(secrets.token_urlsafe(32)),
-        name="Deleted user",
-        role="system",
-        email_verified=True,
-        is_disabled=True,
-    )
-    db.session.add(user)
-    db.session.flush()
-    return user
-
-
-def remove_user_account(user):
-    if user.role in {"admin", "system"}:
-        return False
-
-    deleted_user = get_or_create_deleted_user()
-    replacement_author = Users.query.filter(
-        Users.role == "admin",
-        Users.is_disabled.is_(False),
-        Users.id != user.id,
-    ).first()
-    if user.posts and not replacement_author:
-        db.session.rollback()
-        return False
-
-    for comment in list(user.comments):
-        comment.comment_author = deleted_user
-    for post in list(user.posts):
-        post.author = replacement_author
-
-    db.session.flush()
-    db.session.delete(user)
-    db.session.commit()
-    return True
 
 
 @app.route('/')
@@ -1417,19 +1310,11 @@ def get_all_posts():
         if post_has_real_image(post) and (query or not post_is_archived(post))
     ]
     posts = decorate_posts(posts)
-    stats = {
-        "posts": len(posts),
-        "comments": sum(len(post.comments) for post in posts),
-        "views": sum(post.views or 0 for post in posts),
-        "likes": sum(post.likes or 0 for post in posts),
-        "minutes": sum(post.reading_time for post in posts),
-    }
     return render_template(
         "index.html",
         all_posts=posts,
         logged_in=current_user.is_authenticated,
         query=query,
-        stats=stats,
     )
 
 
@@ -1460,77 +1345,18 @@ def archive():
     )
 
 
-@app.route('/register',methods=['GET', 'POST'])
-def register():
+@app.route('/admin', methods=['GET', 'POST'])
+def admin():
     if current_user.is_authenticated:
-        return redirect(url_for("get_all_posts"))
-
-    form = RegisterForm()
-    if form.validate_on_submit():
-        email = normalize_email(form.email.data)
-        user = Users.query.filter(func.lower(Users.email) == email).first()
-        if not user:
-            user = Users(
-                email=email,
-                password=generate_password_hash(form.password.data),
-                name=form.name.data.strip(),
-                role="user",
-                email_verified=False,
-            )
-            db.session.add(user)
-            try:
-                db.session.commit()
-            except IntegrityError:
-                db.session.rollback()
-                user = None
-            if user and not send_email_verification(user):
-                app.logger.warning("Verification email could not be delivered for user id %s", user.id)
-        flash("If this email can be registered, a verification message will arrive shortly.")
-        return redirect(url_for("login"))
-    return render_template("register.html",form=form)
-
-
-@app.route("/verify-email/<token>")
-def verify_email(token):
-    user = verify_email_verification_token(token)
-    if not user:
-        flash("That verification link is invalid, expired, or already used.")
-        return redirect(url_for("resend_verification"))
-    user.email_verified = True
-    user.email_verification_nonce = None
-    db.session.commit()
-    flash("Email verified. You can now log in.")
-    return redirect(url_for("login"))
-
-
-@app.route("/resend-verification", methods=["GET", "POST"])
-def resend_verification():
-    if current_user.is_authenticated:
-        return redirect(url_for("get_all_posts"))
-    form = ResendVerificationForm()
-    if form.validate_on_submit():
-        email = normalize_email(form.email.data)
-        user = Users.query.filter(func.lower(Users.email) == email).first()
-        if user and not user.email_verified and not user.is_disabled:
-            if not send_email_verification(user):
-                app.logger.warning("Verification resend could not be delivered for user id %s", user.id)
-        flash("If an unverified account exists, a new verification message will arrive shortly.")
-        return redirect(url_for("login"))
-    return render_template("resend-verification.html", form=form, logged_in=False)
-
-
-
-@app.route('/login',methods=['GET','POST'])
-def login():
-    if current_user.is_authenticated:
-        return redirect(url_for("get_all_posts"))
+        posts = decorate_posts(sort_posts_latest_first(BlogPost.query.all()))
+        return render_template("admin.html", posts=posts, form=None, logged_in=True)
 
     form = LoginForm()
     if form.validate_on_submit():
         email = normalize_email(form.email.data)
         if is_login_throttled(email):
             flash("Sign-in is temporarily unavailable after several attempts. Please wait and try again.")
-            return render_template("login.html", form=form), 429
+            return render_template("admin.html", form=form, posts=[]), 429
 
         user = Users.query.filter(func.lower(Users.email) == email).first()
         password_hash = user.password if user else DUMMY_PASSWORD_HASH
@@ -1538,8 +1364,7 @@ def login():
         can_login = bool(
             user
             and password_matches
-            and user.email_verified
-            and not user.is_disabled
+            and is_admin_user(user)
         )
 
         if can_login:
@@ -1553,42 +1378,42 @@ def login():
             next_url = request.args.get("next")
             if is_safe_redirect_url(next_url):
                 return redirect(next_url)
-            return redirect(url_for("get_all_posts"))
+            return redirect(url_for("admin"))
 
         record_login_failure(email)
-        flash("Sign-in could not be completed. Check your credentials and verify your email.")
+        flash("Sign-in could not be completed. Check the administrator credentials.")
 
-    return render_template("login.html",form=form)
+    return render_template("admin.html", form=form, posts=[], logged_in=False)
 
 
-@app.route("/forgot-password", methods=["GET", "POST"])
+@app.route("/admin/forgot-password", methods=["GET", "POST"])
 def forgot_password():
     if current_user.is_authenticated:
-        return redirect(url_for("get_all_posts"))
+        return redirect(url_for("admin"))
 
     form = ForgotPasswordForm()
     if form.validate_on_submit():
         email = normalize_email(form.email.data)
         user = Users.query.filter(func.lower(Users.email) == email).first()
-        if user and not user.is_disabled:
+        if is_admin_user(user):
             token = generate_password_reset_token(user)
             reset_url = url_for("reset_password", token=token, _external=True)
             if not send_password_reset_email(user, reset_url):
                 app.logger.warning("Password reset email could not be delivered for user id %s", user.id)
 
-        flash("If that email is registered, I sent a password reset link.")
-        return redirect(url_for("login"))
+        flash("If that email belongs to the administrator, a password reset link was sent.")
+        return redirect(url_for("admin"))
 
     return render_template("forgot-password.html", form=form, logged_in=False)
 
 
-@app.route("/reset-password/<token>", methods=["GET", "POST"])
+@app.route("/admin/reset-password/<token>", methods=["GET", "POST"])
 def reset_password(token):
     if current_user.is_authenticated:
         return redirect(url_for("get_all_posts"))
 
     user = verify_password_reset_token(token)
-    if not user:
+    if not is_admin_user(user):
         flash("That password reset link is invalid or expired.")
         return redirect(url_for("forgot_password"))
 
@@ -1599,7 +1424,7 @@ def reset_password(token):
         clear_login_throttles(user.email)
         db.session.commit()
         flash("Password updated. I can log in with the new password now.")
-        return redirect(url_for("login"))
+        return redirect(url_for("admin"))
 
     return render_template("reset-password.html", form=form, logged_in=False)
 
@@ -1616,178 +1441,23 @@ def logout():
     return redirect(url_for('get_all_posts'))
 
 
-@app.route("/account", methods=["GET", "POST"])
-@login_required
-def account():
-    form = DeleteAccountForm()
-    if form.validate_on_submit():
-        user = current_user._get_current_object()
-        if is_admin_user(user):
-            flash("The primary administrator account cannot be deleted here.")
-            return render_template("account.html", form=form)
-        if not check_password_hash(user.password, form.password.data):
-            flash("The current password was not correct.")
-            return render_template("account.html", form=form)
-        logout_user()
-        session.clear()
-        if remove_user_account(user):
-            flash("Your account was deleted. Existing comments now appear under Deleted user.")
-            return redirect(url_for("get_all_posts"))
-        flash("The account could not be deleted safely. Please contact AyNcode.")
-    return render_template("account.html", form=form)
-
-
-@app.route("/admin/users")
-@login_required
-@admin_only
-def admin_users():
-    users = Users.query.filter(Users.role != "system").order_by(Users.created_at.desc()).all()
-    action_form = AdminUserActionForm()
-    return render_template("admin-users.html", users=users, action_form=action_form)
-
-
-@app.route("/admin/users/<int:user_id>/<action>", methods=["POST"])
-@login_required
-@admin_only
-def admin_user_action(user_id, action):
-    form = AdminUserActionForm()
-    if not form.validate_on_submit():
-        abort(400)
-    user = db.get_or_404(Users, user_id)
-    if user.role in {"admin", "system"}:
-        flash("Administrator and system accounts cannot be changed here.")
-        return redirect(url_for("admin_users"))
-    if action == "disable":
-        user.is_disabled = True
-        db.session.commit()
-        flash("User access disabled.")
-    elif action == "enable":
-        user.is_disabled = False
-        db.session.commit()
-        flash("User access restored.")
-    elif action == "delete":
-        if remove_user_account(user):
-            flash("User account deleted and existing comments anonymized.")
-        else:
-            flash("The user could not be deleted safely.")
-    else:
-        abort(404)
-    return redirect(url_for("admin_users"))
-
-
 @app.route("/generated-cover/<audience>/<path:slug>.svg")
 def generated_cover(audience, slug):
     topic = re.sub(r"-[a-f0-9]{10}$", "", slug)
     svg = render_topic_cover_svg(topic, audience)
     return Response(svg, mimetype="image/svg+xml")
 
-@app.route("/post/<int:post_id>", methods=['GET', 'POST'])
+@app.route("/post/<int:post_id>")
 def show_post(post_id):
     requested_post = db.get_or_404(BlogPost, post_id)
     if not post_has_real_image(requested_post):
         abort(404)
-    if request.method == "GET" and not request.args.get("reacted"):
-        requested_post.views = (requested_post.views or 0) + 1
-        db.session.commit()
     decorate_posts([requested_post])
-    comment_data = CommentForm()
-
-    if comment_data.validate_on_submit():
-        if not current_user.is_authenticated:
-            flash('Please login or Register to comment')
-            return redirect(url_for("login", next=url_for("show_post", post_id=requested_post.id)))
-
-        latest_comment = Comment.query.filter_by(author_id=current_user.id).order_by(
-            Comment.created_at.desc()
-        ).first()
-        now = datetime.utcnow()
-        if (
-            latest_comment
-            and latest_comment.created_at
-            and now - latest_comment.created_at < COMMENT_COOLDOWN
-        ):
-            flash("Please wait a few seconds before posting another comment.")
-            return redirect(url_for("show_post", post_id=requested_post.id) + "#discussion")
-
-        parent = None
-        if comment_data.parent_id.data:
-            try:
-                parent_id = int(comment_data.parent_id.data)
-            except (TypeError, ValueError):
-                abort(400)
-            parent = db.session.get(Comment, parent_id)
-            if not parent or parent.post_id != requested_post.id:
-                abort(400)
-            if parent.parent is not None:
-                parent = parent.parent
-
-        comment = Comment(
-            text=comment_data.body.data.strip(),
-            comment_author=current_user,
-            parent_post=requested_post,
-            parent=parent,
-        )
-        db.session.add(comment)
-        db.session.commit()
-        return redirect(
-            url_for("show_post", post_id=requested_post.id) + f"#comment-{comment.id}"
-        )
-
-    comment_threads = sorted(
-        (comment for comment in requested_post.comments if comment.parent_id is None),
-        key=lambda comment: comment.created_at or datetime.min,
-    )
     return render_template(
         "post.html",
         post=requested_post,
         logged_in=current_user.is_authenticated,
-        form=comment_data,
-        comment_threads=comment_threads,
-        comment_count=len(requested_post.comments),
-        comment_action_form=AdminUserActionForm(),
-        reaction_form=AdminUserActionForm(),
     )
-
-
-@app.route("/comment/<int:comment_id>/delete", methods=["POST"])
-@login_required
-def delete_comment(comment_id):
-    form = AdminUserActionForm()
-    if not form.validate_on_submit():
-        abort(400)
-    comment = db.get_or_404(Comment, comment_id)
-    if comment.author_id != current_user.id and not is_admin_user(current_user):
-        abort(403)
-
-    post_id = comment.post_id
-    if comment.replies:
-        comment.text = "Comment removed by its author."
-        comment.comment_author = get_or_create_deleted_user()
-    else:
-        db.session.delete(comment)
-    db.session.commit()
-    flash("Comment removed.")
-    return redirect(url_for("show_post", post_id=post_id) + "#discussion")
-
-
-@app.route("/post/<int:post_id>/react/<reaction>", methods=["POST"])
-def react_to_post(post_id, reaction):
-    form = AdminUserActionForm()
-    if not form.validate_on_submit():
-        abort(400)
-    post = db.get_or_404(BlogPost, post_id)
-    reaction_fields = {
-        "like": "likes",
-        "upvote": "upvotes",
-        "downvote": "downvotes",
-    }
-    field = reaction_fields.get(reaction)
-    if not field:
-        abort(404)
-
-    setattr(post, field, (getattr(post, field) or 0) + 1)
-    db.session.commit()
-    return redirect(url_for("show_post", post_id=post.id, reacted=1))
 
 
 
