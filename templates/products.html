@@ -20,9 +20,12 @@
     </article>
 
     <article class="product-card product-card--vocalframe">
-      <div class="product-card-top"><span class="product-icon"><i class="fas fa-video"></i></span><span class="product-status">In review</span></div>
+      <div class="product-card-top"><span class="product-icon"><i class="fas fa-video"></i></span><span class="product-status">Available</span></div>
       <div><p class="product-type">AI-assisted speaking coach</p><h2>VocalFrame</h2><p>Rehearse on camera with more clarity, confidence, and control before the moment counts.</p></div>
-      <a class="product-link" href="{{ url_for('vocalframe') }}">Explore VocalFrame <i class="fas fa-arrow-right"></i></a>
+      <div class="product-card-links">
+        <a class="product-link" href="{{ url_for('vocalframe') }}">Explore VocalFrame <i class="fas fa-arrow-right"></i></a>
+        <a class="product-link" href="{{ vocalframe_app_store_url }}" target="_blank" rel="noopener noreferrer">View on the App Store <i class="fab fa-apple"></i></a>
+      </div>
     </article>
 
     <article class="product-card product-card--bookafriend">

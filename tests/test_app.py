@@ -140,6 +140,22 @@ def test_public_pages_share_company_positioning(client):
     assert b"Ayncode LLC" not in homepage.data.split(b"<footer>", 1)[0]
 
 
+def test_vocalframe_pages_link_to_live_app_store_listing(client):
+    app_store_url = b"https://apps.apple.com/app/vocalframe-camera-coach/id6790227598"
+
+    products_page = client.get("/products")
+    vocalframe_page = client.get("/vocalframe")
+
+    assert products_page.status_code == 200
+    assert vocalframe_page.status_code == 200
+    assert app_store_url in products_page.data
+    assert app_store_url in vocalframe_page.data
+    assert b"View on the App Store" in products_page.data
+    assert b"Download on the App Store" in vocalframe_page.data
+    assert b"Get launch updates" not in vocalframe_page.data
+    assert b"In review" not in products_page.data
+
+
 def test_sync_generated_content_posts_imports_repo_content(client, app_module, monkeypatch, tmp_path):
     content_path = tmp_path / "generated_posts.json"
     content_path.write_text(
