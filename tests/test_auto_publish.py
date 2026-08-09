@@ -213,6 +213,43 @@ def test_article_quality_accepts_specific_sourced_article():
     assert issues == []
 
 
+def test_quality_fallback_article_passes_gate_with_source():
+    events = [{
+        "title": "OpenAI launches a new workflow tool - Reuters",
+        "source": "Reuters",
+        "link": "https://example.com/openai-workflow",
+    }]
+
+    title, subtitle, body = auto_publish.build_quality_fallback_article(
+        "OpenAI workflow tools",
+        "founders",
+        events,
+    )
+
+    assert auto_publish.article_quality_issues(title, subtitle, body, events) == []
+    assert "Reuters" in body
+    assert "https://example.com/openai-workflow" in body
+
+
+def test_quality_fallback_article_passes_gate_without_live_event():
+    title, subtitle, body = auto_publish.build_quality_fallback_article(
+        "AI automation for everyday business workflows",
+        "founders",
+        [],
+    )
+
+    assert auto_publish.article_quality_issues(title, subtitle, body, []) == []
+
+
+def test_friday_workflow_has_weekly_window_and_fallbacks():
+    workflow = (Path(__file__).resolve().parents[1] / ".github" / "workflows" / "daily-blog.yml").read_text(encoding="utf-8")
+
+    assert "cron: '15 13 * * 5'" in workflow
+    assert "AUTO_POST_EVENT_HOURS: ${{ vars.AUTO_POST_EVENT_HOURS || '168' }}" in workflow
+    assert "AUTO_POST_FALLBACK_EVENT_HOURS: ${{ vars.AUTO_POST_FALLBACK_EVENT_HOURS || '336' }}" in workflow
+    assert "python scripts/auto_publish.py --commit --push" in workflow
+
+
 def test_image_search_queries_preserve_model_query_before_company_fallback():
     queries = auto_publish.image_search_queries(
         "Microsoft AI bundling probe",

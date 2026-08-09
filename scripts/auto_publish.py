@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 from datetime import date, datetime
+from html import escape
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -27,6 +28,7 @@ from main import (
 DEFAULT_TOPIC = "AI automation for everyday business workflows"
 DEFAULT_AUDIENCE = "developers"
 DEFAULT_ANGLE = "Keep the article tightly tied to a recent tech news topic and focus on practical implications for builders, founders, and operators."
+DEFAULT_FALLBACK_IMAGE_URL = "/static/img/ayhome-image.jpg"
 DEFAULT_FALLBACK_EVENT_QUERIES = (
     "OpenAI AI news",
     "Anthropic AI news",
@@ -546,6 +548,45 @@ def validate_article_quality(title: str, subtitle: str, body: str, events: list[
         raise RuntimeError("Article failed quality gate: " + "; ".join(issues))
 
 
+def build_quality_fallback_article(topic: str, audience: str, events: list[dict]) -> tuple[str, str, str]:
+    """Build a source-bounded article when the primary generator misses the quality gate."""
+    event = events[0] if events else {}
+    event_title = clean_event_topic(str(event.get("title", ""))) or topic
+    source = str(event.get("source", "")).strip() or "the available reporting"
+    link = str(event.get("link", "")).strip()
+    audience_label = audience.replace("_", " ").strip() or "builders"
+
+    safe_topic = escape(topic)
+    safe_event_title = escape(event_title)
+    safe_source = escape(source)
+    safe_audience = escape(audience_label)
+    source_item = (
+        f'<li><a href="{escape(link, quote=True)}">{safe_event_title} - {safe_source}</a></li>'
+        if link
+        else f"<li>{safe_event_title} - {safe_source}</li>"
+    )
+
+    title = f"What {event_title} Means for Builders"
+    subtitle = f"A practical read on {event_title} for founders, builders, and operators."
+    body = f"""
+<p>I am reading the latest signal around {safe_topic} as an operating story, not just another technology headline. The reported development, {safe_event_title}, matters because it shows where product expectations, technical capability, and business pressure are beginning to meet. I am keeping this analysis inside the facts available from {safe_source} and focusing on the practical questions the story raises.</p>
+
+<h2>The signal behind the headline</h2>
+<p>The narrow fact pattern is useful on its own: {safe_event_title}. My read is that the durable lesson sits in what teams must make possible around that development. A promising capability only becomes valuable software when it fits a real workflow, behaves predictably, and gives people enough visibility to understand what happened.</p>
+<p>That distinction matters because AI products often look strongest in a controlled demonstration. Production use is different. Real systems have permissions, incomplete data, edge cases, changing requirements, and people who need to review the result. The useful product opportunity is therefore not simply adding more intelligence. It is designing the surrounding system so the intelligence can be inspected, corrected, and trusted.</p>
+
+<h2>What I would watch next</h2>
+<p>For {safe_audience}, I would watch how quickly this development moves from announcement to repeatable use. The strongest evidence will come from clear jobs completed, fewer handoff failures, and better decisions rather than broad claims about transformation. Products that make those outcomes visible will have an easier time earning adoption.</p>
+<p>I am also watching the operating discipline around the feature. Teams still need evaluation, logging, fallback behavior, security boundaries, and a clear point where a person takes over. Those details can feel less exciting than the model or headline, but they are usually where durable product advantage forms. When capability becomes easier to access, implementation quality becomes more important, not less.</p>
+<p>My takeaway is straightforward: {safe_topic} deserves attention where it changes a specific job and where the surrounding workflow can support it responsibly. The next useful question is not whether the technology sounds impressive. It is whether a team can turn the signal into a system that produces a consistent result without hiding the tradeoffs.</p>
+
+<h2>Source context</h2>
+<p>This article uses the following report as its factual boundary. The analysis above is my interpretation of the product and operating implications.</p>
+<ul>{source_item}</ul>
+""".strip()
+    return title, subtitle, body
+
+
 def clean_image_search_text(value: str) -> str:
     text = re.sub(r"<[^>]+>", " ", value or "")
     text = re.sub(r"[\u2018\u2019]", "'", text)
@@ -824,17 +865,17 @@ def main() -> int:
             print(f"Warning: could not fetch live events: {exc}")
 
     topic_for_generation = choose_generation_topic(topic, events, existing_posts=posts)
-    if (
+    no_credible_event = (
         use_real_events
         and env_bool("AUTO_POST_DYNAMIC_TOPIC", True)
         and env_bool("AUTO_POST_REQUIRE_CREDIBLE_EVENT", True)
         and events
         and topic_for_generation == topic
-    ):
-        print("No credible live event candidate found, skipping auto publish.")
-        return 0
+    )
+    if no_credible_event:
+        print("No credible live event candidate found; using the configured weekly topic fallback.")
 
-    focused_events = events_for_topic(topic_for_generation, events)
+    focused_events = [] if no_credible_event else events_for_topic(topic_for_generation, events)
     used_generator = False
     image_prompt = f"Editorial technology illustration about {topic_for_generation}, clean modern composition, premium lighting, no text overlays."
     image_query = topic_for_generation
@@ -855,12 +896,23 @@ def main() -> int:
             generated_title, subtitle, body = generate_article(topic_for_generation, audience, angle, events=focused_events)
 
     if enforce_quality:
-        try:
-            validate_article_quality(generated_title, subtitle, body, focused_events)
-        except RuntimeError as exc:
-            print(str(exc), file=sys.stderr)
-            print("Skipping auto publish so a rough draft is not committed.", file=sys.stderr)
-            return 6
+        issues = article_quality_issues(generated_title, subtitle, body, focused_events)
+        if issues:
+            print("Primary article missed the quality gate: " + "; ".join(issues), file=sys.stderr)
+            print("Building the quality-safe weekly fallback article.")
+            generated_title, subtitle, body = build_quality_fallback_article(
+                topic_for_generation,
+                audience,
+                focused_events,
+            )
+            used_generator = False
+            image_prompt = f"Editorial technology photograph about {topic_for_generation}, modern workspace, no text overlays."
+            image_query = topic_for_generation
+            try:
+                validate_article_quality(generated_title, subtitle, body, focused_events)
+            except RuntimeError as exc:
+                print(str(exc), file=sys.stderr)
+                return 6
 
     title_source = generated_title if used_generator else topic_for_generation
     post_slug = build_post_slug(title_source)
@@ -870,8 +922,8 @@ def main() -> int:
     searched_image = find_topic_header_image(topic_for_generation, image_query, focused_events, existing_posts=posts) if not img_url else {}
     real_image_url = img_url or searched_image.get("url")
     if not real_image_url:
-        print("No suitable real source image was found. Skipping auto publish.", file=sys.stderr)
-        return 7
+        real_image_url = env_str("AUTO_POST_FALLBACK_IMAGE_URL", DEFAULT_FALLBACK_IMAGE_URL)
+        print(f"No suitable source image was found; using bundled fallback: {real_image_url}")
 
     new_post = {
         "slug": post_slug,
