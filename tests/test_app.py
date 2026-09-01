@@ -157,6 +157,16 @@ def test_vocalframe_pages_link_to_live_app_store_listing(client):
     assert b"In review" not in products_page.data
 
 
+def test_products_use_real_app_icons(client):
+    response = client.get("/products")
+
+    assert response.status_code == 200
+    assert b'/static/img/openclaw-icon.png' in response.data
+    assert b'/static/img/vocalframe-icon.png' in response.data
+    assert b'/static/img/getreep/getreep-icon.png' in response.data
+    assert b'class="fas fa-paw"' not in response.data
+
+
 def test_getreep_is_presented_as_in_review(client):
     products_page = client.get("/products")
     getreep_page = client.get("/getreep")
