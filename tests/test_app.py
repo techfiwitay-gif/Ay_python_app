@@ -151,6 +151,7 @@ def test_vocalframe_pages_link_to_live_app_store_listing(client):
     assert app_store_url in products_page.data
     assert app_store_url in vocalframe_page.data
     assert b"View on the App Store" in products_page.data
+    assert b'/static/img/vocalframe-icon.png' in products_page.data
     assert b"Download on the App Store" in vocalframe_page.data
     assert b"Get launch updates" not in vocalframe_page.data
     assert b"In review" not in products_page.data
