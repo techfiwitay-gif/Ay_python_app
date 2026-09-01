@@ -1498,6 +1498,11 @@ def vocalframe():
     return render_template("vocalframe.html", logged_in=current_user.is_authenticated)
 
 
+@app.route('/getreep')
+def getreep():
+    return render_template("getreep.html", logged_in=current_user.is_authenticated)
+
+
 @app.route('/contact',methods=['GET','POST'])
 def contact():
     confirm = False

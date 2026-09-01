@@ -1,0 +1,58 @@
+{% set page_title = "Getreep | AyNcode" %}
+{% set meta_description = "Meet Getreep, a clear travel itinerary manager for plans, maps, budgets, weather, reminders, tickets, and trip details." %}
+{% set hide_hero = true %}
+{% include "header.html" %}
+
+<main class="getreep-page">
+  <section class="getreep-hero">
+    <img class="getreep-hero-screen" src="{{ url_for('static', filename='img/getreep/getreep-trip-glance.jpg') }}" alt="Getreep trip overview with itinerary, weather, and trip readiness">
+    <div class="container getreep-hero-content">
+      <div class="getreep-brandline">
+        <img src="{{ url_for('static', filename='img/getreep/getreep-icon.png') }}" alt="" width="52" height="52" aria-hidden="true">
+        <span>Getreep</span>
+      </div>
+      <p class="getreep-eyebrow">An AyNcode travel product</p>
+      <h1>Travel, all in one clear place.</h1>
+      <p class="getreep-lede">Build a day-by-day itinerary and keep maps, budgets, weather, reminders, tickets, documents, and every important trip detail close.</p>
+      <div class="getreep-actions">
+        <span class="getreep-review-status"><i class="fas fa-clock" aria-hidden="true"></i> In App Store review</span>
+        <a href="#inside-getreep">See what is inside <i class="fas fa-arrow-down" aria-hidden="true"></i></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="container getreep-intro" id="inside-getreep">
+    <div>
+      <p class="section-kicker">One trip. One view.</p>
+      <h2>Your plans should travel together.</h2>
+    </div>
+    <p>Getreep organizes the trip you already planned without turning travel into another booking marketplace. Add flights, stays, activities, restaurants, and reminders; then see what comes next from one focused itinerary.</p>
+  </section>
+
+  <section class="container getreep-features" aria-label="Getreep features">
+    <article><i class="fas fa-route" aria-hidden="true"></i><h3>Keep the itinerary clear</h3><p>Arrange every stop by day and keep confirmations, seats, gates, notes, and documents with the right item.</p></article>
+    <article><i class="fas fa-magic" aria-hidden="true"></i><h3>Import with less typing</h3><p>Scan or paste a confirmation, review the extracted details, and add them to the plan with Getreep AI.</p></article>
+    <article><i class="fas fa-map-marked-alt" aria-hidden="true"></i><h3>Stay ready on the move</h3><p>Save places, check weather, estimate costs, set reminders, and keep the itinerary available offline.</p></article>
+  </section>
+
+  <section class="getreep-gallery-band" aria-labelledby="getreep-gallery-title">
+    <div class="container getreep-gallery-heading">
+      <p class="section-kicker">Inside the app</p>
+      <h2 id="getreep-gallery-title">The whole trip, without the clutter.</h2>
+    </div>
+    <div class="getreep-gallery" role="list" aria-label="Getreep App Store previews">
+      <figure role="listitem"><img src="{{ url_for('static', filename='img/getreep/getreep-travel-clear.jpg') }}" alt="Getreep welcome screen explaining its itinerary, places, and trip-detail tools" loading="lazy"><figcaption>Start with a clear plan</figcaption></figure>
+      <figure role="listitem"><img src="{{ url_for('static', filename='img/getreep/getreep-trip-glance.jpg') }}" alt="Getreep home screen showing an upcoming trip, weather, readiness, and schedule" loading="lazy"><figcaption>See the trip at a glance</figcaption></figure>
+      <figure role="listitem"><img src="{{ url_for('static', filename='img/getreep/getreep-itinerary.jpg') }}" alt="Getreep day-by-day itinerary with flight, hotel, and activity details" loading="lazy"><figcaption>Keep every detail in order</figcaption></figure>
+      <figure role="listitem"><img src="{{ url_for('static', filename='img/getreep/getreep-map.jpg') }}" alt="Getreep map showing saved places and directions" loading="lazy"><figcaption>Map every saved place</figcaption></figure>
+      <figure role="listitem"><img src="{{ url_for('static', filename='img/getreep/getreep-protection.jpg') }}" alt="Getreep profile showing Apple sign-in, trip recovery, and monthly AI imports" loading="lazy"><figcaption>Protect and recover plans</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="container getreep-closing">
+    <img src="{{ url_for('static', filename='img/getreep/getreep-icon.png') }}" alt="Getreep app icon" width="76" height="76">
+    <div><p class="section-kicker">Coming to the App Store</p><h2>Getreep is currently in Apple review.</h2><p>This page will link directly to the App Store as soon as the release is approved and available.</p></div>
+  </section>
+</main>
+
+{% include "footer.html" %}
