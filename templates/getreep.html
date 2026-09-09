@@ -15,9 +15,10 @@
       <h1>Travel, all in one clear place.</h1>
       <p class="getreep-lede">Build a day-by-day itinerary and keep maps, budgets, weather, reminders, tickets, documents, and every important trip detail close.</p>
       <div class="getreep-actions">
-        <span class="getreep-review-status"><i class="fas fa-clock" aria-hidden="true"></i> In App Store review</span>
-        <a href="#inside-getreep">See what is inside <i class="fas fa-arrow-down" aria-hidden="true"></i></a>
+        <a class="getreep-store-button" href="{{ getreep_app_store_url }}" target="_blank" rel="noopener noreferrer">Download on the App Store <i class="fab fa-apple" aria-hidden="true"></i></a>
+        <a class="getreep-jump-link" href="#inside-getreep">See what is inside <i class="fas fa-arrow-down" aria-hidden="true"></i></a>
       </div>
+      <p class="getreep-availability">Available for iPhone and iPad · Built by AyNcode</p>
     </div>
   </section>
 
@@ -51,7 +52,7 @@
 
   <section class="container getreep-closing">
     <img src="{{ url_for('static', filename='img/getreep/getreep-icon.png') }}" alt="Getreep app icon" width="76" height="76">
-    <div><p class="section-kicker">Coming to the App Store</p><h2>Getreep is currently in Apple review.</h2><p>This page will link directly to the App Store as soon as the release is approved and available.</p></div>
+    <div><p class="section-kicker">Available now</p><h2>Take your whole trip with you.</h2><p>Download Getreep for free on iPhone and iPad.</p><a class="btn btn-primary" href="{{ getreep_app_store_url }}" target="_blank" rel="noopener noreferrer">Get Getreep on the App Store <i class="fab fa-apple" aria-hidden="true"></i></a></div>
   </section>
 </main>
 

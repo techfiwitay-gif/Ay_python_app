@@ -58,6 +58,7 @@ DEFAULT_AUTOMATION_AUTHOR_NAME = "Ayotunde Oyeniyi"
 DEFAULT_ADMIN_EMAIL = DEFAULT_AUTOMATION_AUTHOR_EMAIL
 DEFAULT_GITHUB_REPOSITORY = "techfiwitay-gif/Ay_python_app"
 VOCALFRAME_APP_STORE_URL = "https://apps.apple.com/app/vocalframe-camera-coach/id6790227598"
+GETREEP_APP_STORE_URL = "https://apps.apple.com/us/app/getreep/id6799787039"
 PASSWORD_RESET_SALT = "ayncoder-password-reset"
 ARTICLE_ARCHIVE_AGE_DAYS = 7
 LOGIN_WINDOW = timedelta(minutes=15)
@@ -1194,6 +1195,7 @@ def inject_template_globals():
         "is_admin": is_admin_user(current_user),
         "article_image_url": article_image_url,
         "vocalframe_app_store_url": VOCALFRAME_APP_STORE_URL,
+        "getreep_app_store_url": GETREEP_APP_STORE_URL,
     }
 
 

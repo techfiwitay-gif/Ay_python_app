@@ -2545,6 +2545,26 @@ body {
     font-weight: 850;
 }
 
+.getreep-actions .getreep-store-button {
+    padding: 0.76rem 0.95rem;
+    border-radius: 8px;
+    background: #d4ee76;
+    color: #073f36;
+}
+
+.getreep-actions .getreep-store-button:hover,
+.getreep-actions .getreep-store-button:focus-visible {
+    background: #efffb7;
+    color: #073f36;
+}
+
+.getreep-availability {
+    margin-top: 1rem;
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
 .getreep-review-status {
     padding: 0.7rem 0.85rem;
     border: 1px solid rgba(212, 238, 118, 0.55);
@@ -2572,6 +2592,10 @@ body {
     margin: 0.5rem 0 0;
     color: #113d35;
     font-size: clamp(1.9rem, 4vw, 3.35rem);
+}
+
+.getreep-closing .btn {
+    margin-top: 1rem;
 }
 
 .getreep-intro > p {

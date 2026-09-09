@@ -167,18 +167,21 @@ def test_products_use_real_app_icons(client):
     assert b'class="fas fa-paw"' not in response.data
 
 
-def test_getreep_is_presented_as_in_review(client):
+def test_getreep_pages_link_to_live_app_store_listing(client):
+    app_store_url = b"https://apps.apple.com/us/app/getreep/id6799787039"
     products_page = client.get("/products")
     getreep_page = client.get("/getreep")
 
     assert products_page.status_code == 200
     assert getreep_page.status_code == 200
     assert b"Getreep" in products_page.data
-    assert b"In App Store review" in products_page.data
-    assert b"In App Store review" in getreep_page.data
+    assert app_store_url in products_page.data
+    assert app_store_url in getreep_page.data
+    assert b"Available" in products_page.data
+    assert b"In App Store review" not in products_page.data
+    assert b"In App Store review" not in getreep_page.data
     assert b"Travel, all in one clear place" in getreep_page.data
-    assert b"Download on the App Store" not in getreep_page.data
-    assert b"id6799787039" not in getreep_page.data
+    assert b"Download on the App Store" in getreep_page.data
 
 
 def test_sync_generated_content_posts_imports_repo_content(client, app_module, monkeypatch, tmp_path):

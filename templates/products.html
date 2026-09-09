@@ -31,10 +31,13 @@
     <article class="product-card product-card--getreep">
       <div class="product-card-top">
         <img class="product-app-icon" src="{{ url_for('static', filename='img/getreep/getreep-icon.png') }}" alt="Getreep app icon">
-        <span class="product-status product-status--review">In App Store review</span>
+        <span class="product-status">Available</span>
       </div>
       <div><p class="product-type">Travel itinerary manager</p><h2>Getreep</h2><p>Keep itineraries, maps, budgets, weather, reminders, tickets, and trip details in one clear plan.</p></div>
-      <a class="product-link" href="{{ url_for('getreep') }}">Explore Getreep <i class="fas fa-arrow-right"></i></a>
+      <div class="product-card-links">
+        <a class="product-link" href="{{ url_for('getreep') }}">Explore Getreep <i class="fas fa-arrow-right"></i></a>
+        <a class="product-link" href="{{ getreep_app_store_url }}" target="_blank" rel="noopener noreferrer">View on the App Store <i class="fab fa-apple"></i></a>
+      </div>
     </article>
 
     <article class="product-card product-card--bookafriend">
