@@ -114,6 +114,13 @@ def test_production_refuses_temporary_reporting(app_module, client, monkeypatch)
     assert client.post("/admin/getreep/api/import", data="unused").status_code == 503
 
 
+def test_reporting_timeout_is_transaction_local(app_module):
+    from unittest.mock import Mock
+    connection = Mock()
+    app_module.set_reporting_statement_timeout(connection)
+    connection.exec_driver_sql.assert_called_once_with("SET LOCAL statement_timeout = '5s'")
+
+
 @pytest.mark.parametrize("line", [
     "2099-01-01,first_downloads,Search,3",
     "2026-02-30,first_downloads,Search,3",

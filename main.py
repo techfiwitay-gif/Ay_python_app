@@ -10,7 +10,7 @@ from flask_login import login_user, LoginManager, login_required, current_user, 
 from forms import CreatePostForm, ForgotPasswordForm, GenerateArticleForm, LoginForm, LogoutForm, ResetPasswordForm
 from functools import wraps
 from models import BlogPost, DeletedGeneratedPost, LoginThrottle, Users, db
-from sqlalchemy import func, inspect, or_, text
+from sqlalchemy import event, func, inspect, or_, text
 import base64
 import hmac
 import os
@@ -39,7 +39,7 @@ if insights_database_url.startswith("postgres://"):
 insights_engine = {"url": insights_database_url, "pool_pre_ping": True}
 if insights_database_url.startswith(("postgresql:", "postgresql+")):
     insights_engine.update(pool_size=2, max_overflow=0, pool_timeout=5,
-                           connect_args={"connect_timeout": 5, "options": "-c statement_timeout=5000"})
+                           connect_args={"connect_timeout": 5})
 
 app.config.from_mapping(
     SECRET_KEY=os.environ.get("SECRET_KEY") or "dev-secret-key",
@@ -58,6 +58,16 @@ app.config.from_mapping(
 ckeditor = CKEditor(app)
 Bootstrap(app)
 db.init_app(app)
+
+
+def set_reporting_statement_timeout(connection):
+    # Transaction-local settings work with Neon's PgBouncer transaction pool.
+    connection.exec_driver_sql("SET LOCAL statement_timeout = '5s'")
+
+
+with app.app_context():
+    if db.engines["insights"].dialect.name == "postgresql":
+        event.listen(db.engines["insights"], "begin", set_reporting_statement_timeout)
 
 
 import hashlib
