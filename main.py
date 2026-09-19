@@ -1222,7 +1222,7 @@ def inject_template_globals():
         "date": date.today().year,
         "is_admin": is_admin_user(current_user),
         "article_image_url": article_image_url,
-        "vocalframe_app_store_url": VOCALFRAME_APP_STORE_URL,
+        "vocalframe_app_store_url": url_for("vocalframe_download"),
         "getreep_app_store_url": GETREEP_APP_STORE_URL,
     }
 

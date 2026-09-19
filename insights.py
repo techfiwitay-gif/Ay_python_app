@@ -15,6 +15,8 @@ from wtforms.validators import ValidationError
 
 APPLE_METRICS = {"first_downloads", "redownloads", "impressions", "page_views"}
 METRICS = APPLE_METRICS | {"website_page_views", "download_clicks"}
+GETREEP_ID = "6799787039"
+VOCALFRAME_ID = "6790227598"
 
 
 def now():
@@ -114,7 +116,7 @@ def subscriber_records():
 
 def register_insights(app, db, is_admin, store_url):
     # Imports inside registration support the application's isolated test fixtures.
-    from models import InsightMetric, InsightState
+    from models import InsightMetric, AppInsightMetric, InsightState
     from sqlalchemy.dialects.postgresql import insert as pg_insert
     from sqlalchemy.dialects.sqlite import insert as sqlite_insert
     from sqlalchemy.exc import SQLAlchemyError
@@ -150,6 +152,16 @@ def register_insights(app, db, is_admin, store_url):
     def state(key, value):
         db.session.merge(InsightState(key=key, value=value, updated_at=now()))
 
+    def app_catalog():
+        catalog = db.session.get(InsightState, "apple-apps")
+        return catalog.value["apps"] if catalog else [{"id": GETREEP_ID, "name": "Getreep"}]
+
+    def selected_app():
+        identity = request.headers.get("X-Insights-App", GETREEP_ID)
+        if identity not in {a["id"] for a in app_catalog()}:
+            raise ValueError("Choose an app from the connected Apple account.")
+        return identity
+
     def tracking_enabled():
         # Vercel's temporary SQLite filesystem must never masquerade as durable reporting.
         return os.environ.get("INSIGHTS_TRACKING_ENABLED") == "1" and (
@@ -179,21 +191,31 @@ def register_insights(app, db, is_admin, store_url):
     def data():
         cutoff = (date.today() - timedelta(days=90)).isoformat()
         records = InsightMetric.query.filter(InsightMetric.day >= cutoff).all()
+        records += AppInsightMetric.query.filter(AppInsightMetric.day >= cutoff).all()
+        def identity(row):
+            if hasattr(row, "app_id"):
+                return row.app_id
+            if row.origin != "website":
+                return GETREEP_ID  # Preserve imports created before portfolio support.
+            return {"/getreep": GETREEP_ID, "/go/getreep": GETREEP_ID,
+                    "/vocalframe": VOCALFRAME_ID, "/go/vocalframe": VOCALFRAME_ID}.get(row.source, "website")
         # Live reports replace imported totals for that metric/day, never double-count.
         priority = {"manual": 0, "website": 1, "apple": 2}
         chosen = {}
         for row in records:
-            key = (row.day, row.metric)
+            key = (identity(row), row.day, row.metric)
             chosen[key] = max(chosen.get(key, 0), priority[row.origin])
         # An empty corrected Apple batch is still authoritative; do not revive old imports.
         for batch in InsightState.query.filter(InsightState.key.like("apple:%")).all():
             parts = batch.key.split(":")
-            if len(parts) == 3 and parts[1] in {"downloads", "engagement"}:
-                family = {"first_downloads", "redownloads"} if parts[1] == "downloads" else {"impressions", "page_views"}
+            if len(parts) == 3:
+                parts.insert(1, GETREEP_ID)
+            if len(parts) == 4 and parts[2] in {"downloads", "engagement"}:
+                family = {"first_downloads", "redownloads"} if parts[2] == "downloads" else {"impressions", "page_views"}
                 for metric in family:
-                    chosen[(parts[2], metric)] = 2
-        metrics = [dict(day=r.day, metric=r.metric, source=r.source, value=r.value)
-                   for r in records if priority[r.origin] == chosen[(r.day, r.metric)]]
+                    chosen[(parts[1], parts[3], metric)] = 2
+        metrics = [dict(appId=identity(r), day=r.day, metric=r.metric, source=r.source, value=r.value)
+                   for r in records if priority[r.origin] == chosen[(identity(r), r.day, r.metric)]]
         apple_state = db.session.get(InsightState, "apple-sync")
         web_last = max((r.updated_at for r in records if r.origin == "website"), default=None)
         apple_ready = all(os.environ.get(k) for k in ("ASC_ISSUER_ID", "ASC_KEY_ID", "ASC_PRIVATE_KEY"))
@@ -203,15 +225,19 @@ def register_insights(app, db, is_admin, store_url):
         except (requests.RequestException, ValueError, KeyError, TypeError):
             configured = bool(os.environ.get("GETREEP_SUPABASE_SERVICE_ROLE_KEY"))
             error = "Subscription records are temporarily unavailable. Check the server connection."
-        return jsonify(metrics=metrics, subscribers=subscribers, subscriberError=error,
+        apps = app_catalog()
+        statuses = {a["id"]: db.session.get(InsightState, "apple-sync:" + a["id"]) for a in apps}
+        return jsonify(apps=[dict(**a, lastSync=statuses[a["id"]].updated_at if statuses[a["id"]] else None,
+                                  message=statuses[a["id"]].value.get("message") if statuses[a["id"]] else "Not synced yet") for a in apps],
+                       metrics=metrics, subscribers=[dict(**s, appId=GETREEP_ID) for s in subscribers], subscriberError=error,
                        subscriberFetchedAt=now() if configured and not error else None,
                        connections={
                            "apple": dict(configured=apple_ready, lastSync=apple_state.updated_at if apple_state else None,
-                                         message=apple_state.value.get("message", "") if apple_state else "Add server-only Apple reporting credentials to connect."),
+                                         message=apple_state.value.get("message", "") if apple_state else "Sync Apple reports to discover all apps." if apple_ready else "Add server-only Apple reporting credentials to connect."),
                            "subscribers": dict(configured=configured, lastSync=None,
                                                message="Read-only linked account access." if configured else "Server-only Getreep subscription connection is needed."),
                            "website": dict(configured=tracking_enabled(), lastSync=web_last,
-                                           message="Aggregate page views and Getreep link clicks; bots filtered where recognizable. Not unique visitors." if tracking_enabled() else "Website counting is prepared but not enabled. Enable it with a persistent database.")})
+                                           message="Aggregate page views and app-specific link clicks; bots filtered where recognizable. Not unique visitors." if tracking_enabled() else "Website counting is prepared but not enabled. Enable it with a persistent database.")})
 
     @bp.post("/admin/getreep/api/import")
     @protected
@@ -223,17 +249,32 @@ def register_insights(app, db, is_admin, store_url):
             return jsonify(error="Please use a CSV under 2 MB."), 413
         try:
             rows = parse_import(raw.decode("utf-8-sig"))
+            app_id = selected_app()
         except (ValueError, UnicodeError, csv.Error):
             return jsonify(error="Invalid CSV. Use the template, valid past dates, supported metrics, and whole-number counts."), 400
         try:
             for row in rows:
-                db.session.merge(InsightMetric(**row, origin="manual", updated_at=now()))
+                if app_id == GETREEP_ID:
+                    InsightMetric.query.filter_by(day=row["day"], metric=row["metric"], source=row["source"], origin="manual").delete()
+                db.session.merge(AppInsightMetric(app_id=app_id, **row, origin="manual", updated_at=now()))
             db.session.commit()
         except Exception:
             db.session.rollback()
             app.logger.error("Insights import storage failed")
             return jsonify(error="Could not save the import. Previous reports are unchanged."), 503
         return jsonify(rows=len(rows))
+
+    @bp.post("/admin/getreep/api/sync/apps")
+    @protected
+    def sync_apps():
+        from apple_reports import list_apps, AppleReportError
+        try:
+            apps = list_apps()
+            state("apple-apps", {"apps": apps})
+            db.session.commit()
+            return jsonify(apps=apps)
+        except (AppleReportError, requests.RequestException, ValueError, KeyError):
+            return jsonify(error="Could not refresh the Apple app list. Saved apps are unchanged."), 502
 
     @bp.post("/admin/getreep/api/sync/apple")
     @protected
@@ -242,33 +283,42 @@ def register_insights(app, db, is_admin, store_url):
         from sqlalchemy.exc import IntegrityError
         if not all(os.environ.get(k) for k in ("ASC_ISSUER_ID", "ASC_KEY_ID", "ASC_PRIVATE_KEY")):
             return jsonify(error="Add Apple reporting credentials in the server settings first."), 409
+        try:
+            app_id = selected_app()
+        except ValueError:
+            return jsonify(error="Choose a connected app before syncing."), 400
+        prefix = "apple:" + app_id + ":"
+        lock_key = "apple-lock:" + app_id
         # Cross-worker lease; concurrent clicks cannot apply competing corrections.
         lease = now()
         stale = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
-        InsightState.query.filter(InsightState.key == "apple-lock", InsightState.updated_at < stale).delete()
+        InsightState.query.filter(InsightState.key == lock_key, InsightState.updated_at < stale).delete()
         try:
-            db.session.add(InsightState(key="apple-lock", value={}, updated_at=lease))
+            db.session.add(InsightState(key=lock_key, value={}, updated_at=lease))
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
             return jsonify(error="Apple reports are already syncing. Try refreshing shortly."), 409
         try:
-            known = {s.key: s.value for s in InsightState.query.filter(InsightState.key.like("apple:%")).all()}
-            batches, seen, message = sync_reports(known)
+            known = {"apple:" + s.key[len(prefix):]: s.value for s in InsightState.query.filter(InsightState.key.like(prefix + "%")).all()}
+            batches, seen, message = sync_reports(known, app_id)
             for batch in batches:
                 key = "apple:" + batch["dataset"] + ":" + batch["day"]
                 previous = known.get(key, {}).get("processingDate", "")
                 if previous > batch["processingDate"]:
                     continue
                 family = {"first_downloads", "redownloads"} if batch["dataset"] == "downloads" else {"impressions", "page_views"}
-                InsightMetric.query.filter(InsightMetric.day == batch["day"], InsightMetric.origin == "apple",
-                                           InsightMetric.metric.in_(family)).delete(synchronize_session=False)
+                AppInsightMetric.query.filter(AppInsightMetric.app_id == app_id, AppInsightMetric.day == batch["day"], AppInsightMetric.origin == "apple",
+                                              AppInsightMetric.metric.in_(family)).delete(synchronize_session=False)
+                if app_id == GETREEP_ID:
+                    InsightMetric.query.filter(InsightMetric.day == batch["day"], InsightMetric.origin == "apple", InsightMetric.metric.in_(family)).delete(synchronize_session=False)
                 for row in batch["rows"]:
-                    db.session.merge(InsightMetric(**row, origin="apple", updated_at=now()))
-                state(key, {"processingDate": batch["processingDate"]})
+                    db.session.merge(AppInsightMetric(app_id=app_id, **row, origin="apple", updated_at=now()))
+                state(prefix + batch["dataset"] + ":" + batch["day"], {"processingDate": batch["processingDate"]})
                 known[key] = {"processingDate": batch["processingDate"]}
             for instance in seen:
-                state("apple:instance:" + instance, {})
+                state(prefix + "instance:" + instance, {})
+            state("apple-sync:" + app_id, {"message": message})
             state("apple-sync", {"message": message})
             db.session.commit()
             return jsonify(message=message)
@@ -276,7 +326,7 @@ def register_insights(app, db, is_admin, store_url):
             db.session.rollback()
             return jsonify(error="Apple reports could not be synced. Check key permissions and try again; saved reports are unchanged."), 502
         finally:
-            InsightState.query.filter_by(key="apple-lock", updated_at=lease).delete()
+            InsightState.query.filter_by(key=lock_key, updated_at=lease).delete()
             db.session.commit()
 
     app.register_blueprint(bp)
@@ -284,6 +334,10 @@ def register_insights(app, db, is_admin, store_url):
     @app.get("/go/getreep")
     def getreep_download():
         return redirect(store_url, code=302)
+
+    @app.get("/go/vocalframe")
+    def vocalframe_download():
+        return redirect("https://apps.apple.com/app/vocalframe-camera-coach/id6790227598", code=302)
 
     @app.after_request
     def count_public_activity(response):
@@ -297,7 +351,7 @@ def register_insights(app, db, is_admin, store_url):
         if "prefetch" in (request.headers.get("Purpose", "") + request.headers.get("Sec-Purpose", "")).lower():
             return response
         # Only named public landing pages; never store arbitrary URLs/query strings.
-        metric = "download_clicks" if request.path == "/go/getreep" and response.status_code == 302 else None
+        metric = "download_clicks" if request.path in {"/go/getreep", "/go/vocalframe"} and response.status_code == 302 else None
         if request.path in {"/", "/products", "/getreep", "/about", "/contact", "/vocalframe"} and response.status_code == 200:
             metric = "website_page_views"
         if not metric:

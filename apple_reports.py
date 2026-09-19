@@ -20,7 +20,7 @@ class AppleReportError(ValueError):
     pass
 
 
-def aggregate_reports(texts, dataset, processing_date):
+def aggregate_reports(texts, dataset, processing_date, app_id=APP_ID):
     totals = defaultdict(int)
     days = set()
     for content in texts:
@@ -30,7 +30,7 @@ def aggregate_reports(texts, dataset, processing_date):
         if not required.issubset(reader.fieldnames or []):
             raise AppleReportError("Unrecognized Apple report columns.")
         for row in reader:
-            if row.get("App Apple Identifier") != APP_ID:
+            if row.get("App Apple Identifier") != app_id:
                 continue
             day = row["Date"]
             if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day) or date.fromisoformat(day) > date.today():
@@ -55,15 +55,43 @@ def aggregate_reports(texts, dataset, processing_date):
                        for (d, m, s), n in totals.items() if d == day]) for day in sorted(days)]
 
 
-def sync_reports(known):
-    started = time.monotonic()
+def apple_token():
     try:
-        token = jwt.encode({"iss": os.environ["ASC_ISSUER_ID"], "iat": int(time.time()),
+        return jwt.encode({"iss": os.environ["ASC_ISSUER_ID"], "iat": int(time.time()),
                             "exp": int(time.time()) + 600, "aud": "appstoreconnect-v1"},
                            os.environ["ASC_PRIVATE_KEY"].replace("\\n", "\n"), algorithm="ES256",
                            headers={"kid": os.environ["ASC_KEY_ID"], "typ": "JWT"})
     except Exception as exc:
         raise AppleReportError("Invalid reporting credentials.") from exc
+
+
+def list_apps():
+    """Discover the authorized team's apps without hardcoding a portfolio."""
+    token = apple_token()
+    url = API + "/v1/apps?fields[apps]=name,bundleId&limit=200"
+    result = []
+    for _ in range(5):
+        if urlparse(url).netloc != "api.appstoreconnect.apple.com" or not url.startswith("https://"):
+            raise AppleReportError("Invalid Apple pagination URL.")
+        response = requests.get(url, headers={"Authorization": "Bearer " + token}, timeout=8, allow_redirects=False)
+        if response.status_code != 200:
+            raise AppleReportError("Could not load the Apple app list.")
+        page = response.json()
+        for row in page["data"]:
+            if not re.fullmatch(r"\d{1,30}", row["id"]):
+                raise AppleReportError("Invalid Apple app identifier.")
+            result.append(dict(id=row["id"], name=row["attributes"]["name"], bundleId=row["attributes"].get("bundleId", "")))
+        url = page.get("links", {}).get("next")
+        if not url:
+            return result
+    raise AppleReportError("Apple app-list pagination limit reached.")
+
+
+def sync_reports(known, app_id=APP_ID):
+    if not re.fullmatch(r"\d{1,30}", app_id):
+        raise AppleReportError("Invalid Apple app identifier.")
+    started = time.monotonic()
+    token = apple_token()
     def budget():
         if time.monotonic() - started > 40:
             raise AppleReportError("Report sync timed out. Retry later.")
@@ -87,12 +115,12 @@ def sync_reports(known):
             if not path:
                 return rows
         raise AppleReportError("Apple pagination limit reached.")
-    requests_list = listing(f"/v1/apps/{APP_ID}/analyticsReportRequests")
+    requests_list = listing(f"/v1/apps/{app_id}/analyticsReportRequests")
     ongoing = next((r for r in requests_list if r["attributes"].get("accessType") == "ONGOING"
                     and not r["attributes"].get("stoppedDueToInactivity")), None)
     if not ongoing:
         api("/v1/analyticsReportRequests", "POST", {"data": {"type": "analyticsReportRequests",
-            "attributes": {"accessType": "ONGOING"}, "relationships": {"app": {"data": {"type": "apps", "id": APP_ID}}}}})
+            "attributes": {"accessType": "ONGOING"}, "relationships": {"app": {"data": {"type": "apps", "id": app_id}}}}})
         return [], [], "Apple reporting requested. First reports can take 24–48 hours; return here and sync again."
     reports = listing(f"/v1/analyticsReportRequests/{ongoing['id']}/reports?limit=200")
     batches, seen = [], []
@@ -135,7 +163,7 @@ def sync_reports(known):
             if len(raw) > 25_000_000:
                 raise AppleReportError("Expanded report is too large.")
             texts.append(raw.decode("utf-8-sig"))
-        batches.extend(aggregate_reports(texts, dataset, instance["attributes"]["processingDate"]))
+        batches.extend(aggregate_reports(texts, dataset, instance["attributes"]["processingDate"], app_id))
         seen.append(instance["id"])
     return batches, seen, ("Synced Apple report batches. Sync again to check for older reports. Counts are delayed and may be privacy-limited."
                             if seen else "No new Apple report batches are available yet. Reports are delayed and privacy-limited.")

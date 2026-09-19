@@ -19,6 +19,19 @@ class InsightMetric(db.Model):
     updated_at = db.Column(db.String(40), nullable=False)
 
 
+class AppInsightMetric(db.Model):
+    """App-scoped reports; additive table leaves existing website totals intact."""
+    __bind_key__ = "insights"
+    __tablename__ = "app_insight_metrics"
+    app_id = db.Column(db.String(40), primary_key=True)
+    day = db.Column(db.String(10), primary_key=True)
+    metric = db.Column(db.String(40), primary_key=True)
+    source = db.Column(db.String(120), primary_key=True)
+    origin = db.Column(db.String(16), primary_key=True)
+    value = db.Column(db.BigInteger, nullable=False)
+    updated_at = db.Column(db.String(40), nullable=False)
+
+
 class InsightState(db.Model):
     __bind_key__ = "insights"
     __tablename__ = "insight_state"

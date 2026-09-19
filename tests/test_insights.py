@@ -34,7 +34,7 @@ def test_private_routes_require_admin(app_module, client):
 def test_admin_page_and_empty_data(app_module, client, monkeypatch):
     monkeypatch.delenv("GETREEP_SUPABASE_SERVICE_ROLE_KEY", raising=False)
     authenticate(app_module, client)
-    assert b"Getreep Insights" in client.get("/admin").data
+    assert b"App Insights" in client.get("/admin").data
     page = client.get("/admin/getreep")
     assert page.status_code == 200 and b'csrf-token' in page.data
     assert "no-store" in page.headers["Cache-Control"]
@@ -85,7 +85,7 @@ def test_reporting_tables_are_isolated_and_persistent(app_module, client):
         primary = set(inspect(app_module.db.engine).get_table_names())
         reporting = set(inspect(app_module.db.engines["insights"]).get_table_names())
         assert "users" in primary and "insight_metrics" not in primary
-        assert reporting == {"insight_metrics", "insight_state"}
+        assert reporting == {"insight_metrics", "insight_state", "app_insight_metrics"}
         app_module.db.session.remove()
         app_module.db.engines["insights"].dispose()
     assert client.get("/admin/getreep/api/dashboard").json["metrics"][0]["value"] == 7
@@ -204,7 +204,7 @@ def test_apple_corrections_do_not_regress(app_module, client, monkeypatch):
                       rows=[dict(day=day, metric="first_downloads", source="Search", value=value)])],
                 [identity], "Synced")
     for processing, value, identity in [("2026-02-03", 8, "new"), ("2026-02-01", 20, "old"), ("2026-02-04", 5, "correction")]:
-        monkeypatch.setattr("apple_reports.sync_reports", lambda known, p=processing, v=value, i=identity: result(p, v, i))
+        monkeypatch.setattr("apple_reports.sync_reports", lambda known, app_id, p=processing, v=value, i=identity: result(p, v, i))
         assert client.post("/admin/getreep/api/sync/apple").status_code == 200
         rows = client.get("/admin/getreep/api/dashboard").json["metrics"]
         assert sum(r["value"] for r in rows) == (5 if identity == "correction" else 8)
@@ -217,3 +217,59 @@ def test_subscriber_failure_does_not_expose_details(app_module, client, monkeypa
     assert response.status_code == 200
     assert response.json["subscriberError"]
     assert b"secret-credential" not in response.data
+
+
+def test_portfolio_imports_and_corrections_stay_separate(app_module, client, monkeypatch):
+    authenticate(app_module, client)
+    apps = [{"id": APP_ID, "name": "Getreep"}, {"id": "6790227598", "name": "VocalFrame"}]
+    monkeypatch.setattr("apple_reports.list_apps", lambda: apps)
+    assert client.post("/admin/getreep/api/sync/apps").json["apps"] == apps
+    day = date.today().isoformat()
+    for app, value in zip(apps, [5, 9]):
+        payload = f"day,metric,source,value\n{day},first_downloads,Search,{value}\n"
+        assert client.post("/admin/getreep/api/import", data=payload, headers={"X-Insights-App": app["id"]}).status_code == 200
+    for key in ("ASC_ISSUER_ID", "ASC_KEY_ID", "ASC_PRIVATE_KEY"):
+        monkeypatch.setenv(key, "test-only")
+    def correction(known, app_id):
+        assert app_id == APP_ID
+        return ([dict(dataset="downloads", day=day, processingDate=day, rows=[])], ["empty-correction"], "Corrected")
+    monkeypatch.setattr("apple_reports.sync_reports", correction)
+    assert client.post("/admin/getreep/api/sync/apple", headers={"X-Insights-App": APP_ID}).status_code == 200
+    result = client.get("/admin/getreep/api/dashboard").json
+    assert len(result["apps"]) == 2
+    assert [(r["appId"], r["value"]) for r in result["metrics"]] == [("6790227598", 9)]
+    assert result["apps"][0]["lastSync"] is not None
+    assert result["apps"][1]["lastSync"] is None
+    assert client.post("/admin/getreep/api/sync/apple", headers={"X-Insights-App": "../../invalid"}).status_code == 400
+
+
+def test_unknown_app_import_rejected_and_catalog_failure_keeps_apps(app_module, client, monkeypatch):
+    authenticate(app_module, client)
+    payload = f"day,metric,source,value\n{date.today().isoformat()},first_downloads,Search,3\n"
+    assert client.post("/admin/getreep/api/import", data=payload, headers={"X-Insights-App": "all"}).status_code == 400
+    monkeypatch.setattr("apple_reports.list_apps", lambda: (_ for _ in ()).throw(AppleReportError("secret")))
+    failure = client.post("/admin/getreep/api/sync/apps")
+    assert failure.status_code == 502 and b"secret" not in failure.data
+    assert client.get("/admin/getreep/api/dashboard").json["apps"][0]["id"] == APP_ID
+
+
+def test_apple_parser_targets_selected_app():
+    rows = [["2026-01-01", APP_ID, "4", "Search", "First-time Download"],
+            ["2026-01-01", "6790227598", "9", "Search", "First-time Download"]]
+    result = aggregate_reports([apple_tsv(rows)], "downloads", "2026-01-03", "6790227598")
+    assert result[0]["rows"][0]["value"] == 9
+
+
+def test_website_activity_has_app_attribution(app_module, client, monkeypatch):
+    monkeypatch.setenv("INSIGHTS_TRACKING_ENABLED", "1")
+    monkeypatch.delenv("VERCEL", raising=False)
+    headers = {"User-Agent": "Mozilla/5.0"}
+    client.get("/getreep", headers=headers)
+    client.get("/vocalframe", headers=headers)
+    client.get("/", headers=headers)
+    response = client.get("/go/vocalframe?next=https://untrusted.example", headers=headers)
+    assert response.location == app_module.VOCALFRAME_APP_STORE_URL
+    authenticate(app_module, client)
+    rows = client.get("/admin/getreep/api/dashboard").json["metrics"]
+    assert {r["source"]: r["appId"] for r in rows} == {
+        "/getreep": APP_ID, "/vocalframe": "6790227598", "/": "website", "/go/vocalframe": "6790227598"}
