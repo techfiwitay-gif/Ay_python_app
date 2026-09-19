@@ -161,6 +161,24 @@ def test_public_pages_share_company_positioning(client):
     assert b"Ayncode LLC" not in homepage.data.split(b"<footer>", 1)[0]
 
 
+def test_navigation_order_and_private_actions(app_module, client):
+    import re
+
+    def nav_labels(response):
+        nav = response.data.decode().split('<ul class="navbar-nav">', 1)[1].split('</ul>', 1)[0]
+        return re.findall(r'>(Company|Products|Journal|Support|Admin|Log Out)</(?:a|button)>', nav), nav
+
+    public_labels, public_nav = nav_labels(client.get('/about'))
+    assert public_labels == ['Company', 'Products', 'Journal', 'Support']
+    assert 'aria-current="page" href="/about"' in public_nav
+    with app_module.app.app_context():
+        create_user(app_module, role='admin')
+    login(client)
+    private_labels, private_nav = nav_labels(client.get('/about'))
+    assert private_labels == ['Company', 'Products', 'Journal', 'Support', 'Admin', 'Log Out']
+    assert 'method="post" action="/logout"' in private_nav
+
+
 def test_vocalframe_pages_link_to_live_app_store_listing(client):
     app_store_url = b"https://apps.apple.com/app/vocalframe-camera-coach/id6790227598"
 
