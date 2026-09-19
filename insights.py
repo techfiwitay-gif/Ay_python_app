@@ -226,15 +226,16 @@ def register_insights(app, db, is_admin, store_url):
             configured = bool(os.environ.get("GETREEP_SUPABASE_SERVICE_ROLE_KEY"))
             error = "Subscription records are temporarily unavailable. Check the server connection."
         apps = app_catalog()
+        subscriber_checked_at = now() if configured and not error else None
         statuses = {a["id"]: db.session.get(InsightState, "apple-sync:" + a["id"]) for a in apps}
         return jsonify(apps=[dict(**a, lastSync=statuses[a["id"]].updated_at if statuses[a["id"]] else None,
                                   message=statuses[a["id"]].value.get("message") if statuses[a["id"]] else "Not synced yet") for a in apps],
                        metrics=metrics, subscribers=[dict(**s, appId=GETREEP_ID) for s in subscribers], subscriberError=error,
-                       subscriberFetchedAt=now() if configured and not error else None,
+                       subscriberFetchedAt=subscriber_checked_at,
                        connections={
                            "apple": dict(configured=apple_ready, lastSync=apple_state.updated_at if apple_state else None,
                                          message=apple_state.value.get("message", "") if apple_state else "Sync Apple reports to discover all apps." if apple_ready else "Add server-only Apple reporting credentials to connect."),
-                           "subscribers": dict(configured=configured, lastSync=None,
+                           "subscribers": dict(configured=configured, lastSync=subscriber_checked_at,
                                                message="Read-only linked account access." if configured else "Server-only Getreep subscription connection is needed."),
                            "website": dict(configured=tracking_enabled(), lastSync=web_last,
                                            message="Aggregate page views and app-specific link clicks; bots filtered where recognizable. Not unique visitors." if tracking_enabled() else "Website counting is prepared but not enabled. Enable it with a persistent database.")})

@@ -217,6 +217,17 @@ def test_subscriber_failure_does_not_expose_details(app_module, client, monkeypa
     assert response.status_code == 200
     assert response.json["subscriberError"]
     assert b"secret-credential" not in response.data
+    assert response.json["connections"]["subscribers"]["lastSync"] is None
+
+
+def test_successful_empty_subscriber_check_has_timestamp(app_module, client, monkeypatch):
+    authenticate(app_module, client)
+    monkeypatch.setattr("insights.subscriber_records", lambda: ([], True))
+    body = client.get("/admin/getreep/api/dashboard").json
+    assert body["subscribers"] == [] and body["subscriberError"] is None
+    assert body["connections"]["subscribers"]["configured"] is True
+    assert body["subscriberFetchedAt"]
+    assert body["connections"]["subscribers"]["lastSync"] == body["subscriberFetchedAt"]
 
 
 def test_portfolio_imports_and_corrections_stay_separate(app_module, client, monkeypatch):
