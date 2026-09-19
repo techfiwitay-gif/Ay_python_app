@@ -60,7 +60,7 @@ DEFAULT_GITHUB_REPOSITORY = "techfiwitay-gif/Ay_python_app"
 VOCALFRAME_APP_STORE_URL = "https://apps.apple.com/app/vocalframe-camera-coach/id6790227598"
 GETREEP_APP_STORE_URL = "https://apps.apple.com/us/app/getreep/id6799787039"
 PASSWORD_RESET_SALT = "ayncoder-password-reset"
-ARTICLE_ARCHIVE_AGE_DAYS = 7
+ARTICLE_ARCHIVE_AGE_DAYS = 21
 LOGIN_WINDOW = timedelta(minutes=15)
 LOGIN_LOCK_TIME = timedelta(minutes=15)
 LOGIN_EMAIL_LIMIT = 5
