@@ -87,6 +87,26 @@ def test_homepage_shows_empty_state(client):
     assert b"Technology journal" in response.data
 
 
+def test_journal_posts_archive_after_three_weeks(client, app_module):
+    reference_time = datetime.now()
+
+    with app_module.app.app_context():
+        author = create_user(app_module)
+        current_post = create_post(app_module, author, title="Still Current")
+        archived_post = create_post(app_module, author, title="Now Archived")
+        current_post.published_at = (reference_time - timedelta(days=20)).strftime("%B %d, %Y %I:%M %p")
+        archived_post.published_at = (reference_time - timedelta(days=22)).strftime("%B %d, %Y %I:%M %p")
+        app_module.db.session.commit()
+
+    homepage = client.get("/")
+    archive = client.get("/archive")
+
+    assert b"Still Current" in homepage.data
+    assert b"Now Archived" not in homepage.data
+    assert b"Still Current" not in archive.data
+    assert b"Now Archived" in archive.data
+
+
 def test_ay_logo_is_used_across_brand_surfaces(client, app_module):
     logo_path = b"/static/img/android-chrome-192.png"
 
