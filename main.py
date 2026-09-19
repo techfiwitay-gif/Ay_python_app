@@ -485,7 +485,7 @@ def sync_generated_content_posts():
     return imported_count
 
 
-from insights import register_insights
+from insights import register_insights, storage_failure_kind
 register_insights(app, db, is_admin_user, GETREEP_APP_STORE_URL)
 
 with app.app_context():
@@ -498,9 +498,9 @@ with app.app_context():
     ensure_admin_role()
     try:
         db.create_all(bind_key="insights")
-    except Exception:
+    except Exception as error:
         # A reporting outage must not take down the public website or admin login.
-        app.logger.error("Insights schema initialization unavailable")
+        app.logger.error("Insights schema initialization unavailable: %s", storage_failure_kind(error))
 
 
 def is_safe_redirect_url(target):

@@ -21,6 +21,24 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
+def storage_failure_kind(error):
+    """Allowlisted diagnostics only: never log DSNs, SQL parameters or secrets."""
+    message = str(getattr(error, "orig", error)).lower()
+    for needle, category in (
+        ("unsupported startup parameter", "unsupported-startup-parameter"),
+        ("invalid connection option", "invalid-connection-option"),
+        ("password authentication failed", "authentication-failed"),
+        ("does not exist", "missing-schema-or-resource"),
+        ("timeout", "connection-or-query-timeout"),
+        ("could not translate host", "dns-failed"),
+        ("ssl", "tls-connection-failed"),
+        ("permission denied", "permission-denied"),
+    ):
+        if needle in message:
+            return category
+    return "unclassified-storage-error"
+
+
 def parse_import(raw):
     reader = csv.DictReader(io.StringIO(raw.lstrip("\ufeff")))
     if reader.fieldnames != ["day", "metric", "source", "value"]:
@@ -123,9 +141,9 @@ def register_insights(app, db, is_admin, store_url):
                 if "/api/" in request.path and os.environ.get("VERCEL") and not os.environ.get("INSIGHTS_DATABASE_URL"):
                     return jsonify(error="Persistent reporting storage is not configured."), 503
                 return fn(*args, **kwargs)
-            except SQLAlchemyError:
+            except SQLAlchemyError as error:
                 db.session.rollback()
-                app.logger.error("Insights storage unavailable")
+                app.logger.error("Insights storage unavailable: %s", storage_failure_kind(error))
                 return jsonify(error="Reporting storage is temporarily unavailable. Please try again shortly."), 503
         return wrapped
 
