@@ -7,6 +7,26 @@ from datetime import datetime
 db = SQLAlchemy()
 
 
+class InsightMetric(db.Model):
+    """Daily aggregate counts only; no visitor identifiers."""
+    __bind_key__ = "insights"
+    __tablename__ = "insight_metrics"
+    day = db.Column(db.String(10), primary_key=True)
+    metric = db.Column(db.String(40), primary_key=True)
+    source = db.Column(db.String(120), primary_key=True)
+    origin = db.Column(db.String(16), primary_key=True)
+    value = db.Column(db.BigInteger, nullable=False)
+    updated_at = db.Column(db.String(40), nullable=False)
+
+
+class InsightState(db.Model):
+    __bind_key__ = "insights"
+    __tablename__ = "insight_state"
+    key = db.Column(db.String(200), primary_key=True)
+    value = db.Column(db.JSON, nullable=False)
+    updated_at = db.Column(db.String(40), nullable=False)
+
+
 class Users(UserMixin, db.Model):
     __tablename__ = "users"
 

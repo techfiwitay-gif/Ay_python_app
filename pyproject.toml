@@ -26,6 +26,7 @@ dependencies = [
     "MarkupSafe",
     "psycopg2-binary",
     "requests",
+    "PyJWT[crypto]>=2.10,<3",
     "soupsieve",
     "SQLAlchemy",
     "typing_extensions",
@@ -41,4 +42,4 @@ dev = [
 ]
 
 [tool.setuptools]
-py-modules = ["main", "models", "forms", "db_create"]
+py-modules = ["main", "models", "forms", "db_create", "insights", "apple_reports"]

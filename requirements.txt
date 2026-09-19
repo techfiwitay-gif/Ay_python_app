@@ -20,6 +20,7 @@ Mako
 MarkupSafe
 psycopg2-binary
 requests
+PyJWT[crypto]>=2.10,<3
 soupsieve
 SQLAlchemy
 typing_extensions

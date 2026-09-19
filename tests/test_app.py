@@ -13,6 +13,7 @@ from werkzeug.security import generate_password_hash
 def app_module(tmp_path, monkeypatch):
     db_path = tmp_path / "test.db"
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
+    monkeypatch.setenv("INSIGHTS_DATABASE_URL", f"sqlite:///{tmp_path / 'insights.db'}")
     monkeypatch.setenv("SECRET_KEY", "test-secret-key")
     monkeypatch.setenv("ADMIN_EMAIL", "admin@example.com")
     monkeypatch.delenv("GMAIL_PASSWORD", raising=False)
@@ -168,7 +169,7 @@ def test_products_use_real_app_icons(client):
 
 
 def test_getreep_pages_link_to_live_app_store_listing(client):
-    app_store_url = b"https://apps.apple.com/us/app/getreep/id6799787039"
+    app_store_url = b"/go/getreep"
     products_page = client.get("/products")
     getreep_page = client.get("/getreep")
 

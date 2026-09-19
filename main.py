@@ -32,9 +32,19 @@ database_url = os.environ.get("DATABASE_URL") or default_database_url
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
+# Analytics must never change the website's existing users, posts or login store.
+insights_database_url = os.environ.get("INSIGHTS_DATABASE_URL") or "sqlite:///:memory:"
+if insights_database_url.startswith("postgres://"):
+    insights_database_url = insights_database_url.replace("postgres://", "postgresql://", 1)
+insights_engine = {"url": insights_database_url, "pool_pre_ping": True}
+if insights_database_url.startswith(("postgresql:", "postgresql+")):
+    insights_engine.update(pool_size=2, max_overflow=0, pool_timeout=5,
+                           connect_args={"connect_timeout": 5, "options": "-c statement_timeout=5000"})
+
 app.config.from_mapping(
     SECRET_KEY=os.environ.get("SECRET_KEY") or "dev-secret-key",
     SQLALCHEMY_DATABASE_URI=database_url,
+    SQLALCHEMY_BINDS={"insights": insights_engine},
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     PASSWORD_RESET_MAX_AGE=int(os.environ.get("PASSWORD_RESET_MAX_AGE", "3600")),
     SESSION_COOKIE_SECURE=os.environ.get(
@@ -475,14 +485,22 @@ def sync_generated_content_posts():
     return imported_count
 
 
+from insights import register_insights
+register_insights(app, db, is_admin_user, GETREEP_APP_STORE_URL)
+
 with app.app_context():
-    db.create_all()
+    db.create_all(bind_key=None)
     ensure_user_security_columns()
     ensure_comment_columns()
     ensure_engagement_columns()
     ensure_admin_user()
     sync_generated_content_posts()
     ensure_admin_role()
+    try:
+        db.create_all(bind_key="insights")
+    except Exception:
+        # A reporting outage must not take down the public website or admin login.
+        app.logger.error("Insights schema initialization unavailable")
 
 
 def is_safe_redirect_url(target):
