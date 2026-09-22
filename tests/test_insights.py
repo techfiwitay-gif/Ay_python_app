@@ -2,9 +2,9 @@ import csv
 import io
 from datetime import date
 import pytest
-from test_app import app_module, client, create_user, login
-from insights import parse_import
-from apple_reports import aggregate_reports, AppleReportError, APP_ID
+from test_app import app_module, client, create_user, create_post, login
+from insights import parse_import, subscriber_records, SubscriberSourceError
+from apple_reports import aggregate_reports, AppleReportError, APP_ID, sync_reports
 
 
 def authenticate(app_module, client):
@@ -152,6 +152,60 @@ def test_counter_and_redirect(app_module, client, monkeypatch):
     assert sum(r["value"] for r in rows if r["metric"] == "download_clicks") == 1
 
 
+def test_counter_includes_journal_and_other_public_pages(app_module, client, monkeypatch):
+    monkeypatch.setenv("INSIGHTS_TRACKING_ENABLED", "1")
+    monkeypatch.delenv("VERCEL", raising=False)
+    with app_module.app.app_context():
+        author = create_user(app_module, email="writer@example.com")
+        post_id = create_post(app_module, author).id
+    headers = {"User-Agent": "Mozilla/5.0"}
+    for path in ("/archive", f"/post/{post_id}?campaign=test", "/open-claw", "/contact"):
+        assert client.get(path, headers=headers).status_code == 200
+    assert client.get("/post/999999", headers=headers).status_code == 404
+    authenticate(app_module, client)
+    rows = client.get("/admin/getreep/api/dashboard").json["metrics"]
+    sources = {r["source"] for r in rows if r["metric"] == "website_page_views"}
+    assert sources == {"/archive", f"/post/{post_id}", "/openclaw", "/contact"}
+
+
+def test_subscriber_source_reports_safe_http_reason(monkeypatch):
+    import requests
+    monkeypatch.setenv("GETREEP_SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("GETREEP_SUPABASE_SERVICE_ROLE_KEY", "private-test-key")
+    class Denied:
+        status_code = 401
+        def raise_for_status(self):
+            raise requests.HTTPError("private-test-key", response=self)
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: Denied())
+    with pytest.raises(SubscriberSourceError) as failure:
+        subscriber_records()
+    assert (failure.value.stage, failure.value.reason) == ("subscription_entitlements", "http-401")
+    assert "private-test-key" not in str(failure.value)
+
+
+def test_missing_optional_profile_does_not_hide_subscriber(monkeypatch):
+    import requests
+    monkeypatch.setenv("GETREEP_SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("GETREEP_SUPABASE_SERVICE_ROLE_KEY", "private-test-key")
+    class Response:
+        def __init__(self, path):
+            self.path = path
+        def raise_for_status(self):
+            if self.path.endswith("/profiles"):
+                raise requests.HTTPError("hidden", response=self)
+        @property
+        def status_code(self):
+            return 404
+        def json(self):
+            return [{"user_id": "11111111-1111-1111-1111-111111111111", "product_id": "plus",
+                     "environment": "PRODUCTION", "expires_at": "2099-01-01T00:00:00Z",
+                     "updated_at": "2026-09-01T00:00:00Z"}]
+    monkeypatch.setattr(requests, "get", lambda url, **kwargs: Response(url))
+    records, configured = subscriber_records()
+    assert configured and len(records) == 1
+    assert records[0]["name"] is None and records[0]["status"] == "Active access"
+
+
 def test_live_totals_override_imports(app_module, client):
     authenticate(app_module, client)
     from models import InsightMetric
@@ -192,6 +246,60 @@ def test_apple_engagement_filters_page_types():
 def test_unknown_apple_schema_fails():
     with pytest.raises(AppleReportError):
         aggregate_reports(["unexpected\tfields\n"], "downloads", "2026-01-01")
+
+
+def test_apple_sync_explains_missing_generated_reports(monkeypatch):
+    import apple_reports
+    monkeypatch.setattr(apple_reports, "apple_token", lambda: "test-token")
+    class Response:
+        status_code = 200
+        def __init__(self, path):
+            self.path = path
+        def json(self):
+            if "analyticsReportRequests" in self.path and "/reports" not in self.path:
+                return {"data": [{"id": "ongoing", "attributes": {"accessType": "ONGOING"}}]}
+            return {"data": []}
+    monkeypatch.setattr(apple_reports.requests, "request", lambda method, url, **kwargs: Response(url))
+    batches, seen, message = sync_reports({})
+    assert batches == [] and seen == []
+    assert "downloads: report not generated" in message
+    assert "engagement: report not generated" in message
+
+
+def test_apple_sync_uses_existing_historical_snapshot(monkeypatch):
+    import apple_reports
+    monkeypatch.setattr(apple_reports, "apple_token", lambda: "test-token")
+    day = date.today().isoformat()
+    content = apple_tsv([[day, APP_ID, "3", "App Store search", "First-time Download"]]).encode()
+    class ApiResponse:
+        status_code = 200
+        def __init__(self, url):
+            self.url = url
+        def json(self):
+            if self.url.endswith(f"/apps/{APP_ID}/analyticsReportRequests"):
+                return {"data": [{"id": "ongoing", "attributes": {"accessType": "ONGOING"}},
+                                 {"id": "snapshot", "attributes": {"accessType": "ONE_TIME_SNAPSHOT"}}]}
+            if "/snapshot/reports" in self.url:
+                return {"data": [{"id": "downloads-report", "attributes": {"name": "App Store Downloads Standard"}}]}
+            if "/downloads-report/instances" in self.url:
+                return {"data": [{"id": "historical-instance", "attributes": {"processingDate": day}}]}
+            if "/historical-instance/segments" in self.url:
+                return {"data": [{"id": "segment", "attributes": {"url": "https://reports.apple.com/test"}}]}
+            return {"data": []}
+    class SegmentResponse:
+        status_code = 200
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def iter_content(self, size):
+            yield content
+    monkeypatch.setattr(apple_reports.requests, "request", lambda method, url, **kwargs: ApiResponse(url))
+    monkeypatch.setattr(apple_reports.requests, "get", lambda url, **kwargs: SegmentResponse())
+    batches, seen, message = sync_reports({})
+    assert seen == ["historical-instance"]
+    assert batches[0]["rows"][0]["value"] == 3
+    assert "downloads: imported 1 dated rows" in message
 
 
 def test_apple_corrections_do_not_regress(app_module, client, monkeypatch):

@@ -19,6 +19,27 @@ GETREEP_ID = "6799787039"
 VOCALFRAME_ID = "6790227598"
 
 
+class SubscriberSourceError(ValueError):
+    """An allowlisted source failure, without response bodies or credentials."""
+
+    def __init__(self, stage, reason):
+        self.stage = stage
+        self.reason = reason
+        super().__init__(f"{stage}: {reason}")
+
+
+def subscriber_failure_message(error):
+    if error.reason in {"http-401", "http-403"}:
+        return "Getreep rejected the reporting key. Check the Supabase project and service-role key."
+    if error.reason == "http-404":
+        return "Getreep subscription records were not found. Check the Supabase project and migration."
+    if error.reason == "http-400":
+        return "Getreep subscription fields do not match this dashboard. Check the deployed database schema."
+    if error.reason == "invalid-configuration":
+        return "The Getreep Supabase endpoint is not configured correctly."
+    return "Getreep subscription records could not be read. Check the reporting connection."
+
+
 def now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -68,20 +89,30 @@ def parse_import(raw):
 
 def subscriber_records():
     """Service key never leaves the server. No auth-user/email/trip queries."""
-    base = os.environ.get("GETREEP_SUPABASE_URL", "").rstrip("/")
-    key = os.environ.get("GETREEP_SUPABASE_SERVICE_ROLE_KEY", "")
+    base = os.environ.get("GETREEP_SUPABASE_URL", "").strip().rstrip("/")
+    key = os.environ.get("GETREEP_SUPABASE_SERVICE_ROLE_KEY", "").strip()
     if not base or not key:
         return [], False
     parsed = urlparse(base)
     if parsed.scheme != "https" or not (parsed.hostname or "").endswith(".supabase.co") or parsed.path:
-        raise ValueError("Invalid subscription service configuration.")
+        raise SubscriberSourceError("configuration", "invalid-configuration")
     headers = {"apikey": key, "Authorization": "Bearer " + key}
     def read(table, params):
-        response = requests.get(base + "/rest/v1/" + table, params=params, headers=headers, timeout=10)
-        response.raise_for_status()
-        result = response.json()
+        try:
+            response = requests.get(base + "/rest/v1/" + table, params=params, headers=headers, timeout=10)
+            response.raise_for_status()
+            result = response.json()
+        except requests.HTTPError as exc:
+            status = exc.response.status_code if exc.response is not None else 0
+            raise SubscriberSourceError(table, f"http-{status}") from exc
+        except requests.Timeout as exc:
+            raise SubscriberSourceError(table, "timeout") from exc
+        except requests.RequestException as exc:
+            raise SubscriberSourceError(table, "network-error") from exc
+        except ValueError as exc:
+            raise SubscriberSourceError(table, "invalid-json") from exc
         if not isinstance(result, list):
-            raise ValueError("Invalid subscription response.")
+            raise SubscriberSourceError(table, "invalid-response")
         return result
     rows = []
     for offset in range(0, 10001, 500):
@@ -98,8 +129,12 @@ def subscriber_records():
         ids = [r["user_id"] for r in rows[offset:offset+100]]
         if any(not re.fullmatch(r"[a-fA-F0-9-]{36}", uid) for uid in ids):
             raise ValueError("Invalid subscriber account identifier.")
-        for profile in read("profiles", {"select": "user_id,name", "user_id": "in.(" + ",".join(ids) + ")"}):
-            names[profile["user_id"]] = profile.get("name")
+        try:
+            for profile in read("profiles", {"select": "user_id,name", "user_id": "in.(" + ",".join(ids) + ")"}):
+                names[profile["user_id"]] = profile.get("name")
+        except SubscriberSourceError:
+            # The optional name lookup must not hide valid subscription access.
+            pass
     result = []
     for row in rows:
         expiration = datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00"))
@@ -222,7 +257,12 @@ def register_insights(app, db, is_admin, store_url):
         subscribers, configured, error = [], False, None
         try:
             subscribers, configured = subscriber_records()
-        except (requests.RequestException, ValueError, KeyError, TypeError):
+        except SubscriberSourceError as exc:
+            app.logger.warning("Subscriber source unavailable: stage=%s reason=%s", exc.stage, exc.reason)
+            configured = bool(os.environ.get("GETREEP_SUPABASE_SERVICE_ROLE_KEY"))
+            error = subscriber_failure_message(exc)
+        except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+            app.logger.warning("Subscriber source invalid: category=%s", type(exc).__name__)
             configured = bool(os.environ.get("GETREEP_SUPABASE_SERVICE_ROLE_KEY"))
             error = "Subscription records are temporarily unavailable. Check the server connection."
         apps = app_catalog()
@@ -323,8 +363,11 @@ def register_insights(app, db, is_admin, store_url):
             state("apple-sync", {"message": message})
             db.session.commit()
             return jsonify(message=message)
-        except (AppleReportError, requests.RequestException, ValueError, KeyError, OSError):
+        except (AppleReportError, requests.RequestException, ValueError, KeyError, OSError) as exc:
             db.session.rollback()
+            app.logger.warning("Apple report sync failed: category=%s", str(exc) if isinstance(exc, AppleReportError) else type(exc).__name__)
+            if isinstance(exc, AppleReportError) and "HTTP 403" in str(exc):
+                return jsonify(error="Apple denied report access (403). Check that report requests are active and the reporting key can read them."), 502
             return jsonify(error="Apple reports could not be synced. Check key permissions and try again; saved reports are unchanged."), 502
         finally:
             InsightState.query.filter_by(key=lock_key, updated_at=lease).delete()
@@ -351,15 +394,22 @@ def register_insights(app, db, is_admin, store_url):
             return response
         if "prefetch" in (request.headers.get("Purpose", "") + request.headers.get("Sec-Purpose", "")).lower():
             return response
-        # Only named public landing pages; never store arbitrary URLs/query strings.
+        # Only known public routes; never store query strings or arbitrary URLs.
+        public_pages = {"/", "/products", "/getreep", "/about", "/contact", "/vocalframe", "/archive"}
+        source = request.path
+        if request.endpoint == "show_post" and re.fullmatch(r"/post/\d+", source):
+            public_pages.add(source)
+        elif request.endpoint == "openclaw":
+            source = "/openclaw"
+            public_pages.add(source)
         metric = "download_clicks" if request.path in {"/go/getreep", "/go/vocalframe"} and response.status_code == 302 else None
-        if request.path in {"/", "/products", "/getreep", "/about", "/contact", "/vocalframe"} and response.status_code == 200:
+        if source in public_pages and response.status_code == 200:
             metric = "website_page_views"
         if not metric:
             return response
         try:
             insert = pg_insert if db.engines["insights"].dialect.name == "postgresql" else sqlite_insert
-            stmt = insert(InsightMetric).values(day=date.today().isoformat(), metric=metric, source=request.path,
+            stmt = insert(InsightMetric).values(day=date.today().isoformat(), metric=metric, source=source,
                                                 origin="website", value=1, updated_at=now())
             db.session.execute(stmt.on_conflict_do_update(
                 index_elements=["day", "metric", "source", "origin"],

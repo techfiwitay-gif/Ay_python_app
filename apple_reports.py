@@ -104,7 +104,7 @@ def sync_reports(known, app_id=APP_ID):
         r = requests.request(method, url, json=payload, headers={"Authorization": "Bearer " + token},
                              timeout=8, allow_redirects=False)
         if r.status_code >= 300:
-            raise AppleReportError("Apple API request failed.")
+            raise AppleReportError(f"Apple reporting API returned HTTP {r.status_code}.")
         return r.json()
     def listing(path):
         rows = []
@@ -122,21 +122,33 @@ def sync_reports(known, app_id=APP_ID):
         api("/v1/analyticsReportRequests", "POST", {"data": {"type": "analyticsReportRequests",
             "attributes": {"accessType": "ONGOING"}, "relationships": {"app": {"data": {"type": "apps", "id": app_id}}}}})
         return [], [], "Apple reporting requested. First reports can take 24–48 hours; return here and sync again."
-    reports = listing(f"/v1/analyticsReportRequests/{ongoing['id']}/reports?limit=200")
-    batches, seen = [], []
+    # An Admin may have requested a one-time snapshot to supply history. Read it
+    # after the ongoing feed without creating any new privileged Apple request.
+    request_rows = [ongoing] + [r for r in requests_list if r["attributes"].get("accessType") == "ONE_TIME_SNAPSHOT"]
+    report_sets = [listing(f"/v1/analyticsReportRequests/{row['id']}/reports?limit=200") for row in request_rows]
+    batches, seen, statuses = [], [], []
     for dataset, title in (("downloads", "App Store Downloads"), ("engagement", "App Store Discovery and Engagement")):
-        report = next((r for r in reports if r["attributes"].get("name") in {title, title + " Standard"}), None)
-        if not report:
+        candidates = [next((r for r in reports if r["attributes"].get("name") in {title, title + " Standard"}), None)
+                      for reports in report_sets]
+        candidates = [r for r in candidates if r]
+        if not candidates:
+            statuses.append(f"{dataset}: report not generated")
             continue
-        instances = listing(f"/v1/analyticsReports/{report['id']}/instances?filter[granularity]=DAILY&limit=30")
-        instances.sort(key=lambda r: r["attributes"]["processingDate"], reverse=True)
-        pending = [i for i in instances if "apple:instance:" + i["id"] not in known]
-        # One full instance per report per click; every segment must succeed before saving.
-        if not pending:
+        instance = None
+        for report in candidates:
+            instances = listing(f"/v1/analyticsReports/{report['id']}/instances?filter[granularity]=DAILY&limit=30")
+            instances.sort(key=lambda r: r["attributes"]["processingDate"], reverse=True)
+            pending = [i for i in instances if "apple:instance:" + i["id"] not in known]
+            if pending:
+                instance = pending[0]
+                break
+        if not instance:
+            statuses.append(f"{dataset}: no new daily instance")
             continue
-        instance = pending[0]
+        # One full instance per dataset per click; every segment must succeed.
         segments = listing(f"/v1/analyticsReportInstances/{instance['id']}/segments?limit=200")
         if not segments:
+            statuses.append(f"{dataset}: instance has no segments")
             continue
         texts = []
         if len(segments) > 10:
@@ -165,5 +177,6 @@ def sync_reports(known, app_id=APP_ID):
             texts.append(raw.decode("utf-8-sig"))
         batches.extend(aggregate_reports(texts, dataset, instance["attributes"]["processingDate"], app_id))
         seen.append(instance["id"])
-    return batches, seen, ("Synced Apple report batches. Sync again to check for older reports. Counts are delayed and may be privacy-limited."
-                            if seen else "No new Apple report batches are available yet. Reports are delayed and privacy-limited.")
+        statuses.append(f"{dataset}: imported {sum(batch['dataset'] == dataset for batch in batches)} dated rows")
+    return batches, seen, ("Synced Apple report batches. Sync again to check for older reports. " if seen
+                            else "No new Apple report batches. ") + "; ".join(statuses) + ". Counts are delayed and may be privacy-limited."

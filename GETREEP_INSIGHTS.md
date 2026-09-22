@@ -39,7 +39,9 @@ Do not paste keys into chat, commit them, or upload them as CSV files.
   responses may not reach the counter. Known bots, admin views, HEAD, prefetch,
   DNT, and Global Privacy Control are excluded. No IP, cookie, user agent,
   visitor ID, URL query, or arbitrary path is stored. App Store redirects are
-  fixed and cannot be used as an open redirect.
+  fixed and cannot be used as an open redirect. Public company, product,
+  support, journal archive/article, and OpenClaw pages are counted. Missing
+  pages and administrative routes are not counted.
 - The Application selector offers All apps and individual apps. Sync refreshes
   the authenticated Apple app catalog. All apps syncs each app sequentially in
   separate requests; counts, processing versions, and sync status stay isolated.
@@ -47,7 +49,10 @@ Do not paste keys into chat, commit them, or upload them as CSV files.
   only in All apps; /getreep and /vocalframe views and redirects belong to their app.
 - Apple sync is on demand, not a scheduled job. Each app request ingests at most one
   complete instance for each of the two standard reports. All segments must
-  succeed before committing. More clicks can backfill available instances.
+  succeed before committing. Existing Admin-requested one-time snapshots can
+  supply historical instances when the ongoing feed has none. More clicks can
+  backfill available instances. Sync status distinguishes reports that Apple
+  has not generated from daily instances already processed.
   Reports can take 24–48 hours to first appear; counts lag and are privacy-limited.
   New processing batches replace older daily totals; they are never added twice.
   App Store search includes Search Ads and does not prove exact brand ranking.
@@ -65,7 +70,8 @@ Do not paste keys into chat, commit them, or upload them as CSV files.
   sandbox, and unknown environments remain separate. Guests/deleted accounts can
   be missing; RevenueCat aliases can duplicate purchases. Expiry indicates access,
   not renewal/trial/cancellation status. No emails, trips, documents, or mailbox
-  data are loaded. The list fails explicitly above 10,000 accounts.
+  data are loaded. An optional profile-name read failure leaves valid entitlement
+  rows visible without names. The list fails explicitly above 10,000 accounts.
 
 ## Build and verify
 
