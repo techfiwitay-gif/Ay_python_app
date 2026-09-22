@@ -26,6 +26,8 @@ The React bundle contains no credentials or customer data.
   Production uses the dedicated Sales and Reports key, not the setup Admin key.
 - GETREEP_SUPABASE_URL, GETREEP_SUPABASE_SERVICE_ROLE_KEY: Getreep's server-only
   Supabase connection. This is a privileged key: restrict deployment access.
+  The endpoint must match the current Getreep production project. Public/anon
+  keys are rejected rather than silently returning an empty RLS-filtered list.
   Code performs reads only, selecting entitlement status and profile names.
   A dedicated least-privilege reporting proxy is preferable if available.
 
@@ -57,8 +59,10 @@ Do not paste keys into chat, commit them, or upload them as CSV files.
   New processing batches replace older daily totals; they are never added twice.
   App Store search includes Search Ads and does not prove exact brand ranking.
 - The API/download loop is bounded. Oversized reports or unsupported download
-  hosts fail without modifying existing reports. Larger volumes need a background
-  worker. Live Apple report fetching must be acceptance-tested with the real key.
+  hosts fail without modifying existing reports. Apple-issued, signed S3 report
+  URLs under the reports path are accepted without redirects, alongside Apple
+  hosts. Larger volumes need a background worker. Live Apple report fetching
+  must be acceptance-tested with the real key.
 - CSV imports use the normalized template, not raw Apple exports. Supported
   metrics: first_downloads, redownloads, impressions, page_views,
   website_page_views, download_clicks. Dates use YYYY-MM-DD; counts are integers.

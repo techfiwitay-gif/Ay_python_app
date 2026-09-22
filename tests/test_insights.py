@@ -3,8 +3,8 @@ import io
 from datetime import date
 import pytest
 from test_app import app_module, client, create_user, create_post, login
-from insights import parse_import, subscriber_records, SubscriberSourceError
-from apple_reports import aggregate_reports, AppleReportError, APP_ID, sync_reports
+from insights import parse_import, subscriber_records, supabase_key_role, SubscriberSourceError
+from apple_reports import aggregate_reports, allowed_segment_url, AppleReportError, APP_ID, sync_reports
 
 
 def authenticate(app_module, client):
@@ -170,7 +170,7 @@ def test_counter_includes_journal_and_other_public_pages(app_module, client, mon
 
 def test_subscriber_source_reports_safe_http_reason(monkeypatch):
     import requests
-    monkeypatch.setenv("GETREEP_SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("GETREEP_SUPABASE_URL", "https://ccitgqgjaktzpydqjulm.supabase.co")
     monkeypatch.setenv("GETREEP_SUPABASE_SERVICE_ROLE_KEY", "private-test-key")
     class Denied:
         status_code = 401
@@ -185,7 +185,7 @@ def test_subscriber_source_reports_safe_http_reason(monkeypatch):
 
 def test_missing_optional_profile_does_not_hide_subscriber(monkeypatch):
     import requests
-    monkeypatch.setenv("GETREEP_SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("GETREEP_SUPABASE_URL", "https://ccitgqgjaktzpydqjulm.supabase.co")
     monkeypatch.setenv("GETREEP_SUPABASE_SERVICE_ROLE_KEY", "private-test-key")
     class Response:
         def __init__(self, path):
@@ -204,6 +204,18 @@ def test_missing_optional_profile_does_not_hide_subscriber(monkeypatch):
     records, configured = subscriber_records()
     assert configured and len(records) == 1
     assert records[0]["name"] is None and records[0]["status"] == "Active access"
+
+
+def test_subscriber_configuration_rejects_wrong_project_and_public_key(monkeypatch):
+    monkeypatch.setenv("GETREEP_SUPABASE_URL", "https://other.supabase.co")
+    monkeypatch.setenv("GETREEP_SUPABASE_SERVICE_ROLE_KEY", "sb_secret_test")
+    with pytest.raises(SubscriberSourceError, match="wrong-project"):
+        subscriber_records()
+    monkeypatch.setenv("GETREEP_SUPABASE_URL", "https://ccitgqgjaktzpydqjulm.supabase.co")
+    monkeypatch.setenv("GETREEP_SUPABASE_SERVICE_ROLE_KEY", "sb_publishable_test")
+    with pytest.raises(SubscriberSourceError, match="wrong-key-role"):
+        subscriber_records()
+    assert supabase_key_role("sb_secret_test") == "service_role"
 
 
 def test_live_totals_override_imports(app_module, client):
@@ -248,6 +260,18 @@ def test_unknown_apple_schema_fails():
         aggregate_reports(["unexpected\tfields\n"], "downloads", "2026-01-01")
 
 
+@pytest.mark.parametrize("url,allowed", [
+    ("https://asp-prod-us-west-2.s3.us-west-2.amazonaws.com/reports/123/file.csv.gz?X-Amz-Signature=test", True),
+    ("https://reports.apple.com/file.csv.gz", True),
+    ("https://asp-prod-us-west-2.s3.us-west-2.amazonaws.com/other/file.csv.gz", False),
+    ("https://asp-prod-us-west-2.s3.us-west-2.amazonaws.com.evil.example/reports/file.csv.gz", False),
+    ("http://asp-prod-us-west-2.s3.us-west-2.amazonaws.com/reports/file.csv.gz", False),
+    ("https://user@asp-prod-us-west-2.s3.us-west-2.amazonaws.com/reports/file.csv.gz", False),
+])
+def test_apple_segment_download_host_is_bounded(url, allowed):
+    assert allowed_segment_url(url) is allowed
+
+
 def test_apple_sync_explains_missing_generated_reports(monkeypatch):
     import apple_reports
     monkeypatch.setattr(apple_reports, "apple_token", lambda: "test-token")
@@ -280,7 +304,7 @@ def test_apple_sync_uses_existing_historical_snapshot(monkeypatch):
                 return {"data": [{"id": "ongoing", "attributes": {"accessType": "ONGOING"}},
                                  {"id": "snapshot", "attributes": {"accessType": "ONE_TIME_SNAPSHOT"}}]}
             if "/snapshot/reports" in self.url:
-                return {"data": [{"id": "downloads-report", "attributes": {"name": "App Store Downloads Standard"}}]}
+                return {"data": [{"id": "downloads-report", "attributes": {"name": "App Downloads Standard"}}]}
             if "/downloads-report/instances" in self.url:
                 return {"data": [{"id": "historical-instance", "attributes": {"processingDate": day}}]}
             if "/historical-instance/segments" in self.url:

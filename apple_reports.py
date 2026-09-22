@@ -20,6 +20,18 @@ class AppleReportError(ValueError):
     pass
 
 
+def allowed_segment_url(url):
+    """Allow Apple's signed report files, never arbitrary hosts or redirects."""
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.username or parsed.password or parsed.port not in (None, 443):
+        return False
+    host = (parsed.hostname or "").lower()
+    apple_host = host.endswith((".apple.com", ".mzstatic.com"))
+    # Apple's API examples use a bucket-specific S3 URL for report segments.
+    s3_host = bool(re.fullmatch(r"[a-z0-9][a-z0-9-]*\.s3(?:\.[a-z0-9-]+)?\.amazonaws\.com", host))
+    return apple_host or (s3_host and parsed.path.startswith("/reports/"))
+
+
 def aggregate_reports(texts, dataset, processing_date, app_id=APP_ID):
     totals = defaultdict(int)
     days = set()
@@ -127,8 +139,10 @@ def sync_reports(known, app_id=APP_ID):
     request_rows = [ongoing] + [r for r in requests_list if r["attributes"].get("accessType") == "ONE_TIME_SNAPSHOT"]
     report_sets = [listing(f"/v1/analyticsReportRequests/{row['id']}/reports?limit=200") for row in request_rows]
     batches, seen, statuses = [], [], []
-    for dataset, title in (("downloads", "App Store Downloads"), ("engagement", "App Store Discovery and Engagement")):
-        candidates = [next((r for r in reports if r["attributes"].get("name") in {title, title + " Standard"}), None)
+    for dataset, titles in (("downloads", ("App Store Downloads", "App Downloads")),
+                            ("engagement", ("App Store Discovery and Engagement",))):
+        accepted = {name for title in titles for name in (title, title + " Standard")}
+        candidates = [next((r for r in reports if r["attributes"].get("name") in accepted), None)
                       for reports in report_sets]
         candidates = [r for r in candidates if r]
         if not candidates:
@@ -156,8 +170,7 @@ def sync_reports(known, app_id=APP_ID):
         for segment in segments:
             budget()
             url = segment["attributes"]["url"]
-            parsed = urlparse(url)
-            if parsed.scheme != "https" or parsed.port not in (None, 443) or not (parsed.hostname or "").endswith((".apple.com", ".mzstatic.com")):
+            if not allowed_segment_url(url):
                 raise AppleReportError("Unexpected Apple report download host.")
             with requests.get(url, timeout=8, stream=True, allow_redirects=False) as response:
                 if response.status_code != 200:

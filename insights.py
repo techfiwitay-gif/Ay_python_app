@@ -1,6 +1,8 @@
 """Private Getreep reporting attached to the existing AyNcode administrator."""
 import csv
 import io
+import base64
+import json
 import os
 import re
 from datetime import datetime, timedelta, timezone, date
@@ -17,6 +19,7 @@ APPLE_METRICS = {"first_downloads", "redownloads", "impressions", "page_views"}
 METRICS = APPLE_METRICS | {"website_page_views", "download_clicks"}
 GETREEP_ID = "6799787039"
 VOCALFRAME_ID = "6790227598"
+GETREEP_SUPABASE_HOST = "ccitgqgjaktzpydqjulm.supabase.co"
 
 
 class SubscriberSourceError(ValueError):
@@ -37,7 +40,27 @@ def subscriber_failure_message(error):
         return "Getreep subscription fields do not match this dashboard. Check the deployed database schema."
     if error.reason == "invalid-configuration":
         return "The Getreep Supabase endpoint is not configured correctly."
+    if error.reason == "wrong-project":
+        return "The subscriber connection points to a different Supabase project than Getreep."
+    if error.reason == "wrong-key-role":
+        return "The subscriber connection uses a public key. A server-only service-role key is required."
     return "Getreep subscription records could not be read. Check the reporting connection."
+
+
+def supabase_key_role(key):
+    """Read a legacy JWT role only for configuration diagnostics, never trust it as auth."""
+    if key.startswith("sb_publishable_"):
+        return "anon"
+    if key.startswith("sb_secret_"):
+        return "service_role"
+    parts = key.split(".")
+    if len(parts) != 3:
+        return "unknown"
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(parts[1] + "=" * (-len(parts[1]) % 4)))
+        return payload.get("role") if payload.get("role") in {"anon", "authenticated", "service_role"} else "unknown"
+    except (ValueError, UnicodeError, TypeError):
+        return "unknown"
 
 
 def now():
@@ -96,6 +119,10 @@ def subscriber_records():
     parsed = urlparse(base)
     if parsed.scheme != "https" or not (parsed.hostname or "").endswith(".supabase.co") or parsed.path:
         raise SubscriberSourceError("configuration", "invalid-configuration")
+    if parsed.hostname != GETREEP_SUPABASE_HOST:
+        raise SubscriberSourceError("configuration", "wrong-project")
+    if supabase_key_role(key) in {"anon", "authenticated"}:
+        raise SubscriberSourceError("configuration", "wrong-key-role")
     headers = {"apikey": key, "Authorization": "Bearer " + key}
     def read(table, params):
         try:
