@@ -3,7 +3,8 @@ import io
 from datetime import date
 import pytest
 from test_app import app_module, client, create_user, create_post, login
-from insights import parse_import, subscriber_records, supabase_key_role, SubscriberSourceError
+from insights import (parse_import, parse_token_usage, subscriber_records,
+                      supabase_key_role, SubscriberSourceError)
 from apple_reports import aggregate_reports, allowed_segment_url, AppleReportError, APP_ID, sync_reports
 
 
@@ -53,6 +54,55 @@ def test_import_atomic_and_idempotent(app_module, client):
     assert len(records) == 1 and records[0]["value"] == 3
     assert client.post("/admin/getreep/api/import", data=csv + "bad,row\n").status_code == 400
     assert client.get("/admin/getreep/api/dashboard").json["metrics"] == records
+
+
+def test_token_usage_requires_per_app_server_secret(app_module, client, monkeypatch):
+    token = "a" * 32
+    monkeypatch.setenv("INSIGHTS_INGEST_TOKENS", '{"6799787039":"' + token + '"}')
+    payload = {"appId": "6799787039", "day": date.today().isoformat(), "provider": "openai",
+               "model": "gpt-5-mini", "inputTokens": 120, "outputTokens": 30,
+               "requestCount": 2, "estimatedCostMicros": 75}
+    assert client.post("/api/insights/token-usage", json=payload).status_code == 401
+    assert client.post("/api/insights/token-usage", json=payload,
+                       headers={"Authorization": "Bearer wrong"}).status_code == 401
+    response = client.post("/api/insights/token-usage", json=payload,
+                           headers={"Authorization": "Bearer " + token})
+    assert response.status_code == 200
+    assert response.json == {"saved": True, "appId": "6799787039", "day": payload["day"],
+                             "source": "openai / gpt-5-mini"}
+
+
+def test_token_usage_is_idempotent_and_separated_by_app(app_module, client, monkeypatch):
+    tokens = {"6799787039": "g" * 32, "6790227598": "v" * 32}
+    monkeypatch.setenv("INSIGHTS_INGEST_TOKENS", __import__("json").dumps(tokens))
+    day = date.today().isoformat()
+    for app_id, input_tokens in (("6799787039", 100), ("6790227598", 300)):
+        payload = {"appId": app_id, "day": day, "provider": "openai", "model": "gpt-5-mini",
+                   "inputTokens": input_tokens, "outputTokens": 20, "requestCount": 2,
+                   "estimatedCostMicros": 50}
+        headers = {"Authorization": "Bearer " + tokens[app_id]}
+        assert client.post("/api/insights/token-usage", json=payload, headers=headers).status_code == 200
+        payload["inputTokens"] += 1
+        assert client.post("/api/insights/token-usage", json=payload, headers=headers).status_code == 200
+    authenticate(app_module, client)
+    body = client.get("/admin/getreep/api/dashboard").json
+    rows = [row for row in body["metrics"] if row["metric"] == "ai_input_tokens"]
+    assert {(row["appId"], row["value"]) for row in rows} == {
+        ("6799787039", 101), ("6790227598", 301)}
+    assert body["connections"]["aiUsage"]["configured"] is True
+    assert body["connections"]["aiUsage"]["lastSync"] is not None
+
+
+@pytest.mark.parametrize("change", [
+    {"prompt": "do not store me"}, {"inputTokens": -1}, {"requestCount": True},
+    {"day": "2099-01-01"}, {"provider": "bad\nprovider"},
+])
+def test_token_usage_rejects_content_and_invalid_totals(change):
+    payload = {"appId": "6799787039", "day": date.today().isoformat(), "provider": "openai",
+               "model": "gpt-5-mini", "inputTokens": 10, "outputTokens": 5, "requestCount": 1}
+    payload.update(change)
+    with pytest.raises(ValueError):
+        parse_token_usage(payload)
 
 
 def test_import_and_sync_need_csrf(app_module, client):
@@ -402,7 +452,7 @@ def test_portfolio_imports_and_corrections_stay_separate(app_module, client, mon
     monkeypatch.setattr("apple_reports.sync_reports", correction)
     assert client.post("/admin/getreep/api/sync/apple", headers={"X-Insights-App": APP_ID}).status_code == 200
     result = client.get("/admin/getreep/api/dashboard").json
-    assert len(result["apps"]) == 2
+    assert len(result["apps"]) == 4
     assert [(r["appId"], r["value"]) for r in result["metrics"]] == [("6790227598", 9)]
     assert result["apps"][0]["lastSync"] is not None
     assert result["apps"][1]["lastSync"] is None

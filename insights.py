@@ -2,6 +2,7 @@
 import csv
 import io
 import base64
+import hmac
 import json
 import os
 import re
@@ -16,10 +17,21 @@ from flask_wtf.csrf import generate_csrf, validate_csrf
 from wtforms.validators import ValidationError
 
 APPLE_METRICS = {"first_downloads", "redownloads", "impressions", "page_views"}
-METRICS = APPLE_METRICS | {"website_page_views", "download_clicks"}
+AI_METRICS = {"ai_input_tokens", "ai_output_tokens", "ai_requests", "ai_cost_microusd"}
+METRICS = APPLE_METRICS | AI_METRICS | {"website_page_views", "download_clicks"}
 GETREEP_ID = "6799787039"
 VOCALFRAME_ID = "6790227598"
 GETREEP_SUPABASE_HOST = "ccitgqgjaktzpydqjulm.supabase.co"
+PORTFOLIO_APPS = [
+    {"id": GETREEP_ID, "name": "Getreep"},
+    {"id": VOCALFRAME_ID, "name": "VocalFrame"},
+    {"id": "openclaw", "name": "OpenClaw"},
+    {"id": "bookafriend", "name": "Bookafriend"},
+]
+TOKEN_USAGE_FIELDS = {
+    "appId", "day", "provider", "model", "inputTokens", "outputTokens",
+    "requestCount", "estimatedCostMicros",
+}
 
 
 class SubscriberSourceError(ValueError):
@@ -108,6 +120,50 @@ def parse_import(raw):
     if not rows:
         raise ValueError("The CSV contains no measurements.")
     return rows
+
+
+def ingest_token_map():
+    """Read per-app ingestion secrets without ever returning malformed values."""
+    try:
+        value = json.loads(os.environ.get("INSIGHTS_INGEST_TOKENS", "{}"))
+    except (TypeError, ValueError):
+        return {}
+    if not isinstance(value, dict):
+        return {}
+    return {str(app_id): secret for app_id, secret in value.items()
+            if re.fullmatch(r"[A-Za-z0-9._-]{1,64}", str(app_id))
+            and isinstance(secret, str) and len(secret) >= 32}
+
+
+def parse_token_usage(payload):
+    """Validate aggregate billing telemetry; prompts and user data are not accepted."""
+    if not isinstance(payload, dict) or set(payload) - TOKEN_USAGE_FIELDS:
+        raise ValueError("Invalid fields.")
+    required = TOKEN_USAGE_FIELDS - {"estimatedCostMicros"}
+    if not required.issubset(payload):
+        raise ValueError("Missing fields.")
+    app_id, day = payload["appId"], payload["day"]
+    provider, model = payload["provider"], payload["model"]
+    if not isinstance(app_id, str) or not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", app_id):
+        raise ValueError("Invalid app.")
+    if not isinstance(day, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day) or date.fromisoformat(day) > date.today():
+        raise ValueError("Invalid day.")
+    if not isinstance(provider, str) or not provider.strip() or not re.fullmatch(r"[A-Za-z0-9._ -]{1,40}", provider):
+        raise ValueError("Invalid provider.")
+    if not isinstance(model, str) or not model.strip() or not re.fullmatch(r"[A-Za-z0-9._:/ -]{1,80}", model):
+        raise ValueError("Invalid model.")
+    values = {}
+    for field in ("inputTokens", "outputTokens", "requestCount"):
+        value = payload[field]
+        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 10**15:
+            raise ValueError("Invalid total.")
+        values[field] = value
+    cost = payload.get("estimatedCostMicros")
+    if cost is not None and (isinstance(cost, bool) or not isinstance(cost, int) or not 0 <= cost <= 10**15):
+        raise ValueError("Invalid cost.")
+    return dict(app_id=app_id, day=day, source=f"{provider.strip()} / {model.strip()}",
+                input_tokens=values["inputTokens"], output_tokens=values["outputTokens"],
+                requests=values["requestCount"], cost_microusd=cost)
 
 
 def subscriber_records():
@@ -219,8 +275,15 @@ def register_insights(app, db, is_admin, store_url):
         db.session.merge(InsightState(key=key, value=value, updated_at=now()))
 
     def app_catalog():
+        apps = {item["id"]: dict(item) for item in PORTFOLIO_APPS}
         catalog = db.session.get(InsightState, "apple-apps")
-        return catalog.value["apps"] if catalog else [{"id": GETREEP_ID, "name": "Getreep"}]
+        if catalog and isinstance(catalog.value.get("apps"), list):
+            for item in catalog.value["apps"]:
+                if isinstance(item, dict) and item.get("id") and item.get("name"):
+                    apps[str(item["id"])] = {"id": str(item["id"]), "name": str(item["name"])}
+        for app_id in ingest_token_map():
+            apps.setdefault(app_id, {"id": app_id, "name": app_id})
+        return list(apps.values())
 
     def selected_app():
         identity = request.headers.get("X-Insights-App", GETREEP_ID)
@@ -266,7 +329,7 @@ def register_insights(app, db, is_admin, store_url):
             return {"/getreep": GETREEP_ID, "/go/getreep": GETREEP_ID,
                     "/vocalframe": VOCALFRAME_ID, "/go/vocalframe": VOCALFRAME_ID}.get(row.source, "website")
         # Live reports replace imported totals for that metric/day, never double-count.
-        priority = {"manual": 0, "website": 1, "apple": 2}
+        priority = {"manual": 0, "website": 1, "apple": 2, "backend": 3}
         chosen = {}
         for row in records:
             key = (identity(row), row.day, row.metric)
@@ -284,6 +347,7 @@ def register_insights(app, db, is_admin, store_url):
                    for r in records if priority[r.origin] == chosen[(identity(r), r.day, r.metric)]]
         apple_state = db.session.get(InsightState, "apple-sync")
         web_last = max((r.updated_at for r in records if r.origin == "website"), default=None)
+        ai_last = max((r.updated_at for r in records if r.origin == "backend"), default=None)
         apple_ready = all(os.environ.get(k) for k in ("ASC_ISSUER_ID", "ASC_KEY_ID", "ASC_PRIVATE_KEY"))
         subscribers, configured, error = [], False, None
         try:
@@ -299,7 +363,8 @@ def register_insights(app, db, is_admin, store_url):
         apps = app_catalog()
         subscriber_checked_at = now() if configured and not error else None
         statuses = {a["id"]: db.session.get(InsightState, "apple-sync:" + a["id"]) for a in apps}
-        return jsonify(apps=[dict(**a, lastSync=statuses[a["id"]].updated_at if statuses[a["id"]] else None,
+        app_ai_last = {a["id"]: max((r.updated_at for r in records if r.origin == "backend" and identity(r) == a["id"]), default=None) for a in apps}
+        return jsonify(apps=[dict(**a, lastSync=max(filter(None, [statuses[a["id"]].updated_at if statuses[a["id"]] else None, app_ai_last[a["id"]]]), default=None),
                                   message=statuses[a["id"]].value.get("message") if statuses[a["id"]] else "Not synced yet") for a in apps],
                        metrics=metrics, subscribers=[dict(**s, appId=GETREEP_ID) for s in subscribers], subscriberError=error,
                        subscriberFetchedAt=subscriber_checked_at,
@@ -309,7 +374,44 @@ def register_insights(app, db, is_admin, store_url):
                            "subscribers": dict(configured=configured, lastSync=subscriber_checked_at,
                                                message="Read-only linked account access." if configured else "Server-only Getreep subscription connection is needed."),
                            "website": dict(configured=tracking_enabled(), lastSync=web_last,
-                                           message="Aggregate page views and app-specific link clicks; bots filtered where recognizable. Not unique visitors." if tracking_enabled() else "Website counting is prepared but not enabled. Enable it with a persistent database.")})
+                                           message="Aggregate page views and app-specific link clicks; bots filtered where recognizable. Not unique visitors." if tracking_enabled() else "Website counting is prepared but not enabled. Enable it with a persistent database."),
+                           "aiUsage": dict(configured=bool(ingest_token_map()), lastSync=ai_last,
+                                           message="Daily provider and model totals only; no prompts, responses, or customer identifiers." if ingest_token_map() else "Add one server-only ingestion token per app, then report daily cumulative totals from each backend.")})
+
+    @bp.post("/api/insights/token-usage")
+    def ingest_token_usage():
+        if os.environ.get("VERCEL") and not os.environ.get("INSIGHTS_DATABASE_URL"):
+            return jsonify(error="Persistent reporting storage is not configured."), 503
+        if request.content_length is not None and request.content_length > 16_384:
+            return jsonify(error="Invalid usage report."), 413
+        try:
+            usage = parse_token_usage(request.get_json(silent=False))
+        except (ValueError, TypeError):
+            return jsonify(error="Invalid usage report."), 400
+        expected = ingest_token_map().get(usage["app_id"])
+        supplied = request.headers.get("Authorization", "")
+        if not expected or not supplied.startswith("Bearer ") or not hmac.compare_digest(supplied[7:], expected):
+            return jsonify(error="Invalid reporting credentials."), 401
+        values = {
+            "ai_input_tokens": usage["input_tokens"],
+            "ai_output_tokens": usage["output_tokens"],
+            "ai_requests": usage["requests"],
+        }
+        if usage["cost_microusd"] is not None:
+            values["ai_cost_microusd"] = usage["cost_microusd"]
+        try:
+            AppInsightMetric.query.filter_by(app_id=usage["app_id"], day=usage["day"],
+                                             source=usage["source"], origin="backend",
+                                             metric="ai_cost_microusd").delete()
+            for metric, value in values.items():
+                db.session.merge(AppInsightMetric(app_id=usage["app_id"], day=usage["day"], metric=metric,
+                                                  source=usage["source"], value=value, origin="backend", updated_at=now()))
+            db.session.commit()
+        except SQLAlchemyError as error:
+            db.session.rollback()
+            app.logger.error("Token usage storage unavailable: %s", storage_failure_kind(error))
+            return jsonify(error="Reporting storage is temporarily unavailable."), 503
+        return jsonify(saved=True, appId=usage["app_id"], day=usage["day"], source=usage["source"])
 
     @bp.post("/admin/getreep/api/import")
     @protected
