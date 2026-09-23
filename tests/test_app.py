@@ -87,6 +87,23 @@ def test_homepage_shows_empty_state(client):
     assert b"Technology journal" in response.data
 
 
+def test_adsense_verification_is_available_sitewide(client):
+    adsense_script = (
+        b"https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?"
+        b"client=ca-pub-8752752499271631"
+    )
+
+    for path in ("/", "/products", "/about", "/contact", "/archive"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert adsense_script in response.data
+
+    ads_txt = client.get("/ads.txt")
+    assert ads_txt.status_code == 200
+    assert ads_txt.content_type == "text/plain; charset=utf-8"
+    assert ads_txt.data == b"google.com, pub-8752752499271631, DIRECT, f08c47fec0942fa0\n"
+
+
 def test_journal_posts_archive_after_three_weeks(client, app_module):
     reference_time = datetime.now()
 

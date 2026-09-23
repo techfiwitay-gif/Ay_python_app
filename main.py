@@ -81,6 +81,7 @@ VOCALFRAME_APP_STORE_URL = "https://apps.apple.com/app/vocalframe-camera-coach/i
 GETREEP_APP_STORE_URL = "https://apps.apple.com/us/app/getreep/id6799787039"
 PASSWORD_RESET_SALT = "ayncoder-password-reset"
 ARTICLE_ARCHIVE_AGE_DAYS = 21
+ADSENSE_PUBLISHER_ID = "pub-8752752499271631"
 LOGIN_WINDOW = timedelta(minutes=15)
 LOGIN_LOCK_TIME = timedelta(minutes=15)
 LOGIN_EMAIL_LIMIT = 5
@@ -1478,6 +1479,14 @@ def generated_cover(audience, slug):
     topic = re.sub(r"-[a-f0-9]{10}$", "", slug)
     svg = render_topic_cover_svg(topic, audience)
     return Response(svg, mimetype="image/svg+xml")
+
+
+@app.route("/ads.txt")
+def ads_txt():
+    return Response(
+        f"google.com, {ADSENSE_PUBLISHER_ID}, DIRECT, f08c47fec0942fa0\n",
+        mimetype="text/plain",
+    )
 
 @app.route("/post/<int:post_id>")
 def show_post(post_id):
