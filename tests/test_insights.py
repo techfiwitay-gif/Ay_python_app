@@ -206,6 +206,29 @@ def test_missing_optional_profile_does_not_hide_subscriber(monkeypatch):
     assert records[0]["name"] is None and records[0]["status"] == "Active access"
 
 
+@pytest.mark.parametrize("key,bearer", [
+    ("sb_secret_test", False),
+    ("legacy-service-role-jwt", True),
+])
+def test_subscriber_read_uses_correct_supabase_auth_header(monkeypatch, key, bearer):
+    import requests
+    monkeypatch.setenv("GETREEP_SUPABASE_URL", "https://ccitgqgjaktzpydqjulm.supabase.co")
+    monkeypatch.setenv("GETREEP_SUPABASE_SERVICE_ROLE_KEY", key)
+    captured = []
+    class Response:
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return []
+    def get(url, **kwargs):
+        captured.append(kwargs["headers"])
+        return Response()
+    monkeypatch.setattr(requests, "get", get)
+    assert subscriber_records() == ([], True)
+    assert captured[0]["apikey"] == key
+    assert ("Authorization" in captured[0]) is bearer
+
+
 def test_subscriber_configuration_rejects_wrong_project_and_public_key(monkeypatch):
     monkeypatch.setenv("GETREEP_SUPABASE_URL", "https://other.supabase.co")
     monkeypatch.setenv("GETREEP_SUPABASE_SERVICE_ROLE_KEY", "sb_secret_test")

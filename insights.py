@@ -123,7 +123,11 @@ def subscriber_records():
         raise SubscriberSourceError("configuration", "wrong-project")
     if supabase_key_role(key) in {"anon", "authenticated"}:
         raise SubscriberSourceError("configuration", "wrong-key-role")
-    headers = {"apikey": key, "Authorization": "Bearer " + key}
+    headers = {"apikey": key}
+    # Supabase's opaque sb_secret_ keys belong only in apikey. Legacy
+    # service_role JWTs may also be sent as bearer credentials.
+    if not key.startswith("sb_secret_"):
+        headers["Authorization"] = "Bearer " + key
     def read(table, params):
         try:
             response = requests.get(base + "/rest/v1/" + table, params=params, headers=headers, timeout=10)
