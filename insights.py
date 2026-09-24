@@ -364,13 +364,18 @@ def register_insights(app, db, is_admin, store_url):
                 group = groups.setdefault((metric["appId"], metric["day"], metric["source"]), {})
                 group[metric["metric"]] = metric["value"]
         for (app_id, day, source), values in groups.items():
-            if "ai_cost_microusd" in values:
-                continue
             cost = estimated_ai_cost_microusd(
                 source, values.get("ai_input_tokens", 0), values.get("ai_output_tokens", 0))
             if cost is not None:
-                metrics.append(dict(appId=app_id, day=day, metric="ai_cost_microusd",
-                                    source=source, value=cost))
+                existing = next((metric for metric in metrics
+                                 if metric["appId"] == app_id and metric["day"] == day
+                                 and metric["source"] == source
+                                 and metric["metric"] == "ai_cost_microusd"), None)
+                if existing:
+                    existing["value"] = cost
+                else:
+                    metrics.append(dict(appId=app_id, day=day, metric="ai_cost_microusd",
+                                        source=source, value=cost))
         apple_state = db.session.get(InsightState, "apple-sync")
         web_last = max((r.updated_at for r in records if r.origin == "website"), default=None)
         ai_last = max((r.updated_at for r in records if r.origin == "backend"), default=None)

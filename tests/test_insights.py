@@ -89,6 +89,21 @@ def test_dashboard_estimates_missing_luna_cost(app_module, client, monkeypatch):
                       "value": 3558}]
 
 
+def test_dashboard_replaces_partial_luna_cost_with_cumulative_estimate(app_module, client, monkeypatch):
+    token = "a" * 32
+    monkeypatch.setenv("INSIGHTS_INGEST_TOKENS", '{"6799787039":"' + token + '"}')
+    payload = {"appId": "6799787039", "day": date.today().isoformat(), "provider": "openai",
+               "model": "gpt-6-luna", "inputTokens": 81947, "outputTokens": 4820,
+               "requestCount": 4, "estimatedCostMicros": 7000}
+    assert client.post("/api/insights/token-usage", json=payload,
+                       headers={"Authorization": "Bearer " + token}).status_code == 200
+    authenticate(app_module, client)
+    metrics = client.get("/admin/getreep/api/dashboard").json["metrics"]
+    costs = [row for row in metrics if row["metric"] == "ai_cost_microusd"]
+    assert len(costs) == 1
+    assert costs[0]["value"] == 10605
+
+
 def test_published_luna_costs_are_calculated_in_micro_usd():
     assert estimated_ai_cost_microusd("openai / gpt-6-luna", 31643, 787) == 3558
     assert estimated_ai_cost_microusd("openai / gpt-5.6-luna", 1000000, 1000000) == 1400000
