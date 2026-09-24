@@ -18,6 +18,10 @@ from wtforms.validators import ValidationError
 
 APPLE_METRICS = {"first_downloads", "redownloads", "impressions", "page_views"}
 AI_METRICS = {"ai_input_tokens", "ai_output_tokens", "ai_requests", "ai_cost_microusd"}
+OPENAI_TOKEN_PRICING = {
+    "gpt-6-luna": (0.10, 0.50),
+    "gpt-5.6-luna": (0.20, 1.20),
+}
 METRICS = APPLE_METRICS | AI_METRICS | {"website_page_views", "download_clicks"}
 GETREEP_ID = "6799787039"
 VOCALFRAME_ID = "6790227598"
@@ -164,6 +168,15 @@ def parse_token_usage(payload):
     return dict(app_id=app_id, day=day, source=f"{provider.strip()} / {model.strip()}",
                 input_tokens=values["inputTokens"], output_tokens=values["outputTokens"],
                 requests=values["requestCount"], cost_microusd=cost)
+
+
+def estimated_ai_cost_microusd(source, input_tokens, output_tokens):
+    """Convert token totals to micro-USD using published standard OpenAI rates."""
+    provider, separator, model = source.partition(" / ")
+    prices = OPENAI_TOKEN_PRICING.get(model) if separator and provider.lower() == "openai" else None
+    if not prices:
+        return None
+    return round(input_tokens * prices[0] + output_tokens * prices[1])
 
 
 def subscriber_records():
@@ -345,6 +358,19 @@ def register_insights(app, db, is_admin, store_url):
                     chosen[(parts[1], parts[3], metric)] = 2
         metrics = [dict(appId=identity(r), day=r.day, metric=r.metric, source=r.source, value=r.value)
                    for r in records if priority[r.origin] == chosen[(identity(r), r.day, r.metric)]]
+        groups = {}
+        for metric in metrics:
+            if metric["metric"] in AI_METRICS:
+                group = groups.setdefault((metric["appId"], metric["day"], metric["source"]), {})
+                group[metric["metric"]] = metric["value"]
+        for (app_id, day, source), values in groups.items():
+            if "ai_cost_microusd" in values:
+                continue
+            cost = estimated_ai_cost_microusd(
+                source, values.get("ai_input_tokens", 0), values.get("ai_output_tokens", 0))
+            if cost is not None:
+                metrics.append(dict(appId=app_id, day=day, metric="ai_cost_microusd",
+                                    source=source, value=cost))
         apple_state = db.session.get(InsightState, "apple-sync")
         web_last = max((r.updated_at for r in records if r.origin == "website"), default=None)
         ai_last = max((r.updated_at for r in records if r.origin == "backend"), default=None)

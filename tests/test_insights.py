@@ -4,7 +4,8 @@ from datetime import date
 import pytest
 from test_app import app_module, client, create_user, create_post, login
 from insights import (parse_import, parse_token_usage, subscriber_records,
-                      supabase_key_role, SubscriberSourceError)
+                      supabase_key_role, SubscriberSourceError,
+                      estimated_ai_cost_microusd)
 from apple_reports import aggregate_reports, allowed_segment_url, AppleReportError, APP_ID, sync_reports
 
 
@@ -70,6 +71,28 @@ def test_token_usage_requires_per_app_server_secret(app_module, client, monkeypa
     assert response.status_code == 200
     assert response.json == {"saved": True, "appId": "6799787039", "day": payload["day"],
                              "source": "openai / gpt-5-mini"}
+
+
+def test_dashboard_estimates_missing_luna_cost(app_module, client, monkeypatch):
+    token = "a" * 32
+    monkeypatch.setenv("INSIGHTS_INGEST_TOKENS", '{"6799787039":"' + token + '"}')
+    payload = {"appId": "6799787039", "day": date.today().isoformat(), "provider": "openai",
+               "model": "gpt-6-luna", "inputTokens": 31643, "outputTokens": 787,
+               "requestCount": 2}
+    assert client.post("/api/insights/token-usage", json=payload,
+                       headers={"Authorization": "Bearer " + token}).status_code == 200
+    authenticate(app_module, client)
+    metrics = client.get("/admin/getreep/api/dashboard").json["metrics"]
+    costs = [row for row in metrics if row["metric"] == "ai_cost_microusd"]
+    assert costs == [{"appId": "6799787039", "day": payload["day"],
+                      "metric": "ai_cost_microusd", "source": "openai / gpt-6-luna",
+                      "value": 3558}]
+
+
+def test_published_luna_costs_are_calculated_in_micro_usd():
+    assert estimated_ai_cost_microusd("openai / gpt-6-luna", 31643, 787) == 3558
+    assert estimated_ai_cost_microusd("openai / gpt-5.6-luna", 1000000, 1000000) == 1400000
+    assert estimated_ai_cost_microusd("other / gpt-6-luna", 100, 100) is None
 
 
 def test_token_usage_is_idempotent_and_separated_by_app(app_module, client, monkeypatch):
