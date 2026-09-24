@@ -84,6 +84,8 @@ def test_token_usage_is_idempotent_and_separated_by_app(app_module, client, monk
         assert client.post("/api/insights/token-usage", json=payload, headers=headers).status_code == 200
         payload["inputTokens"] += 1
         assert client.post("/api/insights/token-usage", json=payload, headers=headers).status_code == 200
+        payload["inputTokens"] -= 50
+        assert client.post("/api/insights/token-usage", json=payload, headers=headers).status_code == 200
     authenticate(app_module, client)
     body = client.get("/admin/getreep/api/dashboard").json
     rows = [row for row in body["metrics"] if row["metric"] == "ai_input_tokens"]

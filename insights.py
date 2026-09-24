@@ -400,10 +400,10 @@ def register_insights(app, db, is_admin, store_url):
         if usage["cost_microusd"] is not None:
             values["ai_cost_microusd"] = usage["cost_microusd"]
         try:
-            AppInsightMetric.query.filter_by(app_id=usage["app_id"], day=usage["day"],
-                                             source=usage["source"], origin="backend",
-                                             metric="ai_cost_microusd").delete()
             for metric, value in values.items():
+                existing = db.session.get(AppInsightMetric, (
+                    usage["app_id"], usage["day"], metric, usage["source"], "backend"))
+                value = max(value, existing.value) if existing else value
                 db.session.merge(AppInsightMetric(app_id=usage["app_id"], day=usage["day"], metric=metric,
                                                   source=usage["source"], value=value, origin="backend", updated_at=now()))
             db.session.commit()
