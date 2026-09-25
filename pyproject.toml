@@ -25,6 +25,7 @@ dependencies = [
     "Mako",
     "MarkupSafe",
     "psycopg2-binary",
+    "psycopg[binary]>=3.2,<4",
     "requests",
     "PyJWT[crypto]>=2.10,<3",
     "soupsieve",
