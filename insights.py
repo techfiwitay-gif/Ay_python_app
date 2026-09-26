@@ -17,7 +17,10 @@ from flask_wtf.csrf import generate_csrf, validate_csrf
 from wtforms.validators import ValidationError
 
 APPLE_METRICS = {"first_downloads", "redownloads", "impressions", "page_views"}
-AI_METRICS = {"ai_input_tokens", "ai_output_tokens", "ai_requests", "ai_cost_microusd"}
+AI_METRICS = {
+    "ai_input_tokens", "ai_output_tokens", "ai_requests",
+    "ai_web_search_calls", "ai_cost_microusd",
+}
 OPENAI_TOKEN_PRICING = {
     "gpt-6-luna": (0.10, 0.50),
     "gpt-5.6-luna": (0.20, 1.20),
@@ -34,7 +37,7 @@ PORTFOLIO_APPS = [
 ]
 TOKEN_USAGE_FIELDS = {
     "appId", "day", "provider", "model", "inputTokens", "outputTokens",
-    "requestCount", "estimatedCostMicros",
+    "requestCount", "webSearchCalls", "estimatedCostMicros",
 }
 
 
@@ -143,7 +146,7 @@ def parse_token_usage(payload):
     """Validate aggregate billing telemetry; prompts and user data are not accepted."""
     if not isinstance(payload, dict) or set(payload) - TOKEN_USAGE_FIELDS:
         raise ValueError("Invalid fields.")
-    required = TOKEN_USAGE_FIELDS - {"estimatedCostMicros"}
+    required = TOKEN_USAGE_FIELDS - {"estimatedCostMicros", "webSearchCalls"}
     if not required.issubset(payload):
         raise ValueError("Missing fields.")
     app_id, day = payload["appId"], payload["day"]
@@ -157,8 +160,8 @@ def parse_token_usage(payload):
     if not isinstance(model, str) or not model.strip() or not re.fullmatch(r"[A-Za-z0-9._:/ -]{1,80}", model):
         raise ValueError("Invalid model.")
     values = {}
-    for field in ("inputTokens", "outputTokens", "requestCount"):
-        value = payload[field]
+    for field in ("inputTokens", "outputTokens", "requestCount", "webSearchCalls"):
+        value = payload.get(field, 0)
         if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 10**15:
             raise ValueError("Invalid total.")
         values[field] = value
@@ -167,16 +170,17 @@ def parse_token_usage(payload):
         raise ValueError("Invalid cost.")
     return dict(app_id=app_id, day=day, source=f"{provider.strip()} / {model.strip()}",
                 input_tokens=values["inputTokens"], output_tokens=values["outputTokens"],
-                requests=values["requestCount"], cost_microusd=cost)
+                requests=values["requestCount"], web_search_calls=values["webSearchCalls"],
+                cost_microusd=cost)
 
 
-def estimated_ai_cost_microusd(source, input_tokens, output_tokens):
-    """Convert token totals to micro-USD using published standard OpenAI rates."""
+def estimated_ai_cost_microusd(source, input_tokens, output_tokens, web_search_calls=0):
+    """Convert tokens and web-search calls to micro-USD using OpenAI rates."""
     provider, separator, model = source.partition(" / ")
     prices = OPENAI_TOKEN_PRICING.get(model) if separator and provider.lower() == "openai" else None
     if not prices:
         return None
-    return round(input_tokens * prices[0] + output_tokens * prices[1])
+    return round(input_tokens * prices[0] + output_tokens * prices[1]) + web_search_calls * 10_000
 
 
 def subscriber_records():
@@ -365,7 +369,8 @@ def register_insights(app, db, is_admin, store_url):
                 group[metric["metric"]] = metric["value"]
         for (app_id, day, source), values in groups.items():
             cost = estimated_ai_cost_microusd(
-                source, values.get("ai_input_tokens", 0), values.get("ai_output_tokens", 0))
+                source, values.get("ai_input_tokens", 0), values.get("ai_output_tokens", 0),
+                values.get("ai_web_search_calls", 0))
             if cost is not None:
                 existing = next((metric for metric in metrics
                                  if metric["appId"] == app_id and metric["day"] == day
@@ -427,6 +432,7 @@ def register_insights(app, db, is_admin, store_url):
             "ai_input_tokens": usage["input_tokens"],
             "ai_output_tokens": usage["output_tokens"],
             "ai_requests": usage["requests"],
+            "ai_web_search_calls": usage["web_search_calls"],
         }
         if usage["cost_microusd"] is not None:
             values["ai_cost_microusd"] = usage["cost_microusd"]

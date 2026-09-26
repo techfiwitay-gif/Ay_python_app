@@ -104,8 +104,24 @@ def test_dashboard_replaces_partial_luna_cost_with_cumulative_estimate(app_modul
     assert costs[0]["value"] == 10605
 
 
+def test_dashboard_includes_web_search_calls_and_fees(app_module, client, monkeypatch):
+    token = "a" * 32
+    monkeypatch.setenv("INSIGHTS_INGEST_TOKENS", '{"6799787039":"' + token + '"}')
+    payload = {"appId": "6799787039", "day": date.today().isoformat(), "provider": "openai",
+               "model": "gpt-6-luna", "inputTokens": 1000, "outputTokens": 100,
+               "requestCount": 2, "webSearchCalls": 2}
+    assert client.post("/api/insights/token-usage", json=payload,
+                       headers={"Authorization": "Bearer " + token}).status_code == 200
+    authenticate(app_module, client)
+    metrics = client.get("/admin/getreep/api/dashboard").json["metrics"]
+    values = {row["metric"]: row["value"] for row in metrics}
+    assert values["ai_web_search_calls"] == 2
+    assert values["ai_cost_microusd"] == 20150
+
+
 def test_published_luna_costs_are_calculated_in_micro_usd():
     assert estimated_ai_cost_microusd("openai / gpt-6-luna", 31643, 787) == 3558
+    assert estimated_ai_cost_microusd("openai / gpt-6-luna", 31643, 787, 2) == 23558
     assert estimated_ai_cost_microusd("openai / gpt-5.6-luna", 1000000, 1000000) == 1400000
     assert estimated_ai_cost_microusd("other / gpt-6-luna", 100, 100) is None
 

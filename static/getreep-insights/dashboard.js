@@ -10102,23 +10102,23 @@ var Tr = function() {
 		n === "padding" && `padding-right: ${s}px ${r};`
 	].filter(Boolean).join("")}
   }
-
+  
   .${rr} {
     right: ${s}px ${r};
   }
-
+  
   .${ir} {
     margin-right: ${s}px ${r};
   }
-
+  
   .${rr} .${rr} {
     right: 0 ${r};
   }
-
+  
   .${ir} .${ir} {
     margin-right: 0 ${r};
   }
-
+  
   body[${Nr}] {
     ${or}: ${s}px;
   }
@@ -14563,6 +14563,7 @@ function rd() {
 			input: t("ai_input_tokens"),
 			output: t("ai_output_tokens"),
 			requests: t("ai_requests"),
+			searches: t("ai_web_search_calls"),
 			cost: t("ai_cost_microusd")
 		};
 	}), A = w("ai_input_tokens"), j = w("ai_output_tokens"), te = A === void 0 && j === void 0 ? void 0 : (A || 0) + (j || 0);
@@ -14945,13 +14946,45 @@ function rd() {
 									children: [
 										/* @__PURE__ */ (0, R.jsxs)("div", {
 											className: "metric-label",
+											children: ["Web searches", /* @__PURE__ */ (0, R.jsx)(we, { size: 18 })]
+										}),
+										/* @__PURE__ */ (0, R.jsx)("div", {
+											className: "metric-number",
+											children: Qu(w("ai_web_search_calls"))
+										}),
+										/* @__PURE__ */ (0, R.jsx)("p", { children: "OpenAI search tool calls" })
+									]
+								}),
+								/* @__PURE__ */ (0, R.jsxs)("section", {
+									className: "metric-card",
+									children: [
+										/* @__PURE__ */ (0, R.jsxs)("div", {
+											className: "metric-label",
+											children: ["Search fees", /* @__PURE__ */ (0, R.jsx)(fe, { size: 18 })]
+										}),
+										/* @__PURE__ */ (0, R.jsx)("div", {
+											className: "metric-number cost-number",
+											children: $u((w("ai_web_search_calls") || 0) * 1e4)
+										}),
+										/* @__PURE__ */ (0, R.jsx)("p", { children: "$0.01 per web search" })
+									]
+								}),
+								/* @__PURE__ */ (0, R.jsxs)("section", {
+									className: "metric-card",
+									children: [
+										/* @__PURE__ */ (0, R.jsxs)("div", {
+											className: "metric-label",
 											children: ["Estimated spend", /* @__PURE__ */ (0, R.jsx)(ce, { size: 18 })]
 										}),
 										/* @__PURE__ */ (0, R.jsx)("div", {
 											className: "metric-number cost-number",
 											children: $u(w("ai_cost_microusd"))
 										}),
-										/* @__PURE__ */ (0, R.jsxs)("p", { children: [Qu(w("ai_requests")), " backend requests"] })
+										/* @__PURE__ */ (0, R.jsxs)("p", { children: [
+											"Tokens + search · ",
+											Qu(w("ai_requests")),
+											" requests"
+										] })
 									]
 								})
 							]
@@ -14978,16 +15011,20 @@ function rd() {
 								k.length ? /* @__PURE__ */ (0, R.jsxs)(Bu, { children: [/* @__PURE__ */ (0, R.jsx)(Vu, { children: /* @__PURE__ */ (0, R.jsxs)(Uu, { children: [
 									/* @__PURE__ */ (0, R.jsx)(Q, { children: "Provider / model" }),
 									/* @__PURE__ */ (0, R.jsx)(Q, { children: "Requests" }),
+									/* @__PURE__ */ (0, R.jsx)(Q, { children: "Web searches" }),
 									/* @__PURE__ */ (0, R.jsx)(Q, { children: "Input" }),
 									/* @__PURE__ */ (0, R.jsx)(Q, { children: "Output" }),
 									/* @__PURE__ */ (0, R.jsx)(Q, { children: "Total tokens" }),
+									/* @__PURE__ */ (0, R.jsx)(Q, { children: "Search fees" }),
 									/* @__PURE__ */ (0, R.jsx)(Q, { children: "Estimated cost" })
 								] }) }), /* @__PURE__ */ (0, R.jsx)(Hu, { children: k.map((e) => /* @__PURE__ */ (0, R.jsxs)(Uu, { children: [
 									/* @__PURE__ */ (0, R.jsx)(Wu, { children: /* @__PURE__ */ (0, R.jsx)("strong", { children: e.source }) }),
 									/* @__PURE__ */ (0, R.jsx)(Wu, { children: Qu(e.requests) }),
+									/* @__PURE__ */ (0, R.jsx)(Wu, { children: Qu(e.searches) }),
 									/* @__PURE__ */ (0, R.jsx)(Wu, { children: Qu(e.input) }),
 									/* @__PURE__ */ (0, R.jsx)(Wu, { children: Qu(e.output) }),
 									/* @__PURE__ */ (0, R.jsx)(Wu, { children: Qu(e.input + e.output) }),
+									/* @__PURE__ */ (0, R.jsx)(Wu, { children: $u(e.searches * 1e4) }),
 									/* @__PURE__ */ (0, R.jsx)(Wu, { children: $u(e.cost) })
 								] }, e.source)) })] }) : /* @__PURE__ */ (0, R.jsx)(nd, {
 									title: "Connect an app backend",
@@ -15097,7 +15134,7 @@ function rd() {
 										key: "aiUsage",
 										title: "AI usage",
 										icon: ne,
-										text: "Aggregate token use, request count, and estimated provider cost by app."
+										text: "Aggregate token use, web-search calls, request count, and estimated provider cost by app."
 									},
 									{
 										key: "subscribers",
@@ -15171,7 +15208,7 @@ function rd() {
 													children: ["Open Apple API settings", /* @__PURE__ */ (0, R.jsx)(me, { size: 14 })]
 												})
 											] }),
-											/* @__PURE__ */ (0, R.jsxs)("div", { children: [/* @__PURE__ */ (0, R.jsx)("h3", { children: "02 / AI usage" }), /* @__PURE__ */ (0, R.jsx)("p", { children: "Give each backend its own ingestion token. Send daily cumulative token, request, and optional cost totals. Mobile apps must never contain this token." })] }),
+											/* @__PURE__ */ (0, R.jsxs)("div", { children: [/* @__PURE__ */ (0, R.jsx)("h3", { children: "02 / AI usage" }), /* @__PURE__ */ (0, R.jsx)("p", { children: "Give each backend its own ingestion token. Send daily cumulative token, web-search-call, request, and optional cost totals. Mobile apps must never contain this token." })] }),
 											/* @__PURE__ */ (0, R.jsxs)("div", { children: [/* @__PURE__ */ (0, R.jsx)("h3", { children: "03 / Subscriber accounts" }), /* @__PURE__ */ (0, R.jsx)("p", { children: "Connect the Getreep Supabase project with server-only credentials. This dashboard only reads subscription records and profile names; it never changes purchases." })] }),
 											/* @__PURE__ */ (0, R.jsxs)("div", { children: [/* @__PURE__ */ (0, R.jsx)("h3", { children: "04 / Website reports" }), /* @__PURE__ */ (0, R.jsx)("p", { children: "When enabled, AyNcode records aggregate page views and app-specific App Store link clicks. No visitor profiles, IP addresses, or tracking cookies are saved." })] })
 										]
