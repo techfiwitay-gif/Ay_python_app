@@ -17,6 +17,7 @@ import os
 import json
 import re
 import secrets
+import requests
 from pathlib import Path
 from smtplib import SMTP, SMTPException
 from html import escape
@@ -79,6 +80,8 @@ DEFAULT_ADMIN_EMAIL = DEFAULT_AUTOMATION_AUTHOR_EMAIL
 DEFAULT_GITHUB_REPOSITORY = "techfiwitay-gif/Ay_python_app"
 VOCALFRAME_APP_STORE_URL = "https://apps.apple.com/app/vocalframe-camera-coach/id6790227598"
 GETREEP_APP_STORE_URL = "https://apps.apple.com/us/app/getreep/id6799787039"
+GETREEP_GOOGLE_OAUTH_UPSTREAM = "https://ccitgqgjaktzpydqjulm.supabase.co/functions/v1/email-oauth-callback"
+GETREEP_EMAIL_RETURN = "waypoint://email-accounts"
 PASSWORD_RESET_SALT = "ayncoder-password-reset"
 ARTICLE_ARCHIVE_AGE_DAYS = 21
 ADSENSE_PUBLISHER_ID = "pub-8752752499271631"
@@ -1545,6 +1548,33 @@ def getreep():
 @app.route('/getreep/privacy-policy')
 def getreep_privacy_policy():
     return render_template("getreep_privacy_policy.html", logged_in=current_user.is_authenticated)
+
+
+@app.route('/getreep/oauth/google/callback')
+def getreep_google_oauth_callback():
+    """Relay only this app's Google grant to its existing single-use PKCE callback."""
+    state = request.args.get('state', '')
+    code = request.args.get('code', '')
+    denied = 'error' in request.args
+    if not re.fullmatch(r'g1_[A-Za-z0-9_-]{43}', state) or bool(code) == denied:
+        return Response('Invalid connection response.', status=400, headers={'Cache-Control': 'no-store'})
+    params = {'state': state}
+    if code:
+        if len(code) > 4096 or not code.isascii() or any(ord(char) < 33 or ord(char) > 126 for char in code):
+            return Response('Invalid connection response.', status=400, headers={'Cache-Control': 'no-store'})
+        params['code'] = code
+    else:
+        params['error'] = 'access_denied'
+    try:
+        upstream = requests.get(GETREEP_GOOGLE_OAUTH_UPSTREAM, params=params, timeout=(3, 15), allow_redirects=False)
+    except requests.RequestException:
+        return Response('Connection could not be completed. Return to Getreep and try again.', status=502,
+                        headers={'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer'})
+    if upstream.status_code != 302 or upstream.headers.get('Location') != GETREEP_EMAIL_RETURN:
+        return Response('Connection could not be completed. Return to Getreep and try again.', status=502,
+                        headers={'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer'})
+    return Response(status=302, headers={'Location': GETREEP_EMAIL_RETURN, 'Cache-Control': 'no-store',
+                                         'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow'})
 
 
 @app.route('/contact',methods=['GET','POST'])

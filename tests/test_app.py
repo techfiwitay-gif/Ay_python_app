@@ -3,6 +3,7 @@ import importlib
 import json
 import sys
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 import smtplib
@@ -256,6 +257,37 @@ def test_getreep_homepage_links_to_same_domain_privacy_policy(client):
     assert b"Google API Services User Data Policy" in policy.data
     assert b"Limited Use requirements" in policy.data
     assert b"Disconnect at Profile" in policy.data
+
+
+def test_getreep_google_callback_relays_only_valid_grants(client, app_module, monkeypatch):
+    state = 'g1_' + 'A' * 43
+    calls = []
+
+    def upstream(url, **kwargs):
+        calls.append((url, kwargs))
+        return SimpleNamespace(status_code=302, headers={'Location': 'waypoint://email-accounts'})
+
+    monkeypatch.setattr(app_module.requests, 'get', upstream)
+    path = '/getreep/oauth/google/callback'
+    for query in ('', '?state=wrong&code=grant', f'?state={state}&code=grant&error=access_denied',
+                  f'?state={state}&code=grant%0Ainjected'):
+        assert client.get(path + query).status_code == 400
+    assert calls == []
+
+    granted = client.get(path + f'?state={state}&code=grant-code')
+    assert granted.status_code == 302
+    assert granted.headers['Location'] == 'waypoint://email-accounts'
+    assert granted.headers['Cache-Control'] == 'no-store'
+    assert granted.headers['Referrer-Policy'] == 'no-referrer'
+    assert calls == [(app_module.GETREEP_GOOGLE_OAUTH_UPSTREAM,
+                      {'params': {'state': state, 'code': 'grant-code'}, 'timeout': (3, 15), 'allow_redirects': False})]
+
+    denied = client.get(path + f'?state={state}&error=access_denied')
+    assert denied.status_code == 302
+    assert calls[-1][1]['params'] == {'state': state, 'error': 'access_denied'}
+
+    monkeypatch.setattr(app_module.requests, 'get', lambda *_args, **_kwargs: SimpleNamespace(status_code=200, headers={}))
+    assert client.get(path + f'?state={state}&code=grant-code').status_code == 502
 
 
 def test_sync_generated_content_posts_imports_repo_content(client, app_module, monkeypatch, tmp_path):
