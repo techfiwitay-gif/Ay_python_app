@@ -1542,6 +1542,11 @@ def getreep():
     return render_template("getreep.html", logged_in=current_user.is_authenticated)
 
 
+@app.route('/getreep/privacy-policy')
+def getreep_privacy_policy():
+    return render_template("getreep_privacy_policy.html", logged_in=current_user.is_authenticated)
+
+
 @app.route('/contact',methods=['GET','POST'])
 def contact():
     confirm = False

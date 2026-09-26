@@ -36,6 +36,14 @@
     <article><i class="fas fa-map-marked-alt" aria-hidden="true"></i><h3>Stay ready on the move</h3><p>Save places, check weather, estimate costs, set reminders, and keep the itinerary available offline.</p></article>
   </section>
 
+  <section class="container getreep-intro" aria-labelledby="getreep-email-title">
+    <div>
+      <p class="section-kicker">Optional email connection</p>
+      <h2 id="getreep-email-title">Bring your bookings together.</h2>
+    </div>
+    <p>Connect Gmail or Outlook to search for travel confirmations when you ask. Getreep requests read-only mailbox access and never sends, edits, or deletes your email. You review any booking details before adding them to a trip. <a href="{{ url_for('getreep_privacy_policy') }}">Read the Getreep Privacy Policy</a>.</p>
+  </section>
+
   <section class="getreep-gallery-band" aria-labelledby="getreep-gallery-title">
     <div class="container getreep-gallery-heading">
       <p class="section-kicker">Inside the app</p>
@@ -54,6 +62,7 @@
     <img src="{{ url_for('static', filename='img/getreep/getreep-icon.png') }}" alt="Getreep app icon" width="76" height="76">
     <div><p class="section-kicker">Available now</p><h2>Take your whole trip with you.</h2><p>Download Getreep for free on iPhone and iPad.</p><a class="btn btn-primary" href="{{ url_for('getreep_download') }}" target="_blank" rel="noopener noreferrer">Get Getreep on the App Store <i class="fab fa-apple" aria-hidden="true"></i></a></div>
   </section>
+  <p class="container"><a href="{{ url_for('getreep_privacy_policy') }}">Getreep Privacy Policy</a></p>
 </main>
 
 {% include "footer.html" %}

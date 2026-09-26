@@ -244,6 +244,20 @@ def test_getreep_pages_link_to_live_app_store_listing(client):
     assert b"Download on the App Store" in getreep_page.data
 
 
+def test_getreep_homepage_links_to_same_domain_privacy_policy(client):
+    homepage = client.get("/getreep")
+    policy = client.get("/getreep/privacy-policy")
+
+    assert homepage.status_code == 200
+    assert policy.status_code == 200
+    assert b'href="/getreep/privacy-policy"' in homepage.data
+    assert b"read-only mailbox access" in homepage.data
+    assert b"Getreep Privacy Policy" in homepage.data
+    assert b"Google API Services User Data Policy" in policy.data
+    assert b"Limited Use requirements" in policy.data
+    assert b"Disconnect at Profile" in policy.data
+
+
 def test_sync_generated_content_posts_imports_repo_content(client, app_module, monkeypatch, tmp_path):
     content_path = tmp_path / "generated_posts.json"
     content_path.write_text(
