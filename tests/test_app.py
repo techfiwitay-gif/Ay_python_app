@@ -254,6 +254,8 @@ def test_getreep_homepage_links_to_same_domain_privacy_policy(client):
     assert b'href="/getreep/privacy-policy"' in homepage.data
     assert b"read-only mailbox access" in homepage.data
     assert b"Getreep Privacy Policy" in homepage.data
+    assert b'href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"' in homepage.data
+    assert b"Terms of Use (Apple Standard EULA)" in homepage.data
     assert b"Google API Services User Data Policy" in policy.data
     assert b"Limited Use requirements" in policy.data
     assert b"Disconnect at Profile" in policy.data
