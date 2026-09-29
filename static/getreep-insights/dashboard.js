@@ -14467,10 +14467,18 @@ var Zu = (e) => e.toLocaleString(), Qu = (e) => new Intl.NumberFormat(void 0, {
 	currency: "USD",
 	minimumFractionDigits: 2,
 	maximumFractionDigits: 4
-}).format(e / 1e6), $u = (e) => e ? new Date(e).toLocaleString(void 0, {
-	dateStyle: "medium",
-	timeStyle: "short"
-}) : "Never";
+}).format(e / 1e6), $u = (e) => {
+	if (!e) return null;
+	let t = new Date(e);
+	return Number.isNaN(t.getTime()) ? null : new Intl.DateTimeFormat(void 0, {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+		hour: "numeric",
+		minute: "2-digit",
+		timeZoneName: "short"
+	}).format(t);
+};
 function ed({ days: e, appId: t }) {
 	let [n, r] = (0, D.useState)(""), [i, a] = (0, D.useState)(""), [o, s] = (0, D.useState)("tokens"), [c, l] = (0, D.useState)(1), [u, d] = (0, D.useState)(0), [f, p] = (0, D.useState)(null), [m, h] = (0, D.useState)(!1), [g, _] = (0, D.useState)(!1), [v, y] = (0, D.useState)(""), b = t === "all" || t === "6799787039";
 	(0, D.useEffect)(() => {
@@ -14544,7 +14552,7 @@ function ed({ days: e, appId: t }) {
 				/* @__PURE__ */ (0, R.jsx)("h2", { children: "AI usage by Apple sign-in account" }),
 				/* @__PURE__ */ (0, R.jsx)("p", {
 					className: "subtitle",
-					children: "Find the people using the most tokens. Tracking starts with recent AI requests; past use is not backfilled."
+					children: "Find the people using the most tokens and when each account last used AI. Times use your device’s time zone. Tracking starts with recent AI requests; past use is not backfilled."
 				})
 			] }), /* @__PURE__ */ (0, R.jsxs)("button", {
 				type: "button",
@@ -14637,35 +14645,43 @@ function ed({ days: e, appId: t }) {
 				}) : /* @__PURE__ */ (0, R.jsx)("div", {
 					className: "ai-user-table",
 					children: /* @__PURE__ */ (0, R.jsxs)(Bu, { children: [/* @__PURE__ */ (0, R.jsx)(Vu, { children: /* @__PURE__ */ (0, R.jsxs)(Uu, { children: [
-						/* @__PURE__ */ (0, R.jsx)(Q, { children: "Account" }),
+						/* @__PURE__ */ (0, R.jsx)(Q, { children: "Account and last AI use" }),
 						/* @__PURE__ */ (0, R.jsx)(Q, { children: "Input" }),
 						/* @__PURE__ */ (0, R.jsx)(Q, { children: "Output" }),
 						/* @__PURE__ */ (0, R.jsx)(Q, { children: "Total tokens" }),
 						/* @__PURE__ */ (0, R.jsx)(Q, { children: "Requests" }),
-						/* @__PURE__ */ (0, R.jsx)(Q, { children: "Estimated cost" }),
-						/* @__PURE__ */ (0, R.jsx)(Q, { children: "Last AI use" })
-					] }) }), /* @__PURE__ */ (0, R.jsx)(Hu, { children: f.accounts.map((e) => /* @__PURE__ */ (0, R.jsxs)(Uu, { children: [
-						/* @__PURE__ */ (0, R.jsxs)(Wu, { children: [
-							/* @__PURE__ */ (0, R.jsx)("strong", { children: e.name || e.email || "Unnamed account" }),
-							e.name && e.email && /* @__PURE__ */ (0, R.jsx)("span", {
+						/* @__PURE__ */ (0, R.jsx)(Q, { children: "Estimated cost" })
+					] }) }), /* @__PURE__ */ (0, R.jsx)(Hu, { children: f.accounts.map((e) => {
+						let t = $u(e.lastUsedAt);
+						return /* @__PURE__ */ (0, R.jsxs)(Uu, { children: [
+							/* @__PURE__ */ (0, R.jsxs)(Wu, { children: [
+								/* @__PURE__ */ (0, R.jsx)("strong", { children: e.name || e.email || "Unnamed account" }),
+								e.name && e.email && /* @__PURE__ */ (0, R.jsx)("span", {
+									className: "account-id",
+									children: e.email
+								}),
+								/* @__PURE__ */ (0, R.jsx)("span", {
+									className: "account-id",
+									children: e.id
+								}),
+								/* @__PURE__ */ (0, R.jsxs)("span", {
+									className: "account-last-used",
+									children: ["Last recorded AI use: ", t && e.lastUsedAt ? /* @__PURE__ */ (0, R.jsx)("time", {
+										dateTime: e.lastUsedAt,
+										children: t
+									}) : "None in this period"]
+								})
+							] }),
+							/* @__PURE__ */ (0, R.jsx)(Wu, { children: Zu(e.inputTokens) }),
+							/* @__PURE__ */ (0, R.jsx)(Wu, { children: Zu(e.outputTokens) }),
+							/* @__PURE__ */ (0, R.jsx)(Wu, { children: Zu(e.inputTokens + e.outputTokens) }),
+							/* @__PURE__ */ (0, R.jsx)(Wu, { children: Zu(e.requestCount) }),
+							/* @__PURE__ */ (0, R.jsxs)(Wu, { children: [Qu(e.estimatedCostMicros), e.unpricedRequests > 0 && /* @__PURE__ */ (0, R.jsxs)("span", {
 								className: "account-id",
-								children: e.email
-							}),
-							/* @__PURE__ */ (0, R.jsx)("span", {
-								className: "account-id",
-								children: e.id
-							})
-						] }),
-						/* @__PURE__ */ (0, R.jsx)(Wu, { children: Zu(e.inputTokens) }),
-						/* @__PURE__ */ (0, R.jsx)(Wu, { children: Zu(e.outputTokens) }),
-						/* @__PURE__ */ (0, R.jsx)(Wu, { children: Zu(e.inputTokens + e.outputTokens) }),
-						/* @__PURE__ */ (0, R.jsx)(Wu, { children: Zu(e.requestCount) }),
-						/* @__PURE__ */ (0, R.jsxs)(Wu, { children: [Qu(e.estimatedCostMicros), e.unpricedRequests > 0 && /* @__PURE__ */ (0, R.jsxs)("span", {
-							className: "account-id",
-							children: [Zu(e.unpricedRequests), " unpriced"]
-						})] }),
-						/* @__PURE__ */ (0, R.jsx)(Wu, { children: $u(e.lastUsedAt) })
-					] }, e.id)) })] })
+								children: [Zu(e.unpricedRequests), " unpriced"]
+							})] })
+						] }, e.id);
+					}) })] })
 				}),
 				/* @__PURE__ */ (0, R.jsxs)("div", {
 					className: "ai-user-pagination",

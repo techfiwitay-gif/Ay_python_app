@@ -728,7 +728,21 @@ td {
   overflow-x: auto;
 }
 .ai-user-table table {
-  min-width: 900px;
+  min-width: 800px;
+}
+.ai-user-table td:first-child {
+  min-width: 240px;
+}
+.account-last-used {
+  display: block;
+  margin-top: 8px;
+  color: var(--foreground);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  white-space: normal;
+}
+.account-last-used time {
+  font-weight: 600;
 }
 .ai-user-pagination {
   display: flex;

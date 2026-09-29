@@ -78,6 +78,8 @@ def test_ai_account_usage_and_excel_export_are_owner_only(app_module, client, mo
         sheet = archive.read("xl/worksheets/sheet1.xml").decode()
         assert '<c r="D5" s="0"><v>120</v></c>' in sheet
         assert '<c r="F5" s="0"><v>150</v></c>' in sheet
+        assert 'Last AI use (UTC)' in sheet
+        assert '2026-09-29T00:00:00Z' in sheet
         assert '=SUM(1,2)&amp;&lt;Alex&gt;' in sheet
         assert "<f>" not in sheet
 
