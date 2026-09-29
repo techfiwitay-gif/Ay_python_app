@@ -1,5 +1,6 @@
 import csv
 import io
+from zipfile import ZipFile
 from datetime import date
 import pytest
 from test_app import app_module, client, create_user, create_post, login
@@ -31,6 +32,69 @@ def test_private_routes_require_admin(app_module, client):
     # Existing user loader revokes the session when the admin role is removed.
     assert client.get("/admin/getreep").status_code == 302
     assert client.get("/admin/getreep/api/dashboard").status_code == 401
+    assert client.get("/admin/getreep/api/ai-users").status_code == 401
+    assert client.get("/admin/getreep/api/ai-users/export").status_code == 401
+
+
+def test_ai_account_usage_and_excel_export_are_owner_only(app_module, client, monkeypatch):
+    monkeypatch.setenv("GETREEP_SUPABASE_URL", "https://ccitgqgjaktzpydqjulm.supabase.co")
+    monkeypatch.setenv("GETREEP_SUPABASE_SERVICE_ROLE_KEY", "sb_secret_test")
+    account = {"id": "user-1", "name": "=SUM(1,2)&<Alex>", "email": "alex@example.com",
+               "createdAt": "2026-09-01T00:00:00Z", "inputTokens": 120,
+               "outputTokens": 30, "requestCount": 2, "estimatedCostMicros": 2300,
+               "unpricedRequests": 0, "lastUsedAt": "2026-09-29T00:00:00Z"}
+    calls = []
+
+    class Reply:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"totalAccounts": 9, "matchingAccounts": 1,
+                    "summary": {"inputTokens": 120, "outputTokens": 30,
+                                "requestCount": 2, "estimatedCostMicros": 2300,
+                                "unpricedRequests": 0, "activeAccounts": 1},
+                    "accounts": [account]}
+
+    def fake_post(url, *, json, headers, timeout):
+        calls.append((url, json, headers, timeout))
+        return Reply()
+
+    monkeypatch.setattr("ai_user_usage.requests.post", fake_post)
+    authenticate(app_module, client)
+    response = client.get("/admin/getreep/api/ai-users?days=30&search=Alex&sort=tokens&page=1")
+    assert response.status_code == 200
+    assert response.json["configured"] is True
+    assert response.json["accounts"] == [account]
+    assert calls[0][1]["p_search"] == "Alex"
+    assert calls[0][2] == {"apikey": "sb_secret_test", "Content-Type": "application/json"}
+    assert "no-store" in response.headers["Cache-Control"]
+    assert client.get("/admin/getreep/api/ai-users?days=31").status_code == 400
+    export = client.get("/admin/getreep/api/ai-users/export?search=Alex")
+    assert export.status_code == 200
+    assert export.mimetype == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    assert export.headers["Content-Disposition"].endswith('.xlsx')
+    with ZipFile(io.BytesIO(export.data)) as archive:
+        sheet = archive.read("xl/worksheets/sheet1.xml").decode()
+        assert '<c r="D5" s="0"><v>120</v></c>' in sheet
+        assert '<c r="F5" s="0"><v>150</v></c>' in sheet
+        assert '=SUM(1,2)&amp;&lt;Alex&gt;' in sheet
+        assert "<f>" not in sheet
+
+
+def test_ai_account_usage_missing_connection_does_not_fake_zero(app_module, client, monkeypatch):
+    monkeypatch.delenv("GETREEP_SUPABASE_URL", raising=False)
+    monkeypatch.delenv("GETREEP_SUPABASE_SERVICE_ROLE_KEY", raising=False)
+    authenticate(app_module, client)
+    assert client.get("/admin/getreep/api/ai-users").json == {"configured": False}
+    assert client.get("/admin/getreep/api/ai-users/export").status_code == 503
+
+
+def test_ai_account_usage_rejects_other_supabase_projects(app_module, client, monkeypatch):
+    monkeypatch.setenv("GETREEP_SUPABASE_URL", "https://other.supabase.co")
+    monkeypatch.setenv("GETREEP_SUPABASE_SERVICE_ROLE_KEY", "sb_secret_test")
+    authenticate(app_module, client)
+    assert client.get("/admin/getreep/api/ai-users").status_code == 503
 
 
 def test_admin_page_and_empty_data(app_module, client, monkeypatch):

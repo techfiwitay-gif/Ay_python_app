@@ -11,10 +11,12 @@ from functools import wraps
 from urllib.parse import urlparse
 
 import requests
-from flask import Blueprint, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import current_user
 from flask_wtf.csrf import generate_csrf, validate_csrf
 from wtforms.validators import ValidationError
+
+from ai_user_usage import AiUserUsageError, ai_usage_workbook, read_ai_user_usage
 
 APPLE_METRICS = {"first_downloads", "redownloads", "impressions", "page_views"}
 AI_METRICS = {
@@ -253,6 +255,34 @@ def subscriber_records():
     return result, True
 
 
+def ai_user_source():
+    """Reuse Getreep's existing server-only connection, never a browser key."""
+    base = os.environ.get("GETREEP_SUPABASE_URL", "").strip().rstrip("/")
+    key = os.environ.get("GETREEP_SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    if not base or not key:
+        return None
+    parsed = urlparse(base)
+    if (parsed.scheme != "https" or parsed.hostname != GETREEP_SUPABASE_HOST
+            or parsed.path or parsed.query or parsed.fragment or parsed.username
+            or parsed.password or parsed.port or supabase_key_role(key) != "service_role"):
+        raise AiUserUsageError("The Getreep reporting connection needs attention.")
+    return base, key
+
+
+def ai_user_filters():
+    try:
+        days = int(request.args.get("days", "30"))
+        page = int(request.args.get("page", "1"))
+    except ValueError as exc:
+        raise ValueError("Choose a valid reporting period or page.") from exc
+    search = request.args.get("search", "").strip()
+    sort = request.args.get("sort", "tokens")
+    if (days not in {7, 30, 90, 365} or sort not in {"tokens", "requests", "recent", "name"}
+            or len(search) > 120 or page < 1 or page > 40000):
+        raise ValueError("Choose a valid reporting period, sort, search, or page.")
+    return days, search, sort, page
+
+
 def register_insights(app, db, is_admin, store_url):
     # Imports inside registration support the application's isolated test fixtures.
     from models import InsightMetric, AppInsightMetric, InsightState
@@ -324,13 +354,61 @@ def register_insights(app, db, is_admin, store_url):
     @bp.get("/admin/getreep")
     @protected
     def dashboard():
-        return render_template("getreep_insights.html", csrf_token=generate_csrf())
+        return render_template("getreep_insights.html", csrf_token=generate_csrf(),
+                               asset_version=os.environ.get("VERCEL_GIT_COMMIT_SHA", "local")[:12])
 
     @bp.get("/admin/getreep/metrics-template.csv")
     @protected
     def template():
         return app.response_class("day,metric,source,value\n", mimetype="text/csv",
                                   headers={"Content-Disposition": "attachment; filename=metrics-template.csv"})
+
+    @bp.get("/admin/getreep/api/ai-users")
+    @protected
+    def ai_users():
+        try:
+            days, search, sort, page = ai_user_filters()
+            source = ai_user_source()
+            if source is None:
+                return jsonify(configured=False)
+            data = read_ai_user_usage(*source, days=days, search=search, sort=sort,
+                                      limit=25, offset=(page - 1) * 25)
+            return jsonify(configured=True, **data)
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        except AiUserUsageError:
+            app.logger.warning("Getreep user usage connection unavailable")
+            return jsonify(error="Getreep account usage is temporarily unavailable."), 503
+
+    @bp.get("/admin/getreep/api/ai-users/export")
+    @protected
+    def export_ai_users():
+        try:
+            days, search, sort, _page = ai_user_filters()
+            source = ai_user_source()
+            if source is None:
+                return jsonify(error="Connect Getreep reporting before exporting."), 503
+            first = read_ai_user_usage(*source, days=days, search=search, sort=sort,
+                                       limit=100, offset=0)
+            count = first["matchingAccounts"]
+            if count > 2000:
+                return jsonify(error="More than 2,000 accounts match. Narrow the search before exporting."), 413
+            accounts = list(first["accounts"])
+            for offset in range(100, count, 100):
+                batch = read_ai_user_usage(*source, days=days, search=search, sort=sort,
+                                           limit=100, offset=offset)
+                accounts.extend(batch["accounts"])
+            workbook = ai_usage_workbook(accounts, days, search)
+            response = send_file(io.BytesIO(workbook), as_attachment=True,
+                                 download_name=f"getreep-ai-usage-{date.today().isoformat()}.xlsx",
+                                 mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            return response
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        except AiUserUsageError:
+            app.logger.warning("Getreep user usage export unavailable")
+            return jsonify(error="Getreep account usage is temporarily unavailable."), 503
 
     @bp.get("/admin/getreep/api/dashboard")
     @protected

@@ -673,6 +673,80 @@ td {
 .cost-number {
   font-size: 2rem;
 }
+.ai-user-panel {
+  margin-top: 22px;
+}
+.ai-user-heading {
+  align-items: center;
+}
+.ai-user-heading .button {
+  white-space: nowrap;
+}
+.ai-user-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.ai-user-controls .search-row {
+  flex: 1 1 260px;
+  max-width: none;
+  margin-bottom: 0;
+}
+.ai-user-sort {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  font-size: 0.875rem;
+}
+.ai-user-sort select {
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  font: inherit;
+}
+.ai-user-sort select:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 3px;
+}
+.ai-user-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  margin: 8px 0 18px;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+.ai-user-summary strong {
+  color: var(--foreground);
+}
+.ai-user-table {
+  overflow-x: auto;
+}
+.ai-user-table table {
+  min-width: 900px;
+}
+.ai-user-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 18px 0;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+.ai-user-pagination > div {
+  display: flex;
+  gap: 8px;
+}
+.ai-user-pagination .button {
+  min-height: 40px;
+}
 .connections-grid,
 .guide-grid {
   grid-template-columns: repeat(2, 1fr);
