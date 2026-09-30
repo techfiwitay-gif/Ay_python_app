@@ -28,7 +28,10 @@ The React bundle contains no credentials or customer data.
   Supabase connection. This is a privileged key: restrict deployment access.
   The endpoint must match the current Getreep production project. Public/anon
   keys are rejected rather than silently returning an empty RLS-filtered list.
-  Code performs reads only, selecting entitlement status and profile names.
+  Code performs reads only. The subscriber view selects entitlement status and
+  profile names; the Getreep AI usage view calls `admin_ai_user_usage` to show
+  Apple-linked account names/emails, IDs, token counts, request counts, and
+  estimated cost. Neither view reads prompts, trips, documents, or mailbox text.
   A dedicated least-privilege reporting proxy is preferable if available.
 
 Missing connections are explicitly unavailable, not fake zero totals.
@@ -76,6 +79,13 @@ Do not paste keys into chat, commit them, or upload them as CSV files.
   not renewal/trial/cancellation status. No emails, trips, documents, or mailbox
   data are loaded. An optional profile-name read failure leaves valid entitlement
   rows visible without names. The list fails explicitly above 10,000 accounts.
+- The AI usage tab includes paginated Getreep Apple-account usage from the
+  server-side Supabase reporting function. Search, sort, and date filters are
+  applied by the database. Export to Excel downloads the matching accounts as
+  an `.xlsx` file, capped at 2,000 accounts per export; narrow the search for
+  larger sets. All routes require the existing AyNcode administrator session,
+  and the spreadsheet is never stored on the server. Tracking begins with new
+  backend requests; prior usage is not backfilled.
 
 ## Build and verify
 
