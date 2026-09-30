@@ -139,6 +139,29 @@ def test_token_usage_requires_per_app_server_secret(app_module, client, monkeypa
                              "source": "openai / gpt-5-mini"}
 
 
+def test_separate_vocalframe_secret_preserves_getreep_and_cannot_ingest_for_it(app_module, client, monkeypatch):
+    monkeypatch.setenv("INSIGHTS_INGEST_TOKENS", '{"6799787039":"' + "g" * 32 + '"}')
+    monkeypatch.setenv("VOCALFRAME_INSIGHTS_INGEST_TOKEN", "v" * 32)
+    payload = {"appId": "6790227598", "day": date.today().isoformat(), "provider": "openai",
+               "model": "gpt-6-luna", "inputTokens": 10, "outputTokens": 5, "requestCount": 1}
+    assert client.post("/api/insights/token-usage", json=payload,
+                       headers={"Authorization": "Bearer " + "v" * 32}).status_code == 200
+    payload["appId"] = "6799787039"
+    assert client.post("/api/insights/token-usage", json=payload,
+                       headers={"Authorization": "Bearer " + "v" * 32}).status_code == 401
+    assert client.post("/api/insights/token-usage", json=payload,
+                       headers={"Authorization": "Bearer " + "g" * 32}).status_code == 200
+
+
+def test_separate_vocalframe_secret_rejects_short_values_and_survives_malformed_map(monkeypatch):
+    from insights import ingest_token_map
+    monkeypatch.setenv("INSIGHTS_INGEST_TOKENS", "invalid")
+    monkeypatch.setenv("VOCALFRAME_INSIGHTS_INGEST_TOKEN", "short")
+    assert ingest_token_map() == {}
+    monkeypatch.setenv("VOCALFRAME_INSIGHTS_INGEST_TOKEN", "v" * 32)
+    assert ingest_token_map() == {"6790227598": "v" * 32}
+
+
 def test_dashboard_estimates_missing_luna_cost(app_module, client, monkeypatch):
     token = "a" * 32
     monkeypatch.setenv("INSIGHTS_INGEST_TOKENS", '{"6799787039":"' + token + '"}')

@@ -136,12 +136,17 @@ def ingest_token_map():
     try:
         value = json.loads(os.environ.get("INSIGHTS_INGEST_TOKENS", "{}"))
     except (TypeError, ValueError):
-        return {}
+        value = {}
     if not isinstance(value, dict):
-        return {}
-    return {str(app_id): secret for app_id, secret in value.items()
-            if re.fullmatch(r"[A-Za-z0-9._-]{1,64}", str(app_id))
-            and isinstance(secret, str) and len(secret) >= 32}
+        value = {}
+    tokens = {str(app_id): secret for app_id, secret in value.items()
+              if re.fullmatch(r"[A-Za-z0-9._-]{1,64}", str(app_id))
+              and isinstance(secret, str) and len(secret) >= 32}
+    # Keep the existing portfolio secret map unchanged when adding VocalFrame.
+    vocalframe = os.environ.get("VOCALFRAME_INSIGHTS_INGEST_TOKEN", "").strip()
+    if len(vocalframe) >= 32:
+        tokens["6790227598"] = vocalframe
+    return tokens
 
 
 def parse_token_usage(payload):
@@ -515,12 +520,21 @@ def register_insights(app, db, is_admin, store_url):
         if usage["cost_microusd"] is not None:
             values["ai_cost_microusd"] = usage["cost_microusd"]
         try:
+            from sqlalchemy import func
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+            dialect = db.session.get_bind(mapper=AppInsightMetric).dialect.name
+            insert = pg_insert if dialect == "postgresql" else sqlite_insert
             for metric, value in values.items():
-                existing = db.session.get(AppInsightMetric, (
-                    usage["app_id"], usage["day"], metric, usage["source"], "backend"))
-                value = max(value, existing.value) if existing else value
-                db.session.merge(AppInsightMetric(app_id=usage["app_id"], day=usage["day"], metric=metric,
-                                                  source=usage["source"], value=value, origin="backend", updated_at=now()))
+                statement = insert(AppInsightMetric).values(app_id=usage["app_id"], day=usage["day"], metric=metric,
+                                                            source=usage["source"], value=value, origin="backend", updated_at=now())
+                maximum = func.greatest if dialect == "postgresql" else func.max
+                # An older concurrent retry must not overwrite a newer cumulative total.
+                statement = statement.on_conflict_do_update(
+                    index_elements=list(AppInsightMetric.__table__.primary_key.columns),
+                    set_={"value": maximum(AppInsightMetric.value, statement.excluded.value),
+                          "updated_at": statement.excluded.updated_at})
+                db.session.execute(statement, bind_arguments={"mapper": AppInsightMetric})
             db.session.commit()
         except SQLAlchemyError as error:
             db.session.rollback()
