@@ -1,55 +1,74 @@
 {% set page_title = "Products | AyNcode" %}
-{% set meta_description = "Explore AI software, automation, and digital products built by AyNcode." %}
+{% set meta_description = "Explore focused software for travel, communication, and AI-assisted work, built by AyNcode." %}
 {% set hide_hero = true %}
 {% include "header.html" %}
 
 <main class="products-page">
-  <section class="products-hero" style="background-image: linear-gradient(90deg, rgba(4, 9, 20, 0.97), rgba(4, 9, 20, 0.68)), url('{{ url_for('static', filename='img/ayhome-image.jpg') }}');">
-    <div class="container products-hero-content">
-      <p class="products-eyebrow">AyNcode products</p>
-      <h1>Software for the way<br><em>work is changing.</em></h1>
-      <p>Focused tools that apply AI, automation, and thoughtful product design to real human needs.</p>
+  <section class="products-hero">
+    <div class="container products-hero-layout">
+      <div class="products-hero-content">
+        <p class="products-eyebrow">Products by AyNcode</p>
+        <h1>Software that makes complex things feel simple.</h1>
+      </div>
+      <p class="products-hero-summary">Focused tools for travel, communication, and AI-assisted work, designed around the moments where clarity matters most.</p>
     </div>
   </section>
 
-  <section class="container products-grid" aria-label="AyNcode products">
-    <article class="product-card product-card--openclaw">
-      <div class="product-card-top"><img class="product-app-icon" src="{{ url_for('static', filename='img/openclaw-icon.png') }}" alt="OpenClaw icon"><span class="product-status">Live</span></div>
-      <div><p class="product-type">AI automation workspace</p><h2>OpenClaw</h2><p>Build, run, and organize AI-assisted workflows in one focused workspace.</p></div>
-      <a class="product-link" href="{{ openclaw_url }}" target="_blank" rel="noopener noreferrer">Open OpenClaw <i class="fas fa-external-link-alt"></i></a>
-    </article>
-
-    <article class="product-card product-card--vocalframe">
-      <div class="product-card-top"><img class="product-app-icon" src="{{ url_for('static', filename='img/vocalframe-icon.png') }}" alt="VocalFrame app icon"><span class="product-status">Available</span></div>
-      <div><p class="product-type">AI-assisted speaking coach</p><h2>VocalFrame</h2><p>Rehearse on camera with more clarity, confidence, and control before the moment counts.</p></div>
-      <div class="product-card-links">
-        <a class="product-link" href="{{ url_for('vocalframe') }}">Explore VocalFrame <i class="fas fa-arrow-right"></i></a>
-        <a class="product-link" href="{{ vocalframe_app_store_url }}" target="_blank" rel="noopener noreferrer">View on the App Store <i class="fab fa-apple"></i></a>
+  <section class="featured-product" aria-labelledby="featured-product-title">
+    <div class="container featured-product-layout">
+      <div class="featured-product-copy">
+        <div class="product-heading-line">
+          <img class="product-app-icon product-app-icon--large" src="{{ url_for('static', filename='img/getreep/getreep-icon.png') }}" alt="Getreep app icon">
+          <span class="product-status">Available on the App Store</span>
+        </div>
+        <p class="product-type">Featured product · Travel planning</p>
+        <h2 id="featured-product-title">Getreep</h2>
+        <p class="featured-product-promise">Your whole trip, in one clear place.</p>
+        <p class="featured-product-description">Keep itineraries, maps, budgets, weather, reminders, tickets, and documents together without turning travel planning into more work.</p>
+        <div class="product-actions">
+          <a class="product-primary-action" href="{{ url_for('getreep') }}">Explore Getreep <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+          <a class="product-secondary-action" href="{{ url_for('getreep_download') }}" target="_blank" rel="noopener noreferrer">App Store <i class="fab fa-apple" aria-hidden="true"></i></a>
+        </div>
       </div>
-    </article>
 
-    <article class="product-card product-card--getreep">
-      <div class="product-card-top">
-        <img class="product-app-icon" src="{{ url_for('static', filename='img/getreep/getreep-icon.png') }}" alt="Getreep app icon">
-        <span class="product-status">Available</span>
+      <div class="featured-product-visual" aria-label="Getreep app previews">
+        <img class="featured-screen featured-screen--back" src="{{ url_for('static', filename='img/getreep/getreep-plan-latest.jpg') }}" alt="Getreep trip planning tools" loading="lazy">
+        <img class="featured-screen featured-screen--front" src="{{ url_for('static', filename='img/getreep/getreep-home-latest.jpg') }}" alt="Getreep home screen with a trip overview" loading="lazy">
+        <img class="featured-screen featured-screen--side" src="{{ url_for('static', filename='img/getreep/getreep-readiness-latest.jpg') }}" alt="Getreep travel-day readiness screen" loading="lazy">
       </div>
-      <div><p class="product-type">Travel itinerary manager</p><h2>Getreep</h2><p>Keep itineraries, maps, budgets, weather, reminders, tickets, and trip details in one clear plan.</p></div>
-      <div class="product-card-links">
-        <a class="product-link" href="{{ url_for('getreep') }}">Explore Getreep <i class="fas fa-arrow-right"></i></a>
-        <a class="product-link" href="{{ url_for('getreep_download') }}" target="_blank" rel="noopener noreferrer">View on the App Store <i class="fab fa-apple"></i></a>
-      </div>
-    </article>
-
-    <article class="product-card product-card--bookafriend">
-      <div class="product-card-top"><span class="product-icon"><i class="fas fa-calendar-check"></i></span><span class="product-status product-status--soft">Private preview</span></div>
-      <div><p class="product-type">Human-centered scheduling</p><h2>Bookafriend</h2><p>A simpler way to coordinate time, make plans, and turn an invitation into a real meetup.</p></div>
-      <a class="product-link" href="{{ url_for('contact') }}">Ask about Bookafriend <i class="fas fa-arrow-right"></i></a>
-    </article>
+    </div>
   </section>
 
-  <section class="container products-footer-callout">
-    <p>Have a product or automation problem worth solving?</p>
-    <a class="btn btn-secondary" href="{{ url_for('contact') }}">Discuss an idea</a>
+  <section class="vocalframe-product" aria-labelledby="vocalframe-product-title">
+    <div class="container vocalframe-product-layout">
+      <div class="vocalframe-product-copy">
+        <div class="product-heading-line">
+          <img class="product-app-icon product-app-icon--large" src="{{ url_for('static', filename='img/vocalframe-icon.png') }}" alt="VocalFrame app icon">
+          <span class="product-status product-status--vocalframe">Available on the App Store</span>
+        </div>
+        <p class="product-type">Speaking practice · Camera coaching</p>
+        <h2 id="vocalframe-product-title">VocalFrame</h2>
+        <p class="vocalframe-product-promise">Speak clearly when the moment counts.</p>
+        <p class="vocalframe-product-description">Practice on camera with guided delivery cues, a smart teleprompter, and useful feedback after every take.</p>
+        <div class="product-actions">
+          <a class="product-primary-action product-primary-action--vocalframe" href="{{ url_for('vocalframe') }}">Explore VocalFrame <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+          <a class="product-secondary-action" href="{{ vocalframe_app_store_url }}" target="_blank" rel="noopener noreferrer">App Store <i class="fab fa-apple" aria-hidden="true"></i></a>
+        </div>
+      </div>
+
+      <div class="vocalframe-product-visual" aria-label="VocalFrame app previews">
+        <img class="vocalframe-screen vocalframe-screen--back" src="{{ url_for('static', filename='img/vocalframe-settings-showcase.jpg') }}" alt="VocalFrame delivery and teleprompter settings" loading="lazy">
+        <img class="vocalframe-screen vocalframe-screen--front" src="{{ url_for('static', filename='img/vocalframe-record-showcase.jpg') }}" alt="VocalFrame recording and teleprompter screen" loading="lazy">
+        <img class="vocalframe-screen vocalframe-screen--side" src="{{ url_for('static', filename='img/vocalframe-progress-showcase.jpg') }}" alt="VocalFrame speaking progress dashboard" loading="lazy">
+      </div>
+    </div>
+  </section>
+
+  <section class="products-footer-callout">
+    <div class="container products-footer-callout-inner">
+      <div><p class="products-eyebrow">Work with AyNcode</p><h2>Have a product problem worth solving?</h2></div>
+      <a class="btn btn-primary" href="{{ url_for('contact') }}">Discuss an idea</a>
+    </div>
   </section>
 </main>
 
