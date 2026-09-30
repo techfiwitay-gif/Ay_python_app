@@ -265,13 +265,13 @@ def test_counter_includes_journal_and_other_public_pages(app_module, client, mon
         author = create_user(app_module, email="writer@example.com")
         post_id = create_post(app_module, author).id
     headers = {"User-Agent": "Mozilla/5.0"}
-    for path in ("/archive", f"/post/{post_id}?campaign=test", "/open-claw", "/contact"):
+    for path in ("/archive", f"/post/{post_id}?campaign=test", "/products", "/contact"):
         assert client.get(path, headers=headers).status_code == 200
     assert client.get("/post/999999", headers=headers).status_code == 404
     authenticate(app_module, client)
     rows = client.get("/admin/getreep/api/dashboard").json["metrics"]
     sources = {r["source"] for r in rows if r["metric"] == "website_page_views"}
-    assert sources == {"/archive", f"/post/{post_id}", "/openclaw", "/contact"}
+    assert sources == {"/archive", f"/post/{post_id}", "/products", "/contact"}
 
 
 def test_subscriber_source_reports_safe_http_reason(monkeypatch):

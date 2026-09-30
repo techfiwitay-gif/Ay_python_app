@@ -172,7 +172,7 @@ def test_public_pages_share_company_positioning(client):
     assert b"founder-led technology studio" in homepage.data.lower()
     assert b"AI software, automation, and digital products" in homepage.data
     assert b"About AyNcode" in about_page.data
-    assert b"Software for the way" in products_page.data
+    assert b"Software that makes complex things feel simple" in products_page.data
     assert b"How can we help?" in contact_page.data
     assert b"Customer support" in contact_page.data
     assert b'name="topic" required' in contact_page.data
@@ -211,7 +211,7 @@ def test_vocalframe_pages_link_to_live_app_store_listing(client):
     tracked_link = client.get("/go/vocalframe")
     assert tracked_link.status_code == 302
     assert tracked_link.location.encode() == app_store_url
-    assert b"View on the App Store" in products_page.data
+    assert b"App Store" in products_page.data
     assert b'/static/img/vocalframe-icon.png' in products_page.data
     assert b"Download on the App Store" in vocalframe_page.data
     assert b"Get launch updates" not in vocalframe_page.data
@@ -222,10 +222,18 @@ def test_products_use_real_app_icons(client):
     response = client.get("/products")
 
     assert response.status_code == 200
-    assert b'/static/img/openclaw-icon.png' in response.data
     assert b'/static/img/vocalframe-icon.png' in response.data
     assert b'/static/img/getreep/getreep-icon.png' in response.data
     assert b'class="fas fa-paw"' not in response.data
+    assert b"OpenClaw" not in response.data
+    assert b"Bookafriend" not in response.data
+
+
+def test_retired_openclaw_routes_leave_the_public_site(client):
+    response = client.get("/openclaw")
+
+    assert response.status_code == 301
+    assert response.location.endswith("/products")
 
 
 def test_getreep_pages_link_to_live_app_store_listing(client):
