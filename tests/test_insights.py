@@ -1,7 +1,7 @@
 import csv
 import io
 from zipfile import ZipFile
-from datetime import date
+from datetime import date, timedelta
 import pytest
 from test_app import app_module, client, create_user, create_post, login
 from insights import (parse_import, parse_token_usage, subscriber_records,
@@ -108,6 +108,8 @@ def test_admin_page_and_empty_data(app_module, client, monkeypatch):
     assert "no-store" in page.headers["Cache-Control"]
     body = client.get("/admin/getreep/api/dashboard").json
     assert body["metrics"] == [] and body["subscribers"] == []
+    assert body["aggregateSpend"]["periods"]["all"] == {
+        "totalMicrousd": None, "byApp": {}}
     assert body["connections"]["subscribers"]["configured"] is False
 
 
@@ -183,6 +185,39 @@ def test_dashboard_includes_web_search_calls_and_fees(app_module, client, monkey
     values = {row["metric"]: row["value"] for row in metrics}
     assert values["ai_web_search_calls"] == 2
     assert values["ai_cost_microusd"] == 20150
+
+
+def test_dashboard_aggregates_spend_by_cycle_and_app(app_module, client, monkeypatch):
+    tokens = {"6799787039": "g" * 32, "6790227598": "v" * 32}
+    monkeypatch.setenv("INSIGHTS_INGEST_TOKENS", __import__("json").dumps(tokens))
+    today = date.today()
+    previous_month = today.replace(day=1) - timedelta(days=1)
+    previous_year = today.replace(year=today.year - 1, month=6, day=15)
+    reports = [("6799787039", today, 1_000_000),
+               ("6790227598", previous_month, 2_000_000),
+               ("6799787039", previous_year, 3_000_000)]
+    for app_id, report_day, cost in reports:
+        payload = {"appId": app_id, "day": report_day.isoformat(), "provider": "other",
+                   "model": "priced-by-backend", "inputTokens": 10, "outputTokens": 5,
+                   "requestCount": 1, "estimatedCostMicros": cost}
+        response = client.post("/api/insights/token-usage", json=payload,
+                               headers={"Authorization": "Bearer " + tokens[app_id]})
+        assert response.status_code == 200
+
+    authenticate(app_module, client)
+    periods = client.get("/admin/getreep/api/dashboard").json["aggregateSpend"]["periods"]
+    assert periods[f"month:{today:%Y-%m}"] == {
+        "totalMicrousd": 1_000_000, "byApp": {"6799787039": 1_000_000}}
+    assert periods[f"month:{previous_month:%Y-%m}"] == {
+        "totalMicrousd": 2_000_000, "byApp": {"6790227598": 2_000_000}}
+    assert periods[f"year:{today.year}"] == {
+        "totalMicrousd": 3_000_000,
+        "byApp": {"6799787039": 1_000_000, "6790227598": 2_000_000}}
+    assert periods[f"year:{previous_year.year}"] == {
+        "totalMicrousd": 3_000_000, "byApp": {"6799787039": 3_000_000}}
+    assert periods["all"] == {
+        "totalMicrousd": 6_000_000,
+        "byApp": {"6799787039": 4_000_000, "6790227598": 2_000_000}}
 
 
 def test_published_luna_costs_are_calculated_in_micro_usd():

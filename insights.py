@@ -440,25 +440,61 @@ def register_insights(app, db, is_admin, store_url):
                     chosen[(parts[1], parts[3], metric)] = 2
         metrics = [dict(appId=identity(r), day=r.day, metric=r.metric, source=r.source, value=r.value)
                    for r in records if priority[r.origin] == chosen[(identity(r), r.day, r.metric)]]
-        groups = {}
-        for metric in metrics:
-            if metric["metric"] in AI_METRICS:
-                group = groups.setdefault((metric["appId"], metric["day"], metric["source"]), {})
-                group[metric["metric"]] = metric["value"]
-        for (app_id, day, source), values in groups.items():
-            cost = estimated_ai_cost_microusd(
-                source, values.get("ai_input_tokens", 0), values.get("ai_output_tokens", 0),
-                values.get("ai_web_search_calls", 0))
-            if cost is not None:
-                existing = next((metric for metric in metrics
+        def apply_estimated_costs(items):
+            groups = {}
+            for metric in items:
+                if metric["metric"] in AI_METRICS:
+                    group = groups.setdefault((metric["appId"], metric["day"], metric["source"]), {})
+                    group[metric["metric"]] = metric["value"]
+            for (app_id, day, source), values in groups.items():
+                cost = estimated_ai_cost_microusd(
+                    source, values.get("ai_input_tokens", 0), values.get("ai_output_tokens", 0),
+                    values.get("ai_web_search_calls", 0))
+                if cost is None:
+                    continue
+                existing = next((metric for metric in items
                                  if metric["appId"] == app_id and metric["day"] == day
                                  and metric["source"] == source
                                  and metric["metric"] == "ai_cost_microusd"), None)
                 if existing:
                     existing["value"] = cost
                 else:
-                    metrics.append(dict(appId=app_id, day=day, metric="ai_cost_microusd",
-                                        source=source, value=cost))
+                    items.append(dict(appId=app_id, day=day, metric="ai_cost_microusd",
+                                      source=source, value=cost))
+
+        apply_estimated_costs(metrics)
+
+        # The chart payload is intentionally capped at 90 days. Spend needs a
+        # separate lifetime query so changing the reporting-period picker cannot
+        # make the business's aggregate total appear to go backwards.
+        lifetime_records = InsightMetric.query.filter(InsightMetric.metric.in_(AI_METRICS)).all()
+        lifetime_records += AppInsightMetric.query.filter(AppInsightMetric.metric.in_(AI_METRICS)).all()
+        lifetime_priority = {}
+        for row in lifetime_records:
+            key = (identity(row), row.day, row.metric)
+            lifetime_priority[key] = max(lifetime_priority.get(key, 0), priority[row.origin])
+        lifetime_metrics = [
+            dict(appId=identity(row), day=row.day, metric=row.metric, source=row.source, value=row.value)
+            for row in lifetime_records
+            if priority[row.origin] == lifetime_priority[(identity(row), row.day, row.metric)]
+        ]
+        apply_estimated_costs(lifetime_metrics)
+        # Calendar buckets make historical comparisons stable: a 2026 total
+        # never shifts forward as a rolling window would.
+        spend_periods = {"all": {}}
+        for metric in lifetime_metrics:
+            if metric["metric"] != "ai_cost_microusd":
+                continue
+            for period in ("all", "year:" + metric["day"][:4], "month:" + metric["day"][:7]):
+                by_app = spend_periods.setdefault(period, {})
+                by_app[metric["appId"]] = by_app.get(metric["appId"], 0) + metric["value"]
+        aggregate_spend = {"periods": {
+            period: {
+                "totalMicrousd": sum(by_app.values()) if by_app else None,
+                "byApp": by_app,
+            }
+            for period, by_app in spend_periods.items()
+        }}
         apple_state = db.session.get(InsightState, "apple-sync")
         web_last = max((r.updated_at for r in records if r.origin == "website"), default=None)
         ai_last = max((r.updated_at for r in records if r.origin == "backend"), default=None)
@@ -480,7 +516,8 @@ def register_insights(app, db, is_admin, store_url):
         app_ai_last = {a["id"]: max((r.updated_at for r in records if r.origin == "backend" and identity(r) == a["id"]), default=None) for a in apps}
         return jsonify(apps=[dict(**a, lastSync=max(filter(None, [statuses[a["id"]].updated_at if statuses[a["id"]] else None, app_ai_last[a["id"]]]), default=None),
                                   message=statuses[a["id"]].value.get("message") if statuses[a["id"]] else "Not synced yet") for a in apps],
-                       metrics=metrics, subscribers=[dict(**s, appId=GETREEP_ID) for s in subscribers], subscriberError=error,
+                       metrics=metrics, aggregateSpend=aggregate_spend,
+                       subscribers=[dict(**s, appId=GETREEP_ID) for s in subscribers], subscriberError=error,
                        subscriberFetchedAt=subscriber_checked_at,
                        connections={
                            "apple": dict(configured=apple_ready, lastSync=apple_state.updated_at if apple_state else None,

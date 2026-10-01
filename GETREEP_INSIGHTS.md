@@ -86,6 +86,11 @@ Do not paste keys into chat, commit them, or upload them as CSV files.
   larger sets. All routes require the existing AyNcode administrator session,
   and the spreadsheet is never stored on the server. Tracking begins with new
   backend requests; prior usage is not backfilled.
+- Aggregate AI spend is calculated separately from the 7/30/90-day reporting
+  window. Its own filter offers each recorded calendar month, calendar year,
+  and all-time totals across every app or the selected app, including token
+  pricing and reported web-search calls. Period tokens, traffic, and downloads
+  continue to follow the main reporting-period filter.
 
 ## Build and verify
 
