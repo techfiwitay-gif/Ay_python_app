@@ -12,6 +12,11 @@ INSIGHTS_INGEST_TOKENS={"6799787039":"getreep-secret-at-least-32-characters","67
 
 Known app IDs are `6799787039` for Getreep and `6790227598` for VocalFrame. `openclaw` and `bookafriend` are also available in the dashboard. Never put these ingestion secrets in an iOS, Android, or browser bundle.
 
+VocalFrame can instead use a dedicated `VOCALFRAME_INSIGHTS_INGEST_TOKEN` (at least
+32 characters). It takes precedence only for app `6790227598`, so provisioning
+VocalFrame does not require exporting or replacing the existing portfolio secret
+map. Configure the same value as `AYNCODE_INSIGHTS_TOKEN` in the VocalFrame backend.
+
 ## Report daily totals
 
 After an AI provider request completes, the application backend should update its own daily aggregate. It can periodically send the cumulative value to:
