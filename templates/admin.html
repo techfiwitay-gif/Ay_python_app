@@ -1,39 +1,54 @@
 {% set page_title = "Admin | AyNcode" %}
 {% set hide_hero = true %}
+{% set workspace_navigation = is_admin %}
 {% include "header.html" %}
 
 {% if is_admin %}
-<main class="container page-stack admin-workspace">
-  <section class="content-toolbar">
+<main class="container admin-workspace">
+  <section class="publishing-toolbar" aria-labelledby="publishing-heading">
     <div>
       <p class="section-kicker">Private workspace</p>
-      <h1>Journal publishing</h1>
+      <h1 id="publishing-heading">Journal publishing</h1>
       <p>Create, generate, and maintain AyNcode articles.</p>
     </div>
-    <div class="button-row">
-      <a class="btn btn-secondary" href="{{ url_for('insights.dashboard') }}">App Insights</a>
-      <a class="btn btn-primary" href="{{ url_for('generate_post') }}">Generate article</a>
-      <a class="btn btn-secondary" href="{{ url_for('add_new_post') }}">New post</a>
+    <div class="publishing-tools">
+      <a class="btn btn-secondary" href="{{ url_for('insights.dashboard') }}"><i class="fas fa-chart-line" aria-hidden="true"></i> App Insights</a>
+      <a class="btn btn-secondary" href="{{ url_for('generate_post') }}"><i class="fas fa-pen-nib" aria-hidden="true"></i> Generate article</a>
+      <a class="btn btn-primary" href="{{ url_for('add_new_post') }}"><i class="fas fa-plus" aria-hidden="true"></i> New post</a>
     </div>
   </section>
 
   <section aria-labelledby="admin-posts-heading">
-    <div class="section-heading">
-      <p class="section-kicker">Published journal</p>
-      <h2 id="admin-posts-heading">Articles</h2>
+    <div class="publishing-list-heading">
+      <h2 id="admin-posts-heading">Articles <span class="publishing-count">{{ posts|length }}</span></h2>
+      {% if posts %}
+      <label class="publishing-search" hidden>
+        <i class="fas fa-search" aria-hidden="true"></i>
+        <span class="sr-only">Search articles by title or summary</span>
+        <input type="search" id="publishing-search" placeholder="Search articles" autocomplete="off">
+      </label>
+      {% endif %}
     </div>
-    <div class="post-grid">
+    <div class="publishing-list">
       {% for post in posts %}
-      <article class="post-card">
-        <div class="post-content">
-          <p class="post-kicker">{{ post.published_at or post.date }}</p>
-          <h2 class="post-title"><a href="{{ url_for('show_post', post_id=post.id) }}">{{ post.title }}</a></h2>
-          <p class="post-subtitle">{{ post.subtitle }}</p>
-          <div class="post-stats"><span>{{ post.reading_time }} min read</span></div>
-          <div class="admin-actions">
-            <a class="btn btn-secondary" href="{{ url_for('edit_post', post_id=post.id) }}">Edit</a>
-            <a class="btn-delete" href="{{ url_for('delete_post', post_id=post.id) }}">Delete</a>
-          </div>
+      {% set post_image = article_image_url(post) %}
+      <article class="publishing-row">
+        <a class="publishing-thumbnail" href="{{ url_for('show_post', post_id=post.id) }}" tabindex="-1" aria-hidden="true">
+          {% if post_image %}
+          <img src="{{ post_image }}" alt="" width="112" height="80" loading="lazy">
+          {% else %}
+          <i class="far fa-file-alt" aria-hidden="true"></i>
+          {% endif %}
+        </a>
+        <div class="publishing-copy">
+          <h3><a href="{{ url_for('show_post', post_id=post.id) }}">{{ post.title }}</a></h3>
+          <p class="publishing-excerpt">{{ post.subtitle }}</p>
+          <div class="publishing-meta"><span>{{ post.published_at or post.date }}</span><span>{{ post.reading_time }} min read</span></div>
+        </div>
+        <div class="publishing-actions" role="group" aria-label="Actions for {{ post.title }}">
+          <a class="publishing-action" href="{{ url_for('show_post', post_id=post.id) }}" aria-label="View {{ post.title }}" title="View article"><i class="far fa-eye" aria-hidden="true"></i></a>
+          <a class="publishing-action" href="{{ url_for('edit_post', post_id=post.id) }}" aria-label="Edit {{ post.title }}" title="Edit article"><i class="far fa-edit" aria-hidden="true"></i></a>
+          <a class="publishing-action publishing-action--delete" href="{{ url_for('delete_post', post_id=post.id) }}" aria-label="Delete {{ post.title }}" title="Delete article" data-delete-title="{{ post.title }}"><i class="far fa-trash-alt" aria-hidden="true"></i></a>
         </div>
       </article>
       {% else %}
@@ -43,8 +58,10 @@
       </div>
       {% endfor %}
     </div>
+    {% if posts %}<p class="publishing-no-results" role="status" hidden>No articles match your search.</p>{% endif %}
   </section>
 </main>
+<script src="{{ url_for('static', filename='js/admin-workspace.js') }}" defer></script>
 {% else %}
 <main class="login-experience">
   <div class="container login-experience__grid">

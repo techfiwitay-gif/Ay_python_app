@@ -189,21 +189,21 @@ def test_public_pages_share_company_positioning(client):
 
 
 def test_navigation_order_and_private_actions(app_module, client):
-    import re
+    from bs4 import BeautifulSoup
 
     def nav_labels(response):
-        nav = response.data.decode().split('<ul class="navbar-nav">', 1)[1].split('</ul>', 1)[0]
-        return re.findall(r'>(Company|Products|Journal|Support|Admin|Log Out)</(?:a|button)>', nav), nav
+        nav = BeautifulSoup(response.data, "html.parser").select_one('.navbar-nav')
+        return [item.get_text(strip=True) for item in nav.select('a, button')], nav
 
     public_labels, public_nav = nav_labels(client.get('/'))
     assert public_labels == ['Company', 'Products', 'Journal', 'Support']
-    assert 'aria-current="page" href="/"' in public_nav
+    assert public_nav.select_one('a[aria-current="page"]')["href"] == "/"
     with app_module.app.app_context():
         create_user(app_module, role='admin')
     login(client)
     private_labels, private_nav = nav_labels(client.get('/'))
     assert private_labels == ['Company', 'Products', 'Journal', 'Support', 'Admin', 'Log Out']
-    assert 'method="post" action="/logout"' in private_nav
+    assert private_nav.select_one('form[action="/logout"]')["method"] == "post"
 
 
 def test_vocalframe_pages_link_to_live_app_store_listing(client):
@@ -700,6 +700,62 @@ def test_admin_sees_delete_button_on_post_page(client, app_module, monkeypatch):
     assert response.status_code == 200
     assert b"Delete post" in response.data
     assert f"/delete/{post_id}".encode() in response.data
+
+
+def test_admin_workspace_renders_compact_article_rows(client, app_module):
+    from bs4 import BeautifulSoup
+
+    with app_module.app.app_context():
+        admin = create_user(app_module, role="admin")
+        first = create_post(app_module, admin, title='A "quoted" article', subtitle="Useful details")
+        second = create_post(app_module, admin, title="Article without an image")
+        second.img_url = ""
+        app_module.db.session.commit()
+        ids = {first.title: first.id, second.title: second.id}
+
+    login(client)
+    response = client.get("/admin")
+    soup = BeautifulSoup(response.data, "html.parser")
+    rows = soup.select(".publishing-row")
+    assert response.status_code == 200
+    assert len(rows) == 2
+    assert not soup.select(".post-card, .post-grid")
+    assert soup.select_one(".publishing-count").text == "2"
+    assert soup.select_one("#publishing-search")["type"] == "search"
+    assert len(soup.select(".publishing-thumbnail img")) == 1
+    assert soup.select_one(".publishing-thumbnail .fa-file-alt")
+    for row in rows:
+        post_id = ids[row.h3.text]
+        assert len(row.select(".publishing-action")) == 3
+        assert row.select_one(".publishing-action--delete")["href"] == f"/delete/{post_id}"
+        assert row.select_one(".publishing-action--delete")["data-delete-title"] == row.h3.text
+        assert row.select_one(".publishing-actions")["aria-label"]
+    toggle = soup.select_one(".workspace-menu-toggle")
+    assert toggle["aria-expanded"] == "false"
+    assert soup.find(id=toggle["aria-controls"])
+    assert soup.select_one('script[src="/static/js/admin-workspace.js"]')
+
+
+def test_admin_workspace_empty_and_public_navigation(client, app_module):
+    from bs4 import BeautifulSoup
+
+    with app_module.app.app_context():
+        create_user(app_module, role="admin")
+    login(client)
+    page = client.get("/admin")
+    assert b"No articles yet" in page.data
+    assert b'publishing-search' not in page.data
+    assert b'publishing-row' not in page.data
+    public_page = BeautifulSoup(client.get("/products").data, "html.parser")
+    assert not public_page.select(".workspace-menu-toggle, .navbar--workspace")
+    assert len(public_page.select(".navbar-nav .nav-item")) == 6
+
+
+def test_logged_out_admin_does_not_expose_workspace(client):
+    page = client.get("/admin")
+    assert b"Administrator login" in page.data
+    assert b'publishing-toolbar' not in page.data
+    assert b'admin-workspace.js' not in page.data
 
 
 def test_ensure_admin_user_repairs_existing_automation_account(app_module, monkeypatch):

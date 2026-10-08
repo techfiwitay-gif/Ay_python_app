@@ -32,7 +32,7 @@
 <body>
   {% set current_path = request.path %}
 
-  <nav class="navbar">
+  <nav class="navbar{% if workspace_navigation|default(false) %} navbar--workspace{% endif %}" aria-label="Main navigation">
     <div class="navbar-container">
       <a class="navbar-brand" href="{{ url_for('company') }}">
         <img
@@ -45,7 +45,10 @@
         >
         <span>AyNcode</span>
       </a>
-      <ul class="navbar-nav">
+      {% if workspace_navigation|default(false) %}
+      <button class="workspace-menu-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Open navigation" title="Navigation" hidden><i class="fas fa-bars" aria-hidden="true"></i></button>
+      {% endif %}
+      <ul class="navbar-nav" id="site-navigation">
         <li class="nav-item">
           <a class="nav-link{% if current_path in ['/', '/about'] %} is-active{% endif %}"{% if current_path in ['/', '/about'] %} aria-current="page"{% endif %} href="{{ url_for('company') }}">Company</a>
         </li>
