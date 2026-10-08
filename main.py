@@ -74,6 +74,7 @@ with app.app_context():
 import hashlib
 
 CONTENT_POSTS_PATH = Path(app.root_path) / "content" / "generated_posts.json"
+RETIRED_POSTS_PATH = Path(app.root_path) / "content" / "retired_posts.json"
 DEFAULT_AUTOMATION_AUTHOR_EMAIL = "ayncode@gmail.com"
 DEFAULT_AUTOMATION_AUTHOR_NAME = "Ayotunde Oyeniyi"
 DEFAULT_ADMIN_EMAIL = DEFAULT_AUTOMATION_AUTHOR_EMAIL
@@ -440,7 +441,43 @@ def remember_deleted_generated_post(post):
     )
 
 
+def retire_generated_content_posts():
+    """Retire only the explicit reset list, never automatically delete future archives."""
+    if not RETIRED_POSTS_PATH.exists():
+        return 0
+    try:
+        retired = json.loads(RETIRED_POSTS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        app.logger.warning("Could not load the retired article list.")
+        return 0
+    if not isinstance(retired, list):
+        return 0
+    records = {item["title"]: item for item in retired
+               if isinstance(item, dict) and isinstance(item.get("title"), str) and item["title"]}
+    if not records:
+        return 0
+    deleted_markers = DeletedGeneratedPost.query.all()
+    deleted_titles = {post.title for post in deleted_markers}
+    deleted_slugs = {post.slug for post in deleted_markers if post.slug}
+    changed = False
+    for title, record in records.items():
+        if title not in deleted_titles and record.get("slug") not in deleted_slugs:
+            db.session.add(DeletedGeneratedPost(
+                title=title, slug=record.get("slug") or "",
+                deleted_at=datetime.now(timezone.utc).isoformat(),
+            ))
+            changed = True
+    old_posts = BlogPost.query.filter(BlogPost.title.in_(records)).all()
+    for post in old_posts:
+        db.session.delete(post)
+        changed = True
+    if changed:
+        db.session.commit()
+    return len(old_posts)
+
+
 def sync_generated_content_posts():
+    retire_generated_content_posts()
     posts = load_generated_content_posts()
     if not posts:
         return 0

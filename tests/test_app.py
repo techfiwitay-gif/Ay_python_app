@@ -385,6 +385,42 @@ def test_deleted_generated_post_is_not_reimported(client, app_module, monkeypatc
     assert content_posts == []
 
 
+def test_archive_reset_removes_only_listed_articles_and_prevents_restoration(client, app_module, monkeypatch, tmp_path):
+    from models import Comment
+    retired_path = tmp_path / "retired.json"
+    retired_path.write_text(json.dumps([{"title": "Retired article", "slug": "old-article"}]), encoding="utf-8")
+    content_path = tmp_path / "posts.json"
+    content_path.write_text(json.dumps([{
+        "title": "Retired article", "slug": "old-article", "subtitle": "Old content",
+        "body": "<p>Old content.</p>", "img_url": "https://example.com/old.jpg", "date": "April 26, 2026",
+    }]), encoding="utf-8")
+    monkeypatch.setattr(app_module, "RETIRED_POSTS_PATH", retired_path)
+    monkeypatch.setattr(app_module, "CONTENT_POSTS_PATH", content_path)
+    with app_module.app.app_context():
+        author = create_user(app_module)
+        retired = create_post(app_module, author, title="Retired article")
+        preserved = create_post(app_module, author, title="Future archive not in the reset list")
+        old_id, preserved_id = retired.id, preserved.id
+        app_module.db.session.add(Comment(text="Old comment", comment_author=author, parent_post=retired))
+        app_module.db.session.commit()
+        assert app_module.retire_generated_content_posts() == 1
+        assert app_module.retire_generated_content_posts() == 0
+        assert app_module.sync_generated_content_posts() == 0
+        assert app_module.BlogPost.query.filter_by(title="Retired article").first() is None
+        assert app_module.db.session.get(app_module.BlogPost, preserved_id) is not None
+        assert Comment.query.count() == 0
+        assert app_module.DeletedGeneratedPost.query.filter_by(title="Retired article").count() == 1
+    assert client.get(f"/post/{old_id}").status_code == 404
+    assert client.get(f"/post/{preserved_id}").status_code == 200
+
+
+def test_empty_archive_explains_four_week_schedule(client):
+    response = client.get("/archive")
+    assert b"No archived articles yet" in response.data
+    assert b"after four weeks" in response.data
+    assert b"seven days" not in response.data
+
+
 def test_remove_generated_post_from_github_commits_filtered_content(app_module, monkeypatch):
     monkeypatch.setenv("GITHUB_TOKEN", "test-token")
     monkeypatch.setenv("GITHUB_REPOSITORY", "techfiwitay-gif/Ay_python_app")
