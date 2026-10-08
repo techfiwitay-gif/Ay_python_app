@@ -3249,20 +3249,21 @@ footer {
 }
 
 .company-founder {
-    background: #f7f9fb;
+    background: #f5f7f9;
     color: #121a28;
 }
 
 .company-founder-grid {
+    align-items: stretch;
     display: grid;
-    grid-template-columns: minmax(0, 0.9fr) minmax(430px, 1.1fr);
-    min-height: 540px;
+    grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.8fr) minmax(135px, 0.35fr);
+    min-height: 390px;
 }
 
 .company-founder-copy {
     align-self: center;
-    max-width: 550px;
-    padding: 4.75rem 3.75rem 4.75rem 0;
+    max-width: 530px;
+    padding: 3.5rem 3.25rem 3.5rem 0;
 }
 
 .company-founder h2 { color: #121a28; }
@@ -3286,18 +3287,32 @@ footer {
 }
 
 .company-founder-portrait {
-    min-height: 540px;
+    min-height: 390px;
     overflow: hidden;
     position: relative;
 }
 
 .company-founder-portrait img {
+    filter: grayscale(1) contrast(1.06);
     height: 100%;
     inset: 0;
     object-fit: cover;
-    object-position: center 12%;
+    object-position: 66% 16%;
     position: absolute;
     width: 100%;
+}
+
+.company-founder-note {
+    align-self: start;
+    border-left: 2px solid #dbe5eb;
+    color: #4c80a5;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    line-height: 1.7;
+    margin: 3.5rem 0 0;
+    padding-left: 1rem;
+    text-transform: uppercase;
 }
 
 .company-home-cta {
@@ -3336,7 +3351,8 @@ footer {
     .company-product-strip > a { grid-template-columns: 38px 1fr; }
     .company-product-strip a span { grid-column: 2; }
 
-    .company-founder-grid { grid-template-columns: 1fr 1fr; }
+    .company-founder-grid { grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr); }
+    .company-founder-note { display: none; }
     .company-home-cta-inner { align-items: flex-start; flex-direction: column; }
 }
 
@@ -3371,7 +3387,7 @@ footer {
 
     .company-founder-grid { grid-template-columns: 1fr; }
     .company-founder-copy { padding: 4rem 0; }
-    .company-founder-portrait { min-height: 460px; }
+    .company-founder-portrait { min-height: 380px; }
 
     .company-home-cta-inner { gap: 2rem; }
     .company-home-actions { align-items: stretch; flex-direction: column; }
