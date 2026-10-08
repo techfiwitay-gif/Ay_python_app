@@ -180,8 +180,8 @@ def test_public_pages_share_company_positioning(client):
     assert b"Get product-specific support" in contact_page.data
     assert b"Common support topics" in contact_page.data
     assert b"Replies typically arrive within 1\xe2\x80\x932 business days" in contact_page.data
-    assert b'/static/img/getreep/getreep-icon.png' in contact_page.data
-    assert b'/static/img/vocalframe-icon.png' in contact_page.data
+    assert b'/static/img/getreep/getreep-app-icon.png' in contact_page.data
+    assert b'/static/img/vocalframe-app-icon.png' in contact_page.data
     assert b'contact-bg.jpg' not in contact_page.data
     assert b"Ayncode LLC" not in homepage.data.split(b"<footer>", 1)[0]
 
@@ -218,7 +218,7 @@ def test_vocalframe_pages_link_to_live_app_store_listing(client):
     assert tracked_link.status_code == 302
     assert tracked_link.location.encode() == app_store_url
     assert b"App Store" in products_page.data
-    assert b'/static/img/vocalframe-icon.png' in products_page.data
+    assert b'/static/img/vocalframe-app-icon.png' in products_page.data
     assert b"Download on the App Store" in vocalframe_page.data
     assert b"Get launch updates" not in vocalframe_page.data
     assert b"In review" not in products_page.data
@@ -228,8 +228,8 @@ def test_products_use_real_app_icons(client):
     response = client.get("/products")
 
     assert response.status_code == 200
-    assert b'/static/img/vocalframe-icon.png' in response.data
-    assert b'/static/img/getreep/getreep-icon.png' in response.data
+    assert b'/static/img/vocalframe-app-icon.png' in response.data
+    assert b'/static/img/getreep/getreep-app-icon.png' in response.data
     assert b'class="fas fa-paw"' not in response.data
     assert b"OpenClaw" not in response.data
     assert b"Bookafriend" not in response.data
