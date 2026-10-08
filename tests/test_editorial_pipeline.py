@@ -115,6 +115,24 @@ def test_cron_update_preserves_other_jobs_and_is_idempotent():
     assert updated_crontab(updated, repo) == updated
 
 
+def test_cron_disable_removes_only_this_journal_job():
+    repo = PurePosixPath("/home/ayncode/Ay_python_app")
+    current = (
+        "CRON_TZ=America/New_York\n"
+        "58 23 * * * /home/ayncode/backup.sh\n"
+        "15 9 * * 5 cd /home/ayncode/Ay_python_app && bash scripts/openclaw_publish.sh\n"
+        "0 8 * * * cd /home/ayncode/other && bash scripts/openclaw_publish.sh\n"
+        "# Previous journal: /home/ayncode/Ay_python_app/scripts/openclaw_publish.sh\n"
+    )
+    disabled = updated_crontab(current, repo, enabled=False)
+    assert "15 9 * * 5" not in disabled
+    assert "58 23 * * * /home/ayncode/backup.sh" in disabled
+    assert "0 8 * * * cd /home/ayncode/other" in disabled
+    assert "# Previous journal:" in disabled
+    assert disabled.startswith("CRON_TZ=America/New_York\n")
+    assert updated_crontab(disabled, repo, enabled=False) == disabled
+
+
 def test_publisher_fails_closed_when_no_news(monkeypatch, tmp_path):
     from scripts import auto_publish
     monkeypatch.setattr(auto_publish, "parse_args", lambda: SimpleNamespace(commit=False, push=False, dry_run=True, preview_path=None))
