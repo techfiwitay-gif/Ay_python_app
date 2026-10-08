@@ -177,6 +177,12 @@ def test_public_pages_share_company_positioning(client):
     assert b"Customer support" in contact_page.data
     assert b'name="topic" required' in contact_page.data
     assert b'name="phone" required' not in contact_page.data
+    assert b"Get product-specific support" in contact_page.data
+    assert b"Common support topics" in contact_page.data
+    assert b"Replies typically arrive within 1\xe2\x80\x932 business days" in contact_page.data
+    assert b'/static/img/getreep/getreep-icon.png' in contact_page.data
+    assert b'/static/img/vocalframe-icon.png' in contact_page.data
+    assert b'contact-bg.jpg' not in contact_page.data
     assert b"Ayncode LLC" not in homepage.data.split(b"<footer>", 1)[0]
 
 

@@ -1,77 +1,163 @@
 {% set page_title = "Customer Support | AyNcode" %}
-{% set meta_description = "Get help with an AyNcode product or technical issue." %}
-{% set hero_title = "How can we help?" %}
-{% set hero_subtitle = "Get support with an AyNcode product or technical issue." %}
-{% set hero_kicker = "Customer support" %}
-{% set hero_image = url_for('static', filename='img/contact-bg.jpg') %}
-{% set compact_hero = true %}
+{% set meta_description = "Find help for Getreep, VocalFrame, account access, billing, privacy, and technical issues." %}
+{% set hide_hero = true %}
 {% include "header.html" %}
 
-<main class="container auth-layout support-layout">
-  <section class="form-shell">
-    <p class="section-kicker">Support request</p>
-    <h2>Tell us what you need help with.</h2>
-    <p class="support-intro">Share a few details and we will follow up by email.</p>
+<main class="support-page">
+  <section class="support-hero" aria-labelledby="support-title">
+    <div class="container support-hero-inner">
+      <p class="support-eyebrow">Customer support</p>
+      <h1 id="support-title">How can we help?</h1>
+      <p>Search common support topics or describe the issue you are trying to solve.</p>
 
-    {% with messages = get_flashed_messages() %}
-    {% if messages %}
-    <div class="alert alert-warning" role="alert">
-      {% for message in messages %}
-      <p>{{ message }}</p>
-      {% endfor %}
+      <form class="support-search" role="search" data-support-search>
+        <label class="sr-only" for="support-search-input">Search support topics</label>
+        <i class="fas fa-search" aria-hidden="true"></i>
+        <input id="support-search-input" type="search" placeholder="Search help or describe your issue" autocomplete="off">
+        <button type="submit">Search</button>
+      </form>
+      <p class="support-search-feedback" data-support-search-feedback aria-live="polite"></p>
+
+      <div class="support-popular" aria-label="Popular support topics">
+        <span>Popular:</span>
+        <button type="button" data-support-topic="Account access">Reset password</button>
+        <button type="button" data-support-topic="Billing and subscriptions">Billing issue</button>
+        <button type="button" data-support-topic="Technical issue">App not working</button>
+        <button type="button" data-support-topic="Privacy and data">Privacy and data</button>
+      </div>
     </div>
-    {% endif %}
-    {% endwith %}
-
-    {% if confirm: %}
-    <div class="alert alert-success" role="alert">
-      Support request sent. We will follow up by email.
-    </div>
-    {% endif %}
-
-    <form name="sentMessage" id="contactForm" action="{{ url_for('contact') }}" method="post" novalidate>
-      <div class="form-group">
-        <label for="name">Name</label>
-        <input type="text" class="form-control" placeholder="Your name" id="name" name="name" required>
-      </div>
-      <div class="form-group">
-        <label for="email">Email Address</label>
-        <input type="email" class="form-control" placeholder="you@example.com" id="email" name="email" required>
-      </div>
-      <div class="form-group">
-        <label for="topic">What can we help with?</label>
-        <select class="form-control" id="topic" name="topic" required>
-          <option value="" selected disabled>Select a support topic</option>
-          <option value="Product support">Product support</option>
-          <option value="VocalFrame">VocalFrame</option>
-          <option value="Website or journal">Website or journal</option>
-          <option value="Something else">Something else</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="message">How can we help?</label>
-        <textarea rows="6" class="form-control" placeholder="Describe what happened, what you expected, and any error message you saw." id="message" name="message" required></textarea>
-      </div>
-      <div class="form-actions form-actions--compact">
-        <button type="submit" class="btn btn-primary" id="sendMessageButton">Submit support request</button>
-      </div>
-    </form>
   </section>
 
-  <aside class="side-panel">
-    <p class="section-kicker">Faster support</p>
-    <h2>Help us understand the issue.</h2>
-    <p>Include these details when they apply:</p>
-    <ul class="contact-points">
-      <li><strong>Product and context</strong><span>Tell us which AyNcode experience you were using.</span></li>
-      <li><strong>What happened</strong><span>Share the steps you took and what you expected instead.</span></li>
-      <li><strong>Useful evidence</strong><span>Add the exact error message, device, or browser when relevant.</span></li>
-    </ul>
-    <div class="support-note">
-      <i class="fas fa-envelope" aria-hidden="true"></i>
-      <p><strong>Reply by email</strong><span>Use an address you check so we can continue the conversation.</span></p>
+  <section class="support-directory">
+    <div class="container">
+      <div class="support-section-heading support-section-heading--split">
+        <div>
+          <p class="support-eyebrow">Choose a product</p>
+          <h2>Get product-specific support.</h2>
+          <p>Select the experience you were using so we can route your request correctly.</p>
+        </div>
+        <div class="support-status" aria-label="Service updates: no active notices">
+          <span aria-hidden="true"></span>
+          <div><strong>No active service notices</strong><small>Support requests are available</small></div>
+        </div>
+      </div>
+
+      <div class="support-products" aria-label="AyNcode products">
+        <button class="support-product" type="button" data-support-topic="Getreep">
+          <img src="{{ url_for('static', filename='img/getreep/getreep-icon.png') }}" alt="" width="58" height="58">
+          <span><strong>Getreep</strong><small>Travel planning, accounts, and trip support</small></span>
+          <i class="fas fa-arrow-right" aria-hidden="true"></i>
+        </button>
+        <button class="support-product" type="button" data-support-topic="VocalFrame">
+          <img src="{{ url_for('static', filename='img/vocalframe-icon.png') }}" alt="" width="58" height="58">
+          <span><strong>VocalFrame</strong><small>Recording, scripts, videos, and coaching support</small></span>
+          <i class="fas fa-arrow-right" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <div class="support-section-heading support-quick-heading">
+        <div>
+          <p class="support-eyebrow">Quick help</p>
+          <h2>Common support topics.</h2>
+        </div>
+        <p>Choose the closest match and we will prepare the support form for you.</p>
+      </div>
+
+      <div class="support-topics" aria-label="Common support topics">
+        <button class="support-topic" type="button" data-support-topic="Account access">
+          <i class="fas fa-user-shield" aria-hidden="true"></i>
+          <span><strong>Account access</strong><small>Sign-in, password, or account recovery</small></span>
+          <i class="fas fa-chevron-right" aria-hidden="true"></i>
+        </button>
+        <button class="support-topic" type="button" data-support-topic="Billing and subscriptions">
+          <i class="fas fa-credit-card" aria-hidden="true"></i>
+          <span><strong>Billing &amp; subscriptions</strong><small>Plans, payments, purchases, or refunds</small></span>
+          <i class="fas fa-chevron-right" aria-hidden="true"></i>
+        </button>
+        <button class="support-topic" type="button" data-support-topic="Technical issue">
+          <i class="fas fa-tools" aria-hidden="true"></i>
+          <span><strong>Technical issue</strong><small>Errors, bugs, performance, or troubleshooting</small></span>
+          <i class="fas fa-chevron-right" aria-hidden="true"></i>
+        </button>
+        <button class="support-topic" type="button" data-support-topic="Privacy and data">
+          <i class="fas fa-shield-alt" aria-hidden="true"></i>
+          <span><strong>Privacy &amp; data</strong><small>Data requests, privacy, and security</small></span>
+          <i class="fas fa-chevron-right" aria-hidden="true"></i>
+        </button>
+      </div>
     </div>
-  </aside>
+  </section>
+
+  <section class="support-contact" id="contact-support" aria-labelledby="contact-support-title">
+    <div class="container support-contact-layout">
+      <div class="support-contact-copy">
+        <p class="support-eyebrow">Contact support</p>
+        <h2 id="contact-support-title">Still need help?</h2>
+        <p>Send us the details and we will continue the conversation by email.</p>
+        <div class="support-response-time">
+          <i class="fas fa-envelope" aria-hidden="true"></i>
+          <p><strong>Replies typically arrive within 1–2 business days.</strong><span>Complex technical issues may take longer to investigate.</span></p>
+        </div>
+      </div>
+
+      <div class="support-form-wrap">
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="alert alert-warning" role="alert">
+          {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% if confirm %}
+        <div class="alert alert-success" role="status">
+          Support request sent. We will follow up by email.
+        </div>
+        {% endif %}
+
+        <form name="sentMessage" id="contactForm" action="{{ url_for('contact') }}" method="post">
+          <div class="support-form-grid">
+            <div class="form-group">
+              <label for="topic">Product or topic</label>
+              {% set selected_topic = request.form.get('topic', '') %}
+              <select class="form-control" id="topic" name="topic" required>
+                <option value="" {% if not selected_topic %}selected{% endif %} disabled>Select a product or topic</option>
+                {% for value, label in [
+                  ('Getreep', 'Getreep'),
+                  ('VocalFrame', 'VocalFrame'),
+                  ('Account access', 'Account access'),
+                  ('Billing and subscriptions', 'Billing & subscriptions'),
+                  ('Technical issue', 'Technical issue'),
+                  ('Privacy and data', 'Privacy & data'),
+                  ('Website or journal', 'Website or journal'),
+                  ('Something else', 'Something else')
+                ] %}
+                <option value="{{ value }}" {% if selected_topic == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="email">Email address</label>
+              <input type="email" class="form-control" placeholder="you@example.com" id="email" name="email" value="{{ request.form.get('email', '') }}" autocomplete="email" required>
+            </div>
+            <div class="form-group support-form-name">
+              <label for="name">Name</label>
+              <input type="text" class="form-control" placeholder="Your name" id="name" name="name" value="{{ request.form.get('name', '') }}" autocomplete="name" required>
+            </div>
+            <div class="form-group support-form-message">
+              <label for="message">What happened?</label>
+              <textarea rows="5" class="form-control" placeholder="Describe what happened, what you expected, and any error message you saw." id="message" name="message" required>{{ request.form.get('message', '') }}</textarea>
+            </div>
+          </div>
+          <div class="support-form-footer">
+            <p>Do not include passwords, API keys, or payment details.</p>
+            <button type="submit" class="btn btn-primary" id="sendMessageButton">Contact support</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
 </main>
 
+<script src="{{ url_for('static', filename='js/support.js') }}" defer></script>
 {% include "footer.html" %}
