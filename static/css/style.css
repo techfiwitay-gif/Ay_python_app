@@ -3300,19 +3300,6 @@ footer {
     width: 100%;
 }
 
-.company-founder-portrait p {
-    color: #315875;
-    font-family: Consolas, "Courier New", monospace;
-    font-size: 0.76rem;
-    letter-spacing: 0.1em;
-    line-height: 1.65;
-    margin: 0;
-    position: absolute;
-    right: 1.5rem;
-    text-transform: uppercase;
-    top: 3rem;
-}
-
 .company-home-cta {
     background: #07111f;
     border-bottom: 1px solid #213142;
