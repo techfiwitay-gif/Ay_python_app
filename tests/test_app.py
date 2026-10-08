@@ -80,8 +80,8 @@ def login(client, email="admin@example.com", password="password123"):
     )
 
 
-def test_homepage_shows_empty_state(client):
-    response = client.get("/")
+def test_journal_shows_empty_state(client):
+    response = client.get("/journal")
 
     assert response.status_code == 200
     assert b"The journal is ready" in response.data
@@ -94,7 +94,7 @@ def test_adsense_verification_is_available_sitewide(client):
         b"client=ca-pub-8752752499271631"
     )
 
-    for path in ("/", "/products", "/about", "/contact", "/archive"):
+    for path in ("/", "/journal", "/products", "/about", "/contact", "/archive"):
         response = client.get(path)
         assert response.status_code == 200
         assert adsense_script in response.data
@@ -116,7 +116,7 @@ def test_journal_posts_archive_after_three_weeks(client, app_module):
         archived_post.published_at = (reference_time - timedelta(days=22)).strftime("%B %d, %Y %I:%M %p")
         app_module.db.session.commit()
 
-    homepage = client.get("/")
+    homepage = client.get("/journal")
     archive = client.get("/archive")
 
     assert b"Still Current" in homepage.data
@@ -169,9 +169,11 @@ def test_public_pages_share_company_positioning(client):
     products_page = client.get("/products")
     contact_page = client.get("/contact")
 
-    assert b"founder-led technology studio" in homepage.data.lower()
-    assert b"AI software, automation, and digital products" in homepage.data
-    assert b"About AyNcode" in about_page.data
+    assert b"Software" in homepage.data
+    assert b"for real work" in homepage.data
+    assert b"Founder-led product studio" in homepage.data
+    assert b"Built with judgment" in homepage.data
+    assert b"Software" in about_page.data
     assert b"Software that makes complex things feel simple" in products_page.data
     assert b"How can we help?" in contact_page.data
     assert b"Customer support" in contact_page.data
@@ -193,13 +195,13 @@ def test_navigation_order_and_private_actions(app_module, client):
         nav = response.data.decode().split('<ul class="navbar-nav">', 1)[1].split('</ul>', 1)[0]
         return re.findall(r'>(Company|Products|Journal|Support|Admin|Log Out)</(?:a|button)>', nav), nav
 
-    public_labels, public_nav = nav_labels(client.get('/about'))
+    public_labels, public_nav = nav_labels(client.get('/'))
     assert public_labels == ['Company', 'Products', 'Journal', 'Support']
-    assert 'aria-current="page" href="/about"' in public_nav
+    assert 'aria-current="page" href="/"' in public_nav
     with app_module.app.app_context():
         create_user(app_module, role='admin')
     login(client)
-    private_labels, private_nav = nav_labels(client.get('/about'))
+    private_labels, private_nav = nav_labels(client.get('/'))
     assert private_labels == ['Company', 'Products', 'Journal', 'Support', 'Admin', 'Log Out']
     assert 'method="post" action="/logout"' in private_nav
 
@@ -489,13 +491,13 @@ def test_researched_article_uses_source_specific_context(client, app_module):
     assert "latest AI oversight headline" not in subtitle
 
 
-def test_homepage_search_filters_posts(client, app_module):
+def test_journal_search_filters_posts(client, app_module):
     with app_module.app.app_context():
         author = create_user(app_module)
         create_post(app_module, author, title="Flask Search")
         create_post(app_module, author, title="Deployment Notes", body="<p>Shipping notes.</p>")
 
-    response = client.get("/?q=search")
+    response = client.get("/journal?q=search")
 
     assert response.status_code == 200
     assert b"Search results for" in response.data

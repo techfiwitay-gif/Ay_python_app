@@ -1325,8 +1325,7 @@ def account_context():
     }
 
 
-@app.route('/')
-
+@app.route('/journal')
 def get_all_posts():
     query = request.args.get("q", "").strip()
     posts_query = BlogPost.query
@@ -1515,6 +1514,11 @@ def show_post(post_id):
 @app.route('/ayncode')
 def openclaw():
     return redirect(url_for('products'), code=301)
+
+@app.route('/')
+def company():
+    return render_template("about.html", logged_in=current_user.is_authenticated)
+
 
 @app.route('/about')
 def about():

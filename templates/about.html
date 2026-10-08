@@ -1,49 +1,97 @@
-{% set page_title = "About | AyNcode" %}
-{% set hero_title = "About AyNcode" %}
-{% set hero_subtitle = "A founder-led technology studio building useful software for the way work is changing." %}
-{% set hero_kicker = "Company" %}
-{% set hero_image = url_for('static', filename='img/about-bg.jpg') %}
-{% set compact_hero = true %}
+{% set page_title = "AyNcode | Software for real work" %}
+{% set meta_description = "AyNcode is a founder-led product studio building focused AI software, automation, and digital tools for real work." %}
+{% set hide_hero = true %}
 {% include "header.html" %}
 
-<main class="container page-stack">
-  <section class="split-panel">
-    <div>
-      <p class="section-kicker">Our point of view</p>
-      <h2>Useful technology starts with a real problem.</h2>
+<main class="company-home">
+  <section class="company-home-hero" aria-labelledby="company-home-title">
+    <div class="container company-home-hero-grid">
+      <div class="company-home-copy">
+        <p class="company-home-kicker">Founder-led product studio</p>
+        <h1 id="company-home-title">Software<br>for real work<span>.</span></h1>
+        <p class="company-home-lede">AyNcode builds focused AI software, automation, and digital tools around problems worth solving.</p>
+        <div class="company-home-actions">
+          <a class="btn btn-primary" href="{{ url_for('products') }}">Explore products <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+          <a class="btn btn-hero-secondary" href="{{ url_for('get_all_posts') }}">Read the journal</a>
+        </div>
+      </div>
+
+      <div class="company-console" aria-label="AyNcode product approach">
+        <div class="company-console-bar">
+          <span aria-hidden="true"><i></i><i></i><i></i></span>
+          <small>Build a more useful tomorrow</small>
+        </div>
+        <div class="company-console-body">
+          <div class="company-console-steps" aria-hidden="true">
+            <p><span>&gt;</span> define(problem)</p>
+            <p><span>&gt;</span> design(solution)</p>
+            <p><span>&gt;</span> build(with_judgment)</p>
+            <p><span>&gt;</span> ship(real_value)<b></b></p>
+            <p><span>&gt;</span> repeat()</p>
+          </div>
+          <div class="company-console-focus">
+            <i></i><span>AI</span><span>Automation</span><span>Software</span><span>Real work</span>
+          </div>
+        </div>
+        <div class="company-console-footer" aria-hidden="true">
+          <span>People</span><i></i><span>Problems</span><i></i><span>Useful software</span><b></b>
+        </div>
+      </div>
     </div>
-    <div class="prose-block">
-      <p>AyNcode is operated by founder Ayotunde Oyeniyi. The studio builds AI-enabled software, automation systems, and digital products that make complex work clearer, faster, or more human.</p>
-      <p>We favor focused products over vague technology promises: understand the job, build the smallest useful system, learn from real use, and improve with intent.</p>
+
+    <div class="container company-product-strip" aria-label="Shipped AyNcode products">
+      <p>Shipped<br>products</p>
+      <a href="{{ url_for('getreep') }}">
+        <img src="{{ url_for('static', filename='img/getreep/getreep-app-icon-v205.png') }}" alt="" width="38" height="38">
+        <strong>Getreep</strong><span>Plan and organize an entire trip.</span>
+      </a>
+      <a href="{{ url_for('vocalframe') }}">
+        <img src="{{ url_for('static', filename='img/vocalframe-app-icon-v205.png') }}" alt="" width="38" height="38">
+        <strong>VocalFrame</strong><span>Practice speaking with useful feedback.</span>
+      </a>
+      <p>Real tools.<br>Real work.</p>
     </div>
   </section>
 
-  <section class="value-grid">
-    <article>
-      <i class="fas fa-code"></i>
-      <h3>Build useful software</h3>
-      <p>Turn strong ideas into reliable products with a clear purpose and a thoughtful interface.</p>
-    </article>
-    <article>
-      <i class="fas fa-bolt"></i>
-      <h3>Automate real work</h3>
-      <p>Use AI and connected workflows to reduce friction without losing human judgment.</p>
-    </article>
-    <article>
-      <i class="fas fa-signal"></i>
-      <h3>Share the thinking</h3>
-      <p>Publish practical product and technology analysis for builders making consequential decisions.</p>
-    </article>
+  <section class="company-approach" aria-labelledby="company-approach-title">
+    <div class="container">
+      <div class="company-approach-heading">
+        <div>
+          <p class="company-home-kicker">Our approach</p>
+          <h2 id="company-approach-title">We build where complexity gets in the way.</h2>
+        </div>
+        <p>We turn real problems into useful software by combining product judgment, AI, and automation. Less complexity. More progress.</p>
+      </div>
+      <div class="company-capabilities">
+        <article><span>01</span><i class="fas fa-code" aria-hidden="true"></i><h3>Product software</h3><p>Focused tools with a clear purpose and a thoughtful interface.</p></article>
+        <article><span>02</span><i class="fas fa-brain" aria-hidden="true"></i><h3>Applied AI</h3><p>Intelligence used where it creates value, not where it creates noise.</p></article>
+        <article><span>03</span><i class="fas fa-cog" aria-hidden="true"></i><h3>Automation</h3><p>Reliable systems that reduce repetitive work while preserving judgment.</p></article>
+      </div>
+    </div>
   </section>
 
-  <section class="company-cta">
-    <div>
-      <p class="section-kicker">Founder-led, product-minded</p>
-      <h2>Small enough to move quickly. Serious enough to build for the long term.</h2>
+  <section class="company-founder" aria-labelledby="company-founder-title">
+    <div class="container company-founder-grid">
+      <div class="company-founder-copy">
+        <p class="company-home-kicker">Founder</p>
+        <h2 id="company-founder-title">Built with judgment,<br>not hype.</h2>
+        <p>AyNcode is operated by founder Ayotunde Oyeniyi. We understand the real job, build the smallest useful solution, and choose technology that serves the outcome, not the other way around.</p>
+        <strong>Ayotunde Oyeniyi</strong><span>Founder, AyNcode</span>
+      </div>
+      <div class="company-founder-portrait">
+        <img src="{{ url_for('static', filename='img/ayotunde-article-base.png') }}" alt="Ayotunde Oyeniyi, founder of AyNcode">
+        <p>Same problems.<br>A more useful tomorrow.</p>
+      </div>
     </div>
-    <div class="button-row">
-      <a class="btn btn-primary" href="{{ url_for('products') }}">See the products</a>
-      <a class="btn btn-secondary" href="{{ url_for('contact') }}">Start a conversation</a>
+  </section>
+
+  <section class="company-home-cta">
+    <div class="container company-home-cta-inner">
+      <div><p class="company-home-kicker">Founder-led, product-minded</p><h2>Small enough to move quickly.<br>Serious enough to build for the long term.</h2></div>
+      <div class="company-home-actions">
+        <a class="btn btn-primary" href="{{ url_for('products') }}">Explore products <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+        <a class="btn btn-hero-secondary" href="{{ url_for('contact') }}">Start a conversation</a>
+      </div>
     </div>
   </section>
 </main>

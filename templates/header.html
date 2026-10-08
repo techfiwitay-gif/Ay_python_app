@@ -34,7 +34,7 @@
 
   <nav class="navbar">
     <div class="navbar-container">
-      <a class="navbar-brand" href="{{ url_for('get_all_posts') }}">
+      <a class="navbar-brand" href="{{ url_for('company') }}">
         <img
           class="brand-mark"
           src="{{ url_for('static', filename='img/android-chrome-192.png') }}"
@@ -47,13 +47,13 @@
       </a>
       <ul class="navbar-nav">
         <li class="nav-item">
-          <a class="nav-link{% if current_path == '/about' %} is-active{% endif %}"{% if current_path == '/about' %} aria-current="page"{% endif %} href="{{ url_for('about') }}">Company</a>
+          <a class="nav-link{% if current_path in ['/', '/about'] %} is-active{% endif %}"{% if current_path in ['/', '/about'] %} aria-current="page"{% endif %} href="{{ url_for('company') }}">Company</a>
         </li>
         <li class="nav-item">
           <a class="nav-link{% if current_path in ['/products', '/vocalframe', '/getreep'] %} is-active{% endif %}"{% if current_path in ['/products', '/vocalframe', '/getreep'] %} aria-current="page"{% endif %} href="{{ url_for('products') }}">Products</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link{% if current_path in ['/', '/archive'] or current_path.startswith('/post/') %} is-active{% endif %}"{% if current_path in ['/', '/archive'] or current_path.startswith('/post/') %} aria-current="page"{% endif %} href="{{ url_for('get_all_posts') }}#journal">Journal</a>
+          <a class="nav-link{% if current_path in ['/journal', '/archive'] or current_path.startswith('/post/') %} is-active{% endif %}"{% if current_path in ['/journal', '/archive'] or current_path.startswith('/post/') %} aria-current="page"{% endif %} href="{{ url_for('get_all_posts') }}#journal">Journal</a>
         </li>
         <li class="nav-item">
           <a class="nav-link{% if current_path == '/contact' %} is-active{% endif %}"{% if current_path == '/contact' %} aria-current="page"{% endif %} href="{{ url_for('contact') }}">Support</a>
