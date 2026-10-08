@@ -1,19 +1,31 @@
-name: Friday Article Auto Publish
+name: Journal Publisher Manual Check
 
 on:
-  schedule:
-    # 9:15 AM EDT / 8:15 AM EST every Friday. GitHub cron uses UTC.
-    - cron: '15 13 * * 5'
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish after review (otherwise dry run only). OpenAI API secret required for this optional runner.'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
+# The authoritative Friday schedule runs OpenClaw on the owner's WSL host.
+# Do not schedule a second independent publisher on GitHub.
+concurrency:
+  group: journal-publisher
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DATABASE_URL: 'sqlite:///:memory:'
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      AUTO_POST_EDITORIAL_BACKEND: 'openai'
+      AUTO_POST_OPENAI_MODEL: ${{ vars.AUTO_POST_OPENAI_MODEL || 'gpt-6-luna' }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       AUTO_POST_TOPIC: ${{ vars.AUTO_POST_TOPIC || 'AI tech news' }}
       AUTO_POST_AUDIENCE: ${{ vars.AUTO_POST_AUDIENCE || 'founders' }}
@@ -32,7 +44,7 @@ jobs:
       AUTO_POST_MODE: ${{ vars.AUTO_POST_MODE || 'skip' }}
       AUTO_POST_USE_GENERATOR_COMMAND: "false"
       AUTO_POST_DYNAMIC_TOPIC: "true"
-      AUTO_POST_REQUIRE_GENERATOR: "false"
+      AUTO_POST_REQUIRE_GENERATOR: "true"
       AUTO_POST_USE_IMAGE_GENERATION: "false"
       GIT_AUTHOR_NAME: AyNcode Bot
       GIT_AUTHOR_EMAIL: ayncode-bot@example.com
@@ -50,5 +62,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install .
 
-      - name: Generate and publish Friday article
+      - name: Review without publishing
+        if: ${{ !inputs.publish }}
+        run: python scripts/auto_publish.py --dry-run
+
+      - name: Generate and publish reviewed article
+        if: ${{ inputs.publish }}
         run: python scripts/auto_publish.py --commit --push

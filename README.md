@@ -2,72 +2,74 @@
 
 AyNcode is a Flask publishing site for practical writing by Ayotunde Oyeniyi.
 
-## Auto-publish articles from OpenClaw
+## Friday Journal Publisher
 
-The repo is set up so an automation runner can generate a real-event article, save it into the repo, commit it, push it to GitHub, and let Vercel redeploy from that push.
+The authoritative publisher runs on the owner's WSL host using OpenClaw's
+existing authenticated model. No separate OpenAI API key is required for this
+path. Keep the host running and OpenClaw authenticated.
 
-Use this command from an OpenClaw cron job:
+Install or repair only the journal crontab entry, Friday at 9:15 AM
+America/New_York, including daylight-saving changes:
 
 ```bash
 cd /home/ayncode/Ay_python_app
+python3 scripts/configure_journal_cron.py --install
+bash scripts/openclaw_publish.sh --dry-run --preview-path /tmp/ayncode-preview.json
+# The live scheduled command:
 bash scripts/openclaw_publish.sh
 ```
 
-The wrapper will:
-- pull the latest `main`
-- create/use a local `.venv`
-- install/update Python dependencies inside that `.venv`
-- generate or update today's article in `content/generated_posts.json`
-- commit the content change
-- push it to GitHub
-- let Vercel redeploy from the push
+Other cron jobs are preserved. The previous crontab is backed up under
+`.git/cron-backups/`. Do not enable a second GitHub scheduled publisher.
 
-Recommended environment variables for the OpenClaw cron job:
+The wrapper pulls main with --ff-only, locks overlapping runs, loads the current
+NVM Node version, and installs Python dependencies in .venv. It uses an
+in-memory database, not the website database or its local schema migrations.
+
+The reviewed pipeline:
+1. Select a credible technology story from the past week (up to two weeks in
+   the discovery fallback).
+2. Ask OpenClaw to research the exact story, then fetch readable source pages.
+   A headline or news-feed snippet is not enough evidence.
+3. Write an original, source-linked article explaining the mechanism, limits,
+   and a useful decision or worked example.
+4. Validate structure, source links, safe HTML and boilerplate rules. Perform
+   a separate evidence/usefulness review, allowing at most one revision.
+5. Prefer the exact publisher page's artwork, then a licensed Commons image.
+   Inspect actual pixels for relevance and include attribution. Reject
+   misleading namesake, chip, office or data-center substitutions.
+6. Save, commit and push only after every check passes. A main push triggers
+   the linked Vercel deployment; verify deployment independently.
+
+Research, authentication, model, quality or image failures stop publication
+with a nonzero exit code. No template or generic-image fallback is permitted
+in the scheduled flow. Logs: `logs/openclaw_publish.log`. Model judgments can
+still be wrong, so these checks improve reliability rather than guarantee it.
+
+`AUTO_POST_MODE=skip` prevents another article on the same date. Dry runs never
+save repo content, commit or push. Review their JSON preview locally.
+`AUTO_POST_MODE=update` is an explicit override; article identities still depend
+on generated titles.
+
+Settings: `AUTO_POST_EVENT_HOURS=168`, `AUTO_POST_FALLBACK_EVENT_HOURS=336`,
+`AUTO_POST_REQUIRE_GENERATOR=true`, `AUTO_POST_EDITORIAL_BACKEND=openclaw`.
+Leave `OPENCLAW_ARTICLE_MODEL` unset to use OpenClaw's configured model, or supply
+a valid configured provider/model. Each call gets a separate session.
+
+## Optional GitHub Manual Runner
+
+`.github/workflows/daily-blog.yml` is manual-only, dry-run by default. It uses
+the direct OpenAI Responses API backend and requires the GitHub repository
+secret `OPENAI_API_KEY`. `AUTO_POST_OPENAI_MODEL` defaults to `gpt-6-luna`.
+This is an alternative diagnostic runner, not the OpenClaw Friday schedule.
+Never commit credentials or .env files.
+
+## Content and Checks
+
+Reviewed articles are saved in `content/generated_posts.json` and imported by
+the website. Existing articles retain their stored titles and dates.
+Articles are archived after 28 days.
 
 ```bash
-AUTO_POST_TOPIC="AI tech news"
-AUTO_POST_AUDIENCE="founders"
-AUTO_POST_ANGLE="Keep the article tightly tied to a recent AI-heavy tech news topic, make the title distinct from prior posts, and focus on practical implications for builders, founders, and operators."
-AUTO_POST_USE_REAL_EVENTS="true"
-AUTO_POST_EVENT_QUERY="artificial intelligence OR AI OR OpenAI OR Anthropic OR Google DeepMind OR Microsoft AI OR Nvidia OR robotics OR chips OR developer tools OR cloud software"
-AUTO_POST_EVENT_HOURS="24"
-AUTO_POST_USE_GENERATOR_COMMAND="true"
-AUTO_POST_GENERATOR_COMMAND=".venv/bin/python scripts/openclaw_codex_article_generator.py"
-AUTO_POST_REQUIRE_GENERATOR="true"
-AUTO_POST_DYNAMIC_TOPIC="true"
-AUTO_POST_MODE="skip"
-AUTO_POST_BRANCH="main"
+python -m pytest -q
 ```
-
-`AUTO_POST_MODE=skip` creates one article per topic per day. Use `AUTO_POST_MODE=update` if you want the cron job to replace today's generated article when it runs again.
-
-The publish wrapper sets `AUTO_POST_GENERATOR_COMMAND` to `.venv/bin/python scripts/openclaw_codex_article_generator.py` by default, so Linux cron hosts do not need a bare `python` command. The publisher sends that command JSON on stdin with the topic, audience, angle, 24-hour news events, and writing instructions. The command must print JSON to stdout in this shape:
-
-```json
-{
-  "title": "Article title",
-  "subtitle": "One sentence subtitle.",
-  "body": "<p>Article body as clean HTML.</p>"
-}
-```
-
-For OpenClaw cron, `AUTO_POST_REQUIRE_GENERATOR=true` prevents publishing a fallback template article when Codex fails. `AUTO_POST_DYNAMIC_TOPIC=true` lets the publisher choose from recent headlines instead of reusing one fixed subject. The default wrapper now biases strongly toward AI-heavy tech news so titles stay in the AI lane while varying day to day.
-
-Generated posts are stored in `content/generated_posts.json`. On Vercel startup, the app imports any posts from that file that are not already in the database.
-
-## GitHub Actions
-
-The included workflow at `.github/workflows/daily-blog.yml` can also generate, commit, and push daily posts. A push to `main` should trigger Vercel deployment if the Vercel project is connected to this GitHub repo.
-
-
-## ComfyUI-ready article images
-
-The generator now supports `image_prompt` output and an optional OpenClaw-native image generation step. Enable it with:
-
-```bash
-AUTO_POST_USE_IMAGE_GENERATION="true"
-AUTO_POST_IMAGE_MODEL="comfy/workflow"
-AUTO_POST_IMAGE_ASPECT_RATIO="16:9"
-```
-
-When a configured image provider is available, the publish flow will save a generated article image to `static/generated/<slug>.png` and store that file path in `img_url`. If generation is unavailable, the app falls back to the topic SVG cover.

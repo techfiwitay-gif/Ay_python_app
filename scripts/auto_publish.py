@@ -12,6 +12,8 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+# This content publisher does not need a database or website schema migrations.
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
@@ -841,6 +843,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate a real-event blog post into repo-tracked content.")
     parser.add_argument("--commit", action="store_true", help="Commit the generated content file when it changes.")
     parser.add_argument("--push", action="store_true", help="Push after committing. This also enables --commit.")
+    parser.add_argument("--dry-run", action="store_true", help="Research and review without saving or publishing content.")
+    parser.add_argument("--preview-path", type=Path, help="Save the reviewed dry-run article as a local JSON preview.")
     return parser.parse_args()
 
 
@@ -857,7 +861,7 @@ def main() -> int:
     event_query = env_str("AUTO_POST_EVENT_QUERY", topic)
     mode = env_str("AUTO_POST_MODE", "skip").lower()
     use_generator_command = env_bool("AUTO_POST_USE_GENERATOR_COMMAND", True)
-    require_generator = env_bool("AUTO_POST_REQUIRE_GENERATOR", False)
+    require_generator = env_bool("AUTO_POST_REQUIRE_GENERATOR", True)
     enforce_quality = env_bool("AUTO_POST_ENFORCE_QUALITY", True)
     should_commit = args.commit or args.push or env_bool("AUTO_POST_GIT_COMMIT", False)
     should_push = args.push or env_bool("AUTO_POST_GIT_PUSH", False)
@@ -871,6 +875,10 @@ def main() -> int:
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"Could not load {CONTENT_POSTS_PATH}: {exc}", file=sys.stderr)
         return 3
+
+    if mode == "skip" and not args.dry_run and any(post.get("date") == date.today().strftime("%B %d, %Y") for post in posts):
+        print("A journal article already exists for today; skipping before model work.")
+        return 0
 
     events = []
     if use_real_events:
@@ -892,7 +900,7 @@ def main() -> int:
                 if candidate_topics_from_events(fallback_events, existing_posts=posts):
                     print("Using targeted fallback event search for credibility or topic diversity.")
                     events = fallback_events
-            if env_bool("AUTO_POST_RESEARCH_EVENTS", True):
+            if not require_generator and env_bool("AUTO_POST_RESEARCH_EVENTS", True):
                 events = enrich_events_with_research(events, limit=research_limit)
         except Exception as exc:
             print(f"Warning: could not fetch live events: {exc}")
@@ -902,17 +910,40 @@ def main() -> int:
         use_real_events
         and env_bool("AUTO_POST_DYNAMIC_TOPIC", True)
         and env_bool("AUTO_POST_REQUIRE_CREDIBLE_EVENT", True)
-        and events
         and topic_for_generation == topic
     )
     if no_credible_event:
+        if require_generator:
+            print("No credible new story found. Publication stopped, not replaced with filler.", file=sys.stderr)
+            return 5
         print("No credible live event candidate found; using the configured weekly topic fallback.")
 
     focused_events = [] if no_credible_event else events_for_topic(topic_for_generation, events)
     used_generator = False
     image_prompt = f"Editorial technology illustration about {topic_for_generation}, clean modern composition, premium lighting, no text overlays."
     image_query = topic_for_generation
-    if use_generator_command:
+    searched_image = {}
+    editorial_metadata = {}
+    if require_generator:
+        from scripts.editorial_pipeline import configured_editor, research_story, write_story, select_image, image_attribution
+        try:
+            editor = configured_editor()
+            sources = research_story(editor, topic_for_generation, focused_events)
+            article = write_story(editor, topic_for_generation, audience, angle, sources, validate_article_quality)
+            searched_image = select_image(editor, topic_for_generation, article, sources,
+                                          find_wikimedia_header_image, posts, override=img_url)
+            generated_title, subtitle, body = article["title"], article["subtitle"], article["body"]
+            image_prompt, image_query = article["image_prompt"], article["image_query"]
+            body += image_attribution(searched_image)
+            focused_events = sources
+            used_generator = True
+            editorial_metadata = {"model": editor.model, "sources": [s["link"] for s in sources],
+                                  "usage": editor.usage, "image_review": searched_image.get("review_reason", "")}
+            print("Article passed fetched-source, editorial, HTML and image relevance review.")
+        except Exception as exc:
+            print(f"Editorial publishing stopped: {exc}", file=sys.stderr)
+            return 5
+    elif use_generator_command:
         try:
             generated_title, subtitle, body, image_prompt, image_query = generate_article_with_command(topic_for_generation, audience, angle, focused_events)
             print("Generated article with external generator command.")
@@ -928,7 +959,7 @@ def main() -> int:
         with app.app_context():
             generated_title, subtitle, body = generate_article(topic_for_generation, audience, angle, events=focused_events)
 
-    if enforce_quality:
+    if enforce_quality and not require_generator:
         issues = article_quality_issues(generated_title, subtitle, body, focused_events)
         if issues:
             print("Primary article missed the quality gate: " + "; ".join(issues), file=sys.stderr)
@@ -952,8 +983,9 @@ def main() -> int:
     final_title = build_today_title(title_source)
     published_at = datetime.now().strftime("%B %d, %Y %I:%M %p")
 
-    searched_image = find_topic_header_image(topic_for_generation, image_query, focused_events, existing_posts=posts) if not img_url else {}
-    real_image_url = img_url or searched_image.get("url")
+    if not require_generator:
+        searched_image = find_topic_header_image(topic_for_generation, image_query, focused_events, existing_posts=posts) if not img_url else {}
+    real_image_url = searched_image.get("url") or img_url
     if not real_image_url:
         real_image_url = env_str("AUTO_POST_FALLBACK_IMAGE_URL", DEFAULT_FALLBACK_IMAGE_URL)
         print(f"No suitable source image was found; using bundled fallback: {real_image_url}")
@@ -974,7 +1006,15 @@ def main() -> int:
         "image_source_url": searched_image.get("source_url", ""),
         "image_credit": searched_image.get("credit", ""),
         "body": body,
+        "editorial_review": editorial_metadata,
     }
+
+    if args.dry_run:
+        if args.preview_path:
+            args.preview_path.parent.mkdir(parents=True, exist_ok=True)
+            args.preview_path.write_text(json.dumps(new_post, indent=2, ensure_ascii=True), encoding="utf-8")
+        print(f"Dry run complete: {final_title}. No content changed, committed, or pushed.")
+        return 0
 
     existing_index = next(
         (

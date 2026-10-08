@@ -273,10 +273,12 @@ def test_article_quality_rejects_old_editorial_boilerplate():
     assert any("generic/template phrase" in issue for issue in issues)
 
 
-def test_friday_workflow_has_weekly_window_and_fallbacks():
+def test_optional_workflow_has_weekly_window_and_no_duplicate_schedule():
     workflow = (Path(__file__).resolve().parents[1] / ".github" / "workflows" / "daily-blog.yml").read_text(encoding="utf-8")
 
-    assert "cron: '15 13 * * 5'" in workflow
+    assert "schedule:" not in workflow
+    assert 'AUTO_POST_REQUIRE_GENERATOR: "true"' in workflow
+    assert "python scripts/auto_publish.py --dry-run" in workflow
     assert "AUTO_POST_EVENT_HOURS: ${{ vars.AUTO_POST_EVENT_HOURS || '168' }}" in workflow
     assert "AUTO_POST_FALLBACK_EVENT_HOURS: ${{ vars.AUTO_POST_FALLBACK_EVENT_HOURS || '336' }}" in workflow
     assert "python scripts/auto_publish.py --commit --push" in workflow

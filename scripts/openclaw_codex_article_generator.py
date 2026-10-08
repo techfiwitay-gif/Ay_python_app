@@ -8,7 +8,7 @@ from typing import Any
 
 DEFAULT_MODEL = "openai-codex/gpt-5.4"
 DEFAULT_OPENCLAW_AGENT = "main"
-TEXT_KEYS = ("output_text", "text", "content", "message", "completion", "response", "result", "stdout", "value")
+TEXT_KEYS = ("output_text", "final", "text", "content", "message", "completion", "response", "result", "stdout", "value")
 PRIORITY_CONTAINER_KEYS = ("outputs", "output", "data", "choices", "messages", "message", "result", "response")
 
 
