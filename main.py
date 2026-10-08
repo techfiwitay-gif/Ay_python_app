@@ -83,7 +83,7 @@ GETREEP_APP_STORE_URL = "https://apps.apple.com/us/app/getreep/id6799787039"
 GETREEP_GOOGLE_OAUTH_UPSTREAM = "https://ccitgqgjaktzpydqjulm.supabase.co/functions/v1/email-oauth-callback"
 GETREEP_EMAIL_RETURN = "waypoint://email-accounts"
 PASSWORD_RESET_SALT = "ayncoder-password-reset"
-ARTICLE_ARCHIVE_AGE_DAYS = 21
+ARTICLE_ARCHIVE_AGE_DAYS = 28
 ADSENSE_PUBLISHER_ID = "pub-8752752499271631"
 LOGIN_WINDOW = timedelta(minutes=15)
 LOGIN_LOCK_TIME = timedelta(minutes=15)
@@ -1104,62 +1104,149 @@ def render_research_context(events):
 """.strip()
 
 
+def editorial_title_for_topic(topic):
+    clean_topic = re.sub(r"\s+", " ", topic).strip().rstrip(".:- ")
+    topic_lower = clean_topic.casefold()
+    if len(clean_topic) > 92:
+        return clean_topic
+    if clean_topic.casefold().startswith("introducing "):
+        suffix = "What Changed and Where It Fits"
+    elif any(term in topic_lower for term in ("lawsuit", "court", "regulation", "antitrust", "copyright", "policy")):
+        suffix = "The Product Questions Behind the Story"
+    elif any(term in topic_lower for term in ("research", "conjecture", "study", "benchmark", "model result")):
+        suffix = "What the Result Actually Changes"
+    elif any(term in topic_lower for term in ("revenue", "funding", "acquisition", "billion", "market")):
+        suffix = "What the Business Case Needs to Prove"
+    else:
+        suffix = "What Changed and What to Measure"
+    return f"{clean_topic}: {suffix}"
+
+
+def practical_framework_for_topic(topic):
+    topic_lower = topic.casefold()
+    if any(term in topic_lower for term in ("lawsuit", "court", "regulation", "antitrust", "copyright", "policy")):
+        return {
+            "heading": "The product decisions this should change",
+            "intro": "The useful response is a tighter product and data review, not a broad prediction about the entire AI market.",
+            "items": [
+                ("Data provenance", "Document where training, retrieval, and customer-provided material comes from, including the rights attached to it."),
+                ("Contract exposure", "Check whether vendor terms, indemnities, and customer promises match the way the product actually uses third-party content."),
+                ("Product controls", "Keep logs, deletion paths, and human review points strong enough to investigate a disputed output without guessing."),
+            ],
+            "method": "Map the product's data flow from ingestion to output, assign an owner to each legal or policy assumption, and record the evidence supporting that assumption. Review the map again whenever a vendor, model, data source, or customer promise changes.",
+            "positioning": "Useful customer communication should name the control and its limit. A documented deletion path or review process is more credible than a broad claim that the product is responsible or enterprise ready.",
+            "proof": "The next useful evidence will be a court order, settlement term, policy change, or revised product practice that changes what teams can actually ship.",
+        }
+    if any(term in topic_lower for term in ("introducing", "launch", "release", "model", "gpt", "agent", "copilot")):
+        return {
+            "heading": "A practical evaluation checklist",
+            "intro": "A launch is useful only when it improves a named job under real operating conditions.",
+            "items": [
+                ("Capability fit", "Test the release against one existing workflow and a fixed set of representative inputs, not an open-ended demo."),
+                ("Migration cost", "Count prompt changes, evaluation work, latency, integration changes, and fallback behavior before treating an upgrade as free."),
+                ("Evidence", "Define the result that would justify adoption, such as fewer corrections, faster completion, or a measurable quality gain."),
+            ],
+            "method": "Build a fixed evaluation set from 20 to 50 real examples, record the current baseline, and compare quality, latency, cost, and failure rate before changing production traffic. Keep rollback criteria explicit so a launch does not become an irreversible migration.",
+            "positioning": "Product marketing should show the before-and-after result on a named task and disclose the conditions of the test. Capability language without a baseline gives buyers nothing concrete to evaluate.",
+            "proof": "The strongest follow-up will be repeatable performance on real tasks, published limitations, and evidence that the improvement survives outside a launch demo.",
+        }
+    if any(term in topic_lower for term in ("research", "conjecture", "study", "benchmark", "geometry")):
+        return {
+            "heading": "How to separate research value from product value",
+            "intro": "A research result can be important without being ready for a production workflow.",
+            "items": [
+                ("Reproducibility", "Look for independent verification, a clear method, and enough detail to understand where the result is reliable."),
+                ("Product boundary", "Identify the specific task the result improves instead of stretching it into a claim about general capability."),
+                ("Human review", "Decide which outputs still need expert validation and what evidence a reviewer needs to approve them."),
+            ],
+            "method": "Reproduce the reported method on a small independent sample, document where performance breaks, and separate the research contribution from any product claim built on top of it. A result that cannot be inspected should not become an automated decision.",
+            "positioning": "A credible explanation distinguishes what the research established, what remains uncertain, and which practical use case is being tested next. That precision is more persuasive than presenting a research result as immediate product readiness.",
+            "proof": "Useful follow-up evidence would connect the result to repeatable performance, clear failure modes, and a task that someone already needs to complete.",
+        }
+    if any(term in topic_lower for term in ("revenue", "funding", "acquisition", "billion", "market", "stock")):
+        return {
+            "heading": "The business questions behind the number",
+            "intro": "Large numbers are context. The operating mechanism behind them is what makes the story useful.",
+            "items": [
+                ("Revenue mechanism", "Separate new demand from price increases, bundled distribution, infrastructure consumption, and existing-customer expansion."),
+                ("Unit economics", "Track the cost of inference, support, implementation, and customer acquisition alongside the headline growth figure."),
+                ("Adoption evidence", "Look for repeat usage, retention, and workflow depth rather than announcements or one-time trials."),
+            ],
+            "method": "Build a simple bridge from the headline number to customers, usage, gross margin, and operating cost. Compare the same measures over several periods so a launch spike, accounting change, or bundled sale is not mistaken for durable demand.",
+            "positioning": "Strong marketing connects the number to a customer outcome and explains the mechanism behind it. Repeating a large figure without that bridge creates attention but not trust.",
+            "proof": "The story becomes actionable when customer behavior, margins, and repeat usage confirm the headline number.",
+        }
+    return {
+        "heading": "Three questions worth answering",
+        "intro": "The article is most useful when it turns the development into a decision that can be tested.",
+        "items": [
+            ("User job", "Name the exact task that changes and who currently owns it."),
+            ("Proof", "Choose one observable measure that would show the change is genuinely better."),
+            ("Constraint", "Identify the reliability, security, integration, or cost limit that could block adoption."),
+        ],
+        "method": "Document the current workflow, collect a small representative sample, and compare the new approach against the existing baseline. Record both the successful result and the failure conditions before expanding the test.",
+        "positioning": "The clearest marketing explains the job, the measurable improvement, and the limit in plain language. That gives a prospective customer enough information to decide whether the product fits their work.",
+        "proof": "The next useful evidence will connect the announcement to repeat behavior, measurable outcomes, and a clearly defined operating constraint.",
+    }
+
+
 def build_researched_article(topic, audience_text, events):
     source_events = [event for event in events if event.get("title")]
     top_event = source_events[0]
-    terms = extract_focus_terms(topic, source_events)
-    terms_text = ", ".join(terms[:3]) if terms else "this AI story"
     top_source = top_event.get("source") or "the lead source"
     top_title = top_event.get("title") or topic
     top_note = event_note(top_event)
-    secondary_notes = [event_note(event) for event in source_events[1:3] if event_note(event)]
+    framework = practical_framework_for_topic(topic)
+    subtitle = (
+        f"{top_source} reported {top_title}. This note separates the confirmed development "
+        "from the product and operating decisions it creates."
+    )
+    detail_markup = f"<p>{escape(top_note)}</p>" if top_note else ""
 
-    subtitle = f"My read on {topic}, based on the latest source context around {terms_text}."
-    research_context = render_research_context(source_events[:4])
+    supporting_details = []
+    for event in source_events[1:3]:
+        note = event_note(event)
+        if note:
+            supporting_details.append(
+                f"<p><strong>{escape(event.get('source') or 'A supporting source')}:</strong> {escape(note)}</p>"
+            )
+    supporting_markup = "".join(supporting_details)
 
-    if top_note:
-        lead = (
-            f"I am reading this through the lead source from {escape(top_source)}: "
-            f"{escape(top_title)}. The useful part is not the headline by itself, but the specific pattern it points to around {escape(terms_text)}."
-        )
-        source_detail = f"<p>{escape(top_note)}</p>"
-    else:
-        lead = (
-            f"I am reading {escape(topic)} as a concrete AI business signal, not as a broad trend note. "
-            f"The useful part is what it suggests around {escape(terms_text)}."
-        )
-        source_detail = ""
+    checklist = "".join(
+        f"<li><strong>{escape(label)}:</strong> {escape(description)}</li>"
+        for label, description in framework["items"]
+    )
 
-    if secondary_notes:
-        secondary = " ".join(secondary_notes)
-        corroboration = (
-            f"<p>The surrounding sources add useful context: {escape(summarize_research_text(secondary, max_sentences=3))}</p>"
-        )
-    else:
-        corroboration = (
-            "<p>I am being careful not to stretch this beyond the available source material. One headline can be useful without becoming a complete market thesis.</p>"
+    source_items = []
+    for event in source_events[:4]:
+        source = escape(event.get("source") or "Source")
+        title = escape(event.get("title") or "Untitled")
+        link = escape(event.get("link") or "#", quote=True)
+        source_items.append(
+            f'<li><a href="{link}" target="_blank" rel="noopener noreferrer">{title}</a> <span>({source})</span></li>'
         )
 
     body = f"""
-<p>{lead}</p>
+<p><strong>{escape(top_source)} reported:</strong> {escape(top_title)}.</p>
 
-<h2>What the reporting points to</h2>
-{source_detail}
-{corroboration}
+<h2>What changed</h2>
+{detail_markup}
+{supporting_markup}
+<p>This is the confirmed starting point. The analysis below stays focused on decisions that {escape(audience_text)} can test rather than turning one report into a prediction about the entire industry.</p>
 
-{research_context}
+<h2>{escape(framework['heading'])}</h2>
+<p>{escape(framework['intro'])}</p>
+<ul>{checklist}</ul>
+<p><strong>How to test it:</strong> {escape(framework['method'])}</p>
+<p><strong>How to communicate it:</strong> {escape(framework['positioning'])}</p>
 
-<h2>Why I think it matters</h2>
-<p>For {escape(audience_text)}, the practical question is what changes if this story keeps developing. I am looking at whether it changes pricing power, customer expectations, platform control, product distribution, or the cost of building with AI.</p>
+<h2>What would make the story useful</h2>
+<p>{escape(framework['proof'])}</p>
+<p>Until that evidence appears, the sensible position is to treat {escape(topic)} as a focused development to evaluate, not a marketing claim to repeat.</p>
 
-<h2>The builder read</h2>
-<p>My read is that {escape(topic)} should be treated as a product and operations signal first. If a company is changing its business model, accelerating AI software demand, opening model access, or shifting developer tooling, the important question is where that change touches real workflows.</p>
-
-<h2>What I would watch next</h2>
-<p>I would watch for evidence that the story moves from announcement to behavior: customers adopting the product differently, developers changing their tooling choices, enterprises changing budgets, or regulators forcing new controls. That is where a headline becomes useful signal.</p>
-
-<h2>Final thought</h2>
-<p>The article is strongest when it stays close to the sources. My takeaway is that {escape(terms_text)} deserves attention only where it changes what builders can ship, how customers buy, or how teams manage risk.</p>
+<h2>Source context</h2>
+<p>These links define the factual boundary for this article. Product implications and evaluation criteria are AyNcode analysis.</p>
+<ul>{''.join(source_items)}</ul>
 """.strip()
     return subtitle, body
 
@@ -1168,7 +1255,7 @@ def generate_article(topic, audience, angle, events=None):
     clean_topic = re.sub(r"\s+", " ", topic).strip()
     safe_topic = escape(clean_topic)
     title_topic = title_case_topic(clean_topic)
-    title = unique_post_title(f"What {title_topic} Signals for Builders")
+    title = unique_post_title(editorial_title_for_topic(clean_topic))
     audience_labels = {
         "developers": "developers who want practical steps",
         "founders": "founders turning ideas into useful products",

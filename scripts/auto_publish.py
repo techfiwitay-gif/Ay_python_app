@@ -19,8 +19,10 @@ from main import (
     CONTENT_POSTS_PATH,
     app,
     enrich_events_with_research,
+    editorial_title_for_topic,
     fetch_recent_events,
     generate_article,
+    practical_framework_for_topic,
     safe_filename,
 )
 
@@ -81,6 +83,14 @@ QUALITY_REJECT_PHRASES = (
     "deserves attention only where",
     "where attention is shifting",
     "if a company is changing its business model, accelerating ai software demand",
+    "i am reading the latest signal",
+    "as an operating story, not just another technology headline",
+    "the reported development",
+    "the narrow fact pattern is useful on its own",
+    "a promising capability only becomes valuable software",
+    "what i would watch next",
+    "my takeaway is straightforward",
+    "for founders, builders, and operators",
 )
 COMMONS_API_URL = "https://commons.wikimedia.org/w/api.php"
 IMAGE_SEARCH_USER_AGENT = "AyNcodeBot/1.0 (https://ayncode.com)"
@@ -440,16 +450,19 @@ def article_generation_payload(topic: str, audience: str, angle: str, events: li
         "angle": angle,
         "events": events,
         "instructions": (
-            "Use OpenClaw's Codex 5.4 model to write one publish-ready AyNcode article. "
+            "Write one publish-ready AyNcode article that earns attention through useful specifics, not AI commentary filler. "
             "Return JSON only with title, subtitle, body, image_prompt, and image_query. The body must be clean HTML. "
             "Stay tightly on the selected topic. Use the first event as the main story and only mention other events when they are directly about the same company, product, or narrow theme. "
+            "Lead with the confirmed development and its source. Use the supplied research notes to explain what concretely changed. "
             "Do not force unrelated headlines into the article. Use only the provided event headlines, source names, links, and research notes for current-event claims. "
             "Do not invent facts, numbers, quotes, or events. Include a short source-context section with links for only the sources actually used. "
             "Also return a strong image_prompt for a matching editorial hero image. "
             "Also return image_query as a short search phrase for a real, relevant public-domain or freely licensed header image. "
-            "Target 350 to 550 words. Use at most three <h2> sections including Source context. Write in first person where natural, as if Ayotunde Oyeniyi wrote it. "
-            "Focus on what the news means for builders, founders, and operators. Avoid second-person phrasing like 'you should' or 'your team should'. "
-            "Prefer 'I think', 'I am watching', 'my read is', and direct analysis."
+            "Target 450 to 700 words. Use three or four descriptive <h2> sections including Source context. "
+            "Give the reader at least one concrete framework, checklist, tradeoff, implementation detail, or decision they can apply. "
+            "Use first person only when it adds a distinct judgment. Do not repeatedly say 'my read', 'I think', 'I am watching', 'signal', 'why it matters', or 'final thought'. "
+            "Avoid generic audience bundles such as 'founders, builders, and operators' and avoid titles ending in 'Signals for Builders' or 'Means for Builders'. "
+            "Write like a concise technology publication: factual opening, specific mechanism, practical consequences, and clear limits."
         ),
     }
 
@@ -529,6 +542,9 @@ def article_quality_issues(title: str, subtitle: str, body: str, events: list[di
     if re.search(r"\b(The Indian Express|Analytics Insight|The Verge|Reuters|Bloomberg|CNBC)\s+Why\b", combined):
         issues.append("contains a source-name extraction artifact")
 
+    if re.search(r"\b(What .+ (?:Signals|Means) for Builders)\b", title, flags=re.IGNORECASE):
+        issues.append("title uses a generic builder-analysis formula")
+
     current_event_sources = {
         str(event.get("source", "")).strip().casefold()
         for event in events
@@ -554,34 +570,51 @@ def build_quality_fallback_article(topic: str, audience: str, events: list[dict]
     event_title = clean_event_topic(str(event.get("title", ""))) or topic
     source = str(event.get("source", "")).strip() or "the available reporting"
     link = str(event.get("link", "")).strip()
-    audience_label = audience.replace("_", " ").strip() or "builders"
+    research = str(event.get("research") or event.get("description") or "").strip()
+    framework = practical_framework_for_topic(topic)
 
     safe_topic = escape(topic)
     safe_event_title = escape(event_title)
     safe_source = escape(source)
-    safe_audience = escape(audience_label)
-    source_item = (
-        f'<li><a href="{escape(link, quote=True)}">{safe_event_title} - {safe_source}</a></li>'
-        if link
-        else f"<li>{safe_event_title} - {safe_source}</li>"
+    source_item = f"<li>{safe_event_title} - {safe_source}</li>"
+    if link:
+        source_item = f'<li><a href="{escape(link, quote=True)}">{safe_event_title}</a> <span>({safe_source})</span></li>'
+
+    research_markup = (
+        f"<p>{escape(research)}</p>"
+        if research
+        else "<p>The available source confirms the development but does not provide enough detail to support broader claims.</p>"
+    )
+    checklist = "".join(
+        f"<li><strong>{escape(label)}:</strong> {escape(description)}</li>"
+        for label, description in framework["items"]
     )
 
-    title = f"What {event_title} Means for Builders"
-    subtitle = f"A practical read on {event_title} for founders, builders, and operators."
+    title = editorial_title_for_topic(event_title)
+    subtitle = (
+        f"{source} reported {event_title}. This briefing separates the confirmed development "
+        "from the decisions and evidence that should follow."
+    )
     body = f"""
-<p>I am reading the latest signal around {safe_topic} as an operating story, not just another technology headline. The reported development, {safe_event_title}, matters because it shows where product expectations, technical capability, and business pressure are beginning to meet. I am keeping this analysis inside the facts available from {safe_source} and focusing on the practical questions the story raises.</p>
+<p><strong>{safe_source} reported:</strong> {safe_event_title}.</p>
 
-<h2>The signal behind the headline</h2>
-<p>The narrow fact pattern is useful on its own: {safe_event_title}. My read is that the durable lesson sits in what teams must make possible around that development. A promising capability only becomes valuable software when it fits a real workflow, behaves predictably, and gives people enough visibility to understand what happened.</p>
-<p>That distinction matters because AI products often look strongest in a controlled demonstration. Production use is different. Real systems have permissions, incomplete data, edge cases, changing requirements, and people who need to review the result. The useful product opportunity is therefore not simply adding more intelligence. It is designing the surrounding system so the intelligence can be inspected, corrected, and trusted.</p>
+<h2>What is confirmed</h2>
+{research_markup}
+<p>That is the factual boundary. The useful marketing lesson is not to repeat the announcement; it is to show precisely which customer problem changes and what evidence would demonstrate improvement.</p>
 
-<h2>What I would watch next</h2>
-<p>For {safe_audience}, I would watch how quickly this development moves from announcement to repeatable use. The strongest evidence will come from clear jobs completed, fewer handoff failures, and better decisions rather than broad claims about transformation. Products that make those outcomes visible will have an easier time earning adoption.</p>
-<p>I am also watching the operating discipline around the feature. Teams still need evaluation, logging, fallback behavior, security boundaries, and a clear point where a person takes over. Those details can feel less exciting than the model or headline, but they are usually where durable product advantage forms. When capability becomes easier to access, implementation quality becomes more important, not less.</p>
-<p>My takeaway is straightforward: {safe_topic} deserves attention where it changes a specific job and where the surrounding workflow can support it responsibly. The next useful question is not whether the technology sounds impressive. It is whether a team can turn the signal into a system that produces a consistent result without hiding the tradeoffs.</p>
+<h2>{escape(framework['heading'])}</h2>
+<p>{escape(framework['intro'])}</p>
+<ul>{checklist}</ul>
+<p><strong>How to test it:</strong> {escape(framework['method'])}</p>
+<p><strong>How to communicate it:</strong> {escape(framework['positioning'])}</p>
+<p><strong>Decision record:</strong> Before expanding the pilot, write down the baseline, the result, the failure cases, and the person accountable for review. This turns an interesting announcement into a decision the team can revisit when the product, price, or operating conditions change.</p>
+
+<h2>What evidence would change the decision</h2>
+<p>{escape(framework['proof'])}</p>
+<p>Until that evidence is available, {safe_topic} is best treated as a focused hypothesis to test against real work, operating cost, and customer behavior.</p>
 
 <h2>Source context</h2>
-<p>This article uses the following report as its factual boundary. The analysis above is my interpretation of the product and operating implications.</p>
+<p>This report defines the factual boundary for the article. The evaluation framework above is AyNcode analysis.</p>
 <ul>{source_item}</ul>
 """.strip()
     return title, subtitle, body
@@ -914,7 +947,7 @@ def main() -> int:
                 print(str(exc), file=sys.stderr)
                 return 6
 
-    title_source = generated_title if used_generator else topic_for_generation
+    title_source = generated_title
     post_slug = build_post_slug(title_source)
     final_title = build_today_title(title_source)
     published_at = datetime.now().strftime("%B %d, %Y %I:%M %p")

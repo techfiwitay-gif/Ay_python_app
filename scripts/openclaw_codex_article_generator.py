@@ -38,10 +38,11 @@ def build_openclaw_agent_prompt(payload: dict[str, Any]) -> str:
         "Stay tightly on the selected topic. Use the first event as the main story and only mention other events when they are directly about the same company, product, or narrow theme. "
         "Do not force unrelated headlines into the article. Use only the provided event headlines for current-event claims. "
         "Do not invent facts, quotes, statistics, or company statements. "
-        "Write in first person where natural. Focus on what the news means for builders, founders, and operators. "
-        "Avoid second-person advice like 'you should' or 'your team should'. "
-        "Prefer direct editorial analysis using phrases such as 'I am watching', 'my read is', and 'I think'. "
-        "Write 350 to 550 words total. Use at most three <h2> sections, including Source context. "
+        "Open with the confirmed development and source, then explain the mechanism that makes it consequential. "
+        "Give the reader a concrete framework, checklist, tradeoff, implementation detail, or decision they can apply. "
+        "Use first person only for a distinct judgment. Do not repeatedly use 'my read', 'I think', 'I am watching', 'signal', 'why it matters', or 'final thought'. "
+        "Avoid generic audience bundles such as 'founders, builders, and operators' and avoid formulaic titles ending in 'Signals for Builders' or 'Means for Builders'. "
+        "Write 450 to 700 words total. Use three or four descriptive <h2> sections, including Source context. "
         "Include a short source-context section with links for only the sources actually used. Add one strong image prompt for a matching editorial visual. "
         "Add image_query as a concise phrase for finding a real, relevant public-domain or freely licensed header photo.\n\n"
         f"Payload:\n{json.dumps(payload, ensure_ascii=False)}"
@@ -97,7 +98,8 @@ def build_prompt(payload: dict[str, Any]) -> str:
             f"{index}. Title: {event.get('title', '')}\n"
             f"   Source: {event.get('source', 'Unknown')}\n"
             f"   Published: {event.get('published', 'Unknown')}\n"
-            f"   URL: {event.get('link', '')}"
+            f"   URL: {event.get('link', '')}\n"
+            f"   Research notes: {event.get('research') or event.get('description') or 'None provided'}"
         )
     events_block = "\n\n".join(event_lines) if event_lines else "No recent events were provided."
 
@@ -121,17 +123,20 @@ Requirements:
 - only mention other events when they are directly about the same company, product, or narrow theme
 - do not force unrelated headlines into the article
 - do not invent facts, quotes, statistics, or company statements
-- write in first person where natural, as if I wrote it
-- focus on what the news means for builders, founders, and operators
+- open with the confirmed development and source, then explain the specific mechanism that makes it consequential
+- give the reader at least one concrete framework, checklist, implementation detail, tradeoff, or decision they can apply
+- use first person only for a distinct judgment
+- do not repeatedly use "my read", "I think", "I am watching", "signal", "why it matters", or "final thought"
+- avoid generic audience bundles such as "founders, builders, and operators"
+- avoid formulaic titles ending in "Signals for Builders" or "Means for Builders"
 - avoid second-person advice like "you should" or "your team should"
-- prefer direct editorial analysis: "I think", "my read is", "I am watching"
 - include a short source-context section with links for only the sources actually used
 - image_prompt must describe one strong editorial hero image for this article
 - image_query must be a concise search phrase for a real, relevant public-domain or freely licensed header photo
 - no text overlays inside the image prompt
-- target 350 to 550 words
-- use at most three <h2> sections, including Source context
-- make one clear argument, then stop
+- target 450 to 700 words
+- use three or four descriptive <h2> sections, including Source context
+- write like a concise technology publication: factual opening, specific mechanism, practical consequence, and clear limits
 
 Topic: {topic}
 Audience: {audience}

@@ -190,22 +190,29 @@ def test_article_quality_rejects_generic_source_artifacts():
 
 def test_article_quality_accepts_specific_sourced_article():
     body = """
-<p>I read the Anthropic small-business headline as a workflow story first. If the reporting is accurate, the useful signal is that AI vendors are moving closer to everyday business tasks such as drafting, support, research, operations, handoffs, and internal coordination.</p>
-<h2>What the reporting points to</h2>
-<p>The lead source is The Indian Express, which describes Anthropic launching Claude automation tools for small businesses. I am keeping the article inside that boundary because the interesting part is not a broad prediction about all AI. It is the narrower product question: how does a model company turn general intelligence into repeatable business workflow?</p>
-<h2>Why I think it matters</h2>
-<p>Small businesses usually need fewer dropped tasks, faster first drafts, cleaner customer follow-up, and a way to turn scattered information into decisions. That is why this kind of product move matters. The product has to fit into daily work without asking the team to become an AI operations department.</p>
-<p>My builder read is simple: the winning version of this product is not the one that promises the most autonomy. It is the one that makes each step visible enough to trust. A useful workflow should show what context it used, what action it proposes, and where a person can approve the result before it touches a customer or a business record.</p>
-<p>I would watch whether Anthropic packages the work as named jobs rather than abstract AI capability. Handling an inbound lead, preparing a weekly report, summarizing support themes, and drafting a response from approved company context are clearer than saying a model can help with productivity. Specific jobs create adoption because buyers can picture the before and after.</p>
+<p><strong>The Indian Express reported:</strong> Anthropic launched Claude automation tools for small businesses.</p>
+<h2>What changed</h2>
+<p>The reported release moves Claude closer to named business workflows such as drafting customer replies, preparing reports, and coordinating internal handoffs. The key product change is not a new chat surface; it is packaging model capability around repeatable jobs.</p>
+<p>That distinction matters because small teams do not need another place to prompt an assistant. They need fewer dropped tasks, faster first drafts, and clear control over what reaches a customer or business record.</p>
+<h2>Three questions for a pilot</h2>
+<ul>
+<li><strong>Task:</strong> Select one repeated job with a measurable baseline, such as response time or completion rate.</li>
+<li><strong>Control:</strong> Require the system to show its source context and ask for approval before an external action.</li>
+<li><strong>Evidence:</strong> Compare quality, time saved, correction rate, and operating cost over a representative sample.</li>
+</ul>
+<p><strong>How to test it:</strong> Run the workflow beside the existing process for two weeks. Record where it succeeds, where a person intervenes, and whether the total time falls after review and correction are included.</p>
+<p><strong>How to communicate it:</strong> Describe the exact job, the measured improvement, and the approval boundary. That is more credible than a broad claim about autonomous work.</p>
+<p><strong>Decision record:</strong> Before expanding the pilot, document the baseline, result, failure cases, and accountable reviewer. Revisit that record when the product, price, or operating conditions change so an early demonstration does not quietly become an unexamined permanent process.</p>
+<h2>What would support adoption</h2>
+<p>A useful follow-up would show repeat use, lower cycle time, and a stable correction rate. It should also explain how company context is isolated and how teams can review actions before they affect customers.</p>
 <h2>Source context</h2>
-<p>The source frame for this article is intentionally narrow:</p>
+<p>The source defines the factual boundary for this article. The practical pilot framework is AyNcode analysis.</p>
 <ul><li><a href="https://example.com">Anthropic launches Claude tools - The Indian Express</a></li></ul>
-<p>My takeaway is that the practical AI opportunity for small businesses is not replacing the team. It is turning repeated work into reliable systems that people can still inspect, adjust, and trust before the work reaches customers.</p>
 """.strip()
 
     issues = auto_publish.article_quality_issues(
-        "What Anthropic's Claude Automation Push Means for Builders",
-        "My read on Anthropic's reported Claude automation tools for small businesses.",
+        "Anthropic's Claude Automation Push: What Changed and What to Measure",
+        "A source-bounded look at the reported tools and a practical way to test them.",
         body,
         [{"source": "The Indian Express"}],
     )
@@ -229,6 +236,9 @@ def test_quality_fallback_article_passes_gate_with_source():
     assert auto_publish.article_quality_issues(title, subtitle, body, events) == []
     assert "Reuters" in body
     assert "https://example.com/openai-workflow" in body
+    assert "How to test it" in body
+    assert "How to communicate it" in body
+    assert "Means for Builders" not in title
 
 
 def test_quality_fallback_article_passes_gate_without_live_event():
@@ -239,6 +249,28 @@ def test_quality_fallback_article_passes_gate_without_live_event():
     )
 
     assert auto_publish.article_quality_issues(title, subtitle, body, []) == []
+    assert "How to test it" in body
+    assert "How to communicate it" in body
+
+
+def test_article_quality_rejects_old_editorial_boilerplate():
+    body = """
+<p>I am reading the latest signal as an operating story, not just another technology headline.</p>
+<h2>Why it matters</h2>
+<p>The reported development creates a broad opportunity for teams.</p>
+<h2>Source context</h2>
+<p>Reuters reported the announcement.</p>
+<ul><li><a href="https://example.com">Source - Reuters</a></li></ul>
+""".strip()
+
+    issues = auto_publish.article_quality_issues(
+        "A New AI Product",
+        "A short briefing.",
+        body,
+        [{"source": "Reuters"}],
+    )
+
+    assert any("generic/template phrase" in issue for issue in issues)
 
 
 def test_friday_workflow_has_weekly_window_and_fallbacks():

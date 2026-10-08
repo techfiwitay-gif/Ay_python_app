@@ -105,15 +105,15 @@ def test_adsense_verification_is_available_sitewide(client):
     assert ads_txt.data == b"google.com, pub-8752752499271631, DIRECT, f08c47fec0942fa0\n"
 
 
-def test_journal_posts_archive_after_three_weeks(client, app_module):
+def test_journal_posts_archive_after_four_weeks(client, app_module):
     reference_time = datetime.now()
 
     with app_module.app.app_context():
         author = create_user(app_module)
         current_post = create_post(app_module, author, title="Still Current")
         archived_post = create_post(app_module, author, title="Now Archived")
-        current_post.published_at = (reference_time - timedelta(days=20)).strftime("%B %d, %Y %I:%M %p")
-        archived_post.published_at = (reference_time - timedelta(days=22)).strftime("%B %d, %Y %I:%M %p")
+        current_post.published_at = (reference_time - timedelta(days=27)).strftime("%B %d, %Y %I:%M %p")
+        archived_post.published_at = (reference_time - timedelta(days=29)).strftime("%B %d, %Y %I:%M %p")
         app_module.db.session.commit()
 
     homepage = client.get("/journal")
@@ -486,7 +486,9 @@ def test_researched_article_uses_source_specific_context(client, app_module):
 
     assert "Alibaba" in body
     assert "China" in body
-    assert "What I found in the sources" in body
+    assert "Source context" in body
+    assert "How to test it" in body
+    assert "How to communicate it" in body
     assert "AI trust is becoming product infrastructure" not in body
     assert "latest AI oversight headline" not in subtitle
 
