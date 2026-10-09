@@ -152,6 +152,9 @@ def test_footer_has_no_archive_or_social_shortcuts(client):
     assert b'class="footer-icon"' not in response.data
     assert b'aria-label="Archive"' not in response.data
     assert b'fab fa-twitter' not in response.data
+    assert b'aria-label="Footer navigation"' in response.data
+    assert b">Getreep Privacy</a>" in response.data
+    assert b">Terms of Use</a>" in response.data
 
 
 def test_public_pages_share_company_positioning(client):
