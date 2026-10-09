@@ -146,21 +146,12 @@ def test_ay_logo_is_used_across_brand_surfaces(client, app_module):
     assert b"<small>by Ayncode LLC</small>" not in homepage.data
 
 
-def test_footer_keeps_only_unique_shortcuts(client):
+def test_footer_has_no_archive_or_social_shortcuts(client):
     response = client.get("/")
-    footer = response.data.split(b'<nav class="footer-actions"', 1)[1].split(b"</nav>", 1)[0]
-
-    assert b'href="/archive"' in footer
-    assert b'href="/about"' not in footer
-    assert b'href="/contact"' not in footer
-    assert b'href="/products"' not in footer
-    assert b">Home</a>" not in footer
-    assert footer.count(b'class="footer-icon"') == 2
-    assert b"github.com" not in footer
-    assert b"fa-github" not in footer
-    assert b"tiktok.com" not in footer
-    assert b"fa-tiktok" not in footer
-    assert b'class="fas fa-music"' not in footer
+    assert b'class="footer-actions"' not in response.data
+    assert b'class="footer-icon"' not in response.data
+    assert b'aria-label="Archive"' not in response.data
+    assert b'fab fa-twitter' not in response.data
 
 
 def test_public_pages_share_company_positioning(client):
