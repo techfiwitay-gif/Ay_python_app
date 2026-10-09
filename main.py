@@ -1672,6 +1672,11 @@ def getreep_privacy_policy():
     return render_template("getreep_privacy_policy.html", logged_in=current_user.is_authenticated)
 
 
+@app.route('/privacy')
+def privacy():
+    return render_template("privacy.html", logged_in=current_user.is_authenticated)
+
+
 @app.route('/getreep/oauth/google/callback')
 def getreep_google_oauth_callback():
     """Relay only this app's Google grant to its existing single-use PKCE callback."""

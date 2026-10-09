@@ -1,0 +1,29 @@
+{% set page_title = "Privacy | AyNcode" %}
+{% set meta_description = "Choose the privacy policy for the AyNcode product you use." %}
+{% set hide_hero = true %}
+{% include "header.html" %}
+
+<main class="privacy-directory container">
+  <p class="privacy-directory-kicker">AYNCODE POLICIES</p>
+  <h1>Privacy</h1>
+  <p class="privacy-directory-intro">Choose the product you use to read its privacy policy.</p>
+
+  <nav class="privacy-directory-list" aria-label="Product privacy policies">
+    <a class="privacy-directory-link" href="{{ url_for('getreep_privacy_policy') }}">
+      <span>
+        <strong>Getreep</strong>
+        <small>Travel planning and connected services</small>
+      </span>
+      <span class="privacy-directory-action">Getreep Privacy Policy <span aria-hidden="true">&#8594;</span></span>
+    </a>
+    <a class="privacy-directory-link" href="https://vocalframe-native.expo.app/privacy" target="_blank" rel="noopener noreferrer">
+      <span>
+        <strong>VocalFrame</strong>
+        <small>Camera speaking practice and AI Script Studio</small>
+      </span>
+      <span class="privacy-directory-action">VocalFrame Privacy Policy <span aria-hidden="true">&#8594;</span></span>
+    </a>
+  </nav>
+</main>
+
+{% include "footer.html" %}

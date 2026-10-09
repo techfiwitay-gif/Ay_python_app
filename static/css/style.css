@@ -1651,6 +1651,83 @@ footer a:hover {
     text-align: center;
 }
 
+.privacy-directory {
+    min-height: 58vh;
+    padding-bottom: clamp(4rem, 9vw, 7rem);
+    padding-top: clamp(3.5rem, 8vw, 6rem);
+}
+
+.privacy-directory-kicker {
+    color: var(--teal);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.privacy-directory h1 {
+    color: var(--ink);
+    font-size: clamp(2.2rem, 5vw, 3.5rem);
+    line-height: 1.05;
+    margin-top: 0.5rem;
+}
+
+.privacy-directory-intro {
+    color: var(--muted);
+    margin-top: 0.75rem;
+    max-width: 38rem;
+}
+
+.privacy-directory-list {
+    border-top: 1px solid var(--line);
+    margin-top: 2.5rem;
+}
+
+.privacy-directory-link {
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink);
+    display: flex;
+    gap: 1.5rem;
+    justify-content: space-between;
+    padding: 1.25rem 0.25rem;
+    text-decoration: none;
+}
+
+.privacy-directory-link strong,
+.privacy-directory-link small {
+    display: block;
+}
+
+.privacy-directory-link strong {
+    font-size: 1.1rem;
+}
+
+.privacy-directory-link small {
+    color: var(--muted);
+    margin-top: 0.2rem;
+}
+
+.privacy-directory-action {
+    color: var(--teal);
+    flex-shrink: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.privacy-directory-link:hover .privacy-directory-action,
+.privacy-directory-link:focus-visible .privacy-directory-action {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+}
+
+@media (max-width: 600px) {
+    .privacy-directory-link {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.65rem;
+    }
+}
+
 @media (max-width: 860px) {
 
     .navbar-container {
