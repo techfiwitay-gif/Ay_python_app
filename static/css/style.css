@@ -3026,13 +3026,14 @@ footer {
 .company-home-hero-grid {
     align-items: center;
     display: grid;
-    gap: 4.5rem;
+    gap: 3.25rem;
     grid-template-columns: minmax(0, 0.95fr) minmax(440px, 1.05fr);
     min-height: 440px;
+    max-width: 1080px;
 }
 
 .company-home-copy {
-    max-width: 610px;
+    max-width: 540px;
 }
 
 .company-home-kicker {
@@ -3046,10 +3047,11 @@ footer {
 
 .company-home-copy h1 {
     color: #fff;
-    font-size: 4.85rem;
-    line-height: 0.95;
+    font-size: 4.35rem;
+    letter-spacing: -0.04em;
+    line-height: 0.98;
     margin: 0 0 1.3rem;
-    max-width: 700px;
+    max-width: 540px;
 }
 
 .company-home-copy h1 span {
@@ -3061,7 +3063,7 @@ footer {
     font-size: 1.1rem;
     line-height: 1.65;
     margin: 0;
-    max-width: 570px;
+    max-width: 500px;
 }
 
 .company-home-actions {
