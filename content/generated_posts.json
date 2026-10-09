@@ -74,5 +74,37 @@
       "image_type": "original-ai-generated-editorial-illustration",
       "image_review": "Actual raster inspected: document panels, a lock gateway, permitted cyan paths, and a stopped coral path. Directly illustrates the article's access-control example and is explicitly labeled conceptual, not a real product depiction."
     }
+  },
+  {
+    "slug": "2026-10-09-reviewbench-ai-code-review-noise",
+    "title": "ReviewBench: choose an AI code reviewer by signal, not comment count",
+    "generated_title": "ReviewBench: choose an AI code reviewer by signal, not comment count",
+    "subtitle": "GitHub's new benchmark makes review quality easier to inspect. A practical pilot should measure missed defects, false alarms, and the human time behind both.",
+    "date": "October 09, 2026",
+    "published_at": "October 09, 2026 09:19 AM",
+    "topic": "GitHub ReviewBench and evaluating AI code review quality",
+    "audience": "software founders and engineering teams",
+    "author": "Ayotunde Oyeniyi",
+    "img_url": "/static/img/journal-ai-code-review-signal-2026-10-09.png",
+    "image_prompt": "Original conceptual illustration of code-diff sheets, a magnifier highlighting a defect, verified findings, and distracting comment slips; no real product interface or benchmark results.",
+    "image_query": "AI code review precision recall false positive comments",
+    "image_source_url": "",
+    "image_credit": "Original AI-generated editorial illustration for AyNcode",
+    "body": "<p><strong>GitHub launched ReviewBench on October 5 to make AI code reviewers easier to compare.</strong> Its research preview covers 219 public pull requests across 19 languages, with findings organized by severity and category. For a team considering automated review, the useful shift is from asking how many comments an agent produces to inspecting which problems those comments actually identify. <a href=\"https://github.blog/ai-and-ml/github-copilot/reviewbench-an-open-benchmark-for-ai-code-review/\">GitHub's announcement</a> describes the benchmark, not a guarantee about your repository.</p>\n\n<h2>Measure signal and omissions separately</h2>\n<p>GitHub assembles candidate findings from human reviews, models, and static analysis, then deduplicates and judges them against a shared rubric. Grounded metrics compare a review with the existing reference findings; augmented metrics also assess previously unlisted findings. The company recommends grounded recall for cross-system comparison because augmented recall changes its denominator with each agent's discoveries. <a href=\"https://github.blog/ai-and-ml/github-copilot/reviewbench-an-open-benchmark-for-ai-code-review/\">The methodology</a> explains that distinction.</p>\n<p><strong>AyNcode's analysis:</strong> separate two questions before buying or building a reviewer. How much of its output deserves an engineer's attention? And which important defects does it miss? A single headline score can conceal a trade-off your team would not accept.</p>\n\n<h2>A worked example: fewer comments can be better</h2>\n<p><strong>Hypothetical pilot, not a ReviewBench result:</strong> suppose a manually checked set of changes contains 12 distinct defects. Reviewer A flags ten issues, eight of them valid. Reviewer B flags seven, all valid. Count each underlying defect once, even when the agent mentions it repeatedly.</p>\n<ul><li><strong>Reviewer A:</strong> precision is 8/10, or 80%; recall is 8/12, about 67%. It produces two false alarms and misses four known defects.</li><li><strong>Reviewer B:</strong> precision is 7/7, or 100%; recall is 7/12, about 58%. It produces no false alarms but misses five known defects.</li></ul>\n<p>A catches one extra defect; B creates less investigation work. Neither wins automatically. If A's additional finding prevents an authorization failure, that may outweigh its noise. If it catches only a minor inconsistency, the decision may reverse. Inspect the missed and additional findings, not just the percentages.</p>\n\n<h2>Turn the comparison into a rollout decision</h2>\n<p>Start with a small sample of your own changes: booking imports, permission checks, retries, or subscription handling. Include changes with no known defect, so a reviewer cannot look successful merely by criticizing everything. Ask an engineer to establish expected findings before seeing the agent's comments, then independently investigate unmatched findings rather than assuming the reference list is complete.</p>\n<p>Keep the commit, supplied context, reviewer configuration, and available tools fixed when comparing runs. Record time spent verifying comments alongside model and tool charges. Inspect security-related misses separately from style suggestions. Use those records to decide whether to widen coverage, reduce noisy categories, or keep the reviewer advisory.</p>\n<p>For Copilot specifically, <a href=\"https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-code-review\">GitHub's documentation</a> says approvals are off by default; when enabled, its approving review can satisfy a required-approval rule. Our recommendation is to retain a human merge gate for sensitive changes during the pilot. A quiet review is not evidence that the change is safe.</p>\n\n<h2>Source context</h2>\n<p>The launch details and benchmark design above are GitHub's account. Public-repository results and model-assisted judging are reasons to validate locally, not to assume the ranking transfers unchanged. The example and rollout method are AyNcode's analysis.</p>\n<p><em>Image: original AI-generated editorial illustration for AyNcode, not a GitHub interface or evidence of benchmark results.</em></p>",
+    "editorial_review": {
+      "backend": "codex",
+      "sources": [
+        "https://github.blog/ai-and-ml/github-copilot/reviewbench-an-open-benchmark-for-ai-code-review/",
+        "https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-code-review"
+      ],
+      "image_type": "original-ai-generated-editorial-illustration",
+      "facts_supported": true,
+      "specific_and_useful": true,
+      "sources_match_story": true,
+      "issues": [],
+      "factual_review": "Separate editorial pass checked October 5 launch, research-preview scope, 219 public pull requests and 19 languages, multi-source findings, grounded versus augmented metrics, and default-off Copilot approval behavior against the opened primary pages. No benchmark accuracy, pricing, or performance claims were added. Arithmetic independently checked: 8/10=80%, 8/12=66.7%, 7/7=100%, 7/12=58.3%; numbers are explicitly hypothetical.",
+      "usefulness_review": "Offers a concrete reviewer-selection trade-off, severity-aware decision, clean-change controls, independent validation of unmatched findings, reproducible run configuration, human investigation time and cost tracking, and a sensitive-change merge gate. Does not present this proposed pilot as measured GitHub or AyNcode results.",
+      "image_review": "Viewed actual raster: layered code-diff sheets, a magnifier over a coral defect marker, green verified findings, and amber comment slips. Relevant to review precision and noise; no company logo or real product interface. Explicit illustration disclosure included in the article."
+    }
   }
 ]
