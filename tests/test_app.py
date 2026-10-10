@@ -280,6 +280,9 @@ def test_vocalframe_policy_is_public_and_linked_on_the_company_site(client):
     assert page.h1.get_text() == "VocalFrame Privacy Policy"
     assert "OpenAI" in page.get_text()
     assert "RevenueCat" in page.get_text()
+    assert "Supabase" in page.get_text()
+    assert "AI service diagnostics" in page.get_text()
+    assert "Technical logs are not sent to the website's aggregate analytics report" in page.get_text()
     assert page.select_one("#your-choices") is not None
     assert page.select_one('a[href="/contact"]') is not None
     for path in ("/privacy", "/vocalframe"):
