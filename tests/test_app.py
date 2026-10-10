@@ -271,6 +271,24 @@ def test_getreep_homepage_links_to_same_domain_privacy_policy(client):
     assert b"Disconnect at Profile" in policy.data
 
 
+def test_vocalframe_policy_is_public_and_linked_on_the_company_site(client):
+    from bs4 import BeautifulSoup
+
+    policy = client.get("/vocalframe/privacy")
+    assert policy.status_code == 200
+    page = BeautifulSoup(policy.data, "html.parser")
+    assert page.h1.get_text() == "VocalFrame Privacy Policy"
+    assert "OpenAI" in page.get_text()
+    assert "RevenueCat" in page.get_text()
+    assert page.select_one("#your-choices") is not None
+    assert page.select_one('a[href="/contact"]') is not None
+    for path in ("/privacy", "/vocalframe"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert b'href="/vocalframe/privacy"' in response.data
+        assert b"vocalframe-native.expo.app/privacy" not in response.data
+
+
 def test_getreep_google_callback_relays_only_valid_grants(client, app_module, monkeypatch):
     state = 'g1_' + 'A' * 43
     calls = []

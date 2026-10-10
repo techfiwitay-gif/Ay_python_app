@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="How VocalFrame handles local recordings, optional AI requests, subscriptions, and your privacy choices.">
+  <title>VocalFrame Privacy Policy | AyNcode</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { background: #fff; color: #202827; font: 16px/1.7 system-ui, -apple-system, sans-serif; margin: 0; }
+    .wrap { margin: auto; max-width: 800px; padding: 32px 24px 64px; }
+    nav { display: flex; flex-wrap: wrap; gap: 12px 24px; border-bottom: 1px solid #dce2e0; padding-bottom: 24px; }
+    a { color: #176b68; text-underline-offset: 3px; }
+    h1 { font-size: 38px; line-height: 1.2; margin: 16px 0 24px; overflow-wrap: break-word; }
+    h2 { font-size: 22px; line-height: 1.3; margin: 0 0 12px; }
+    p { margin: 0 0 16px; }
+    .effective { color: #626e69; margin-top: 40px; }
+    .intro { font-size: 18px; margin-bottom: 32px; }
+    section { border-top: 1px solid #dce2e0; padding: 24px 0 8px; scroll-margin-top: 24px; }
+    footer { border-top: 1px solid #dce2e0; margin-top: 16px; padding-top: 24px; color: #626e69; font-size: 14px; }
+    @media (max-width: 480px) { h1 { font-size: 32px; } .wrap { padding: 24px 20px 48px; } }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <nav aria-label="Policy navigation">
+      <a href="{{ url_for('vocalframe') }}">VocalFrame</a>
+      <a href="{{ url_for('privacy') }}">All privacy policies</a>
+      <a href="#your-choices">Your choices</a>
+    </nav>
+    <article>
+      <p class="effective">Effective October 9, 2026</p>
+      <h1>VocalFrame Privacy Policy</h1>
+      <p class="intro">This policy explains what VocalFrame keeps on your iPhone and what is shared when you choose optional services. VocalFrame is provided by Ayncode LLC.</p>
+      <section>
+        <h2>What stays on your device</h2>
+        <p>VocalFrame does not require a VocalFrame account. Scripts, recordings, thumbnails, settings, delivery results, and generated transcripts are stored locally on your device. VocalFrame does not operate an advertising or cross-app tracking service.</p>
+      </section>
+      <section>
+        <h2>Optional AI Script Studio</h2>
+        <p>AI generation is optional. Before each request, VocalFrame asks you to allow sharing. If you allow it, the topic, audience, goal, tone, and target length you entered are sent to VocalFrame's secure AI service and OpenAI for moderation and script generation. OpenAI says API content is not used to train its models by default, but standard abuse-monitoring logs may retain request content for up to 30 days, or longer where required by law or reasonably necessary to protect its services or others. VocalFrame temporarily caches the generated draft for up to 24 hours to recover an interrupted request. Do not include private or sensitive information. Ordinary saved scripts and recordings are not sent unless you put their contents into an AI request.</p>
+      </section>
+      <section>
+        <h2>Aggregate AI usage</h2>
+        <p>VocalFrame records AI request status and allowance usage against a pseudonymous app-specific identifier to provide the paid feature and prevent duplicate requests. It also records daily model token totals and request counts for service-cost monitoring and sends only those aggregate totals to Ayncode's website dashboard. The website report does not include prompts, generated drafts, recordings, provider response IDs, or customer identifiers. Daily aggregates have no automatic expiry.</p>
+      </section>
+      <section>
+        <h2>Subscriptions</h2>
+        <p>Apple processes payment. RevenueCat processes purchase and subscription status, product identifiers, and VocalFrame's pseudonymous app-specific subscriber identifier for entitlement checks, purchase restoration, and subscription analytics. VocalFrame does not receive payment-card details. This identifier is not used for cross-app advertising.</p>
+      </section>
+      <section>
+        <h2>Camera and microphone</h2>
+        <p>Camera access is used to preview and record practice videos. Microphone access is used to record audio and measure delivery intensity. VocalFrame begins recording only after you choose to start a take.</p>
+      </section>
+      <section>
+        <h2>Speech recognition</h2>
+        <p>VocalFrame uses Apple's Speech Recognition service to compare a take with your prepared script. The app requires on-device recognition when the device supports it. On devices where on-device recognition is unavailable, audio for transcription may be sent to and processed by Apple under Apple's privacy terms. VocalFrame does not run its own speech server and does not receive or retain remote copies of that audio.</p>
+      </section>
+      <section>
+        <h2>Photos and sharing</h2>
+        <p>A recording is added to Photos only when you choose Save. Sharing uses the iOS share sheet and sends the selected recording only to the destination you choose. Content saved to Photos or shared outside VocalFrame is controlled by those services afterward.</p>
+      </section>
+      <section>
+        <h2>Retention and deletion</h2>
+        <p>Local content remains on the device until you delete it, clear the app's data, or remove the app. Deleting an item inside VocalFrame does not delete a separate copy previously saved to Photos or shared elsewhere. VocalFrame's AI backend caches a generated draft for up to 24 hours. Allowance counters and request-status records expire up to 30 days after the applicable allowance period ends, including a billing grace extension. A hashed provider response ID used to prevent duplicate usage reporting expires after 30 days; aggregate daily usage totals have no automatic expiry. OpenAI's standard API abuse-monitoring logs may retain prompts and responses for up to 30 days, subject to legal and safety exceptions. The app-specific AI credential is stored in the iPhone Keychain and may persist after reinstalling; it reconnects the same pseudonymous subscription identity.</p>
+      </section>
+      <section id="your-choices">
+        <h2>Your choices</h2>
+        <p>You can decline each AI sharing request; permission is not saved for future generations. Once a request is sent, it cannot be recalled from provider safety logs. You can change Camera, Microphone, Speech Recognition, and Photos permissions in iOS Settings. For privacy questions or a request about backend records, contact VocalFrame support. Local content can be deleted in the app; copies exported or shared elsewhere are controlled by their destination.</p>
+      </section>
+      <section id="contact">
+        <h2>Contact</h2>
+        <p>For privacy questions or assistance, contact <a href="mailto:ayncode@ayncode.com?subject=VocalFrame%20Privacy">ayncode@ayncode.com</a> or visit <a href="{{ url_for('contact') }}">ayncode.com/contact</a>.</p>
+      </section>
+    </article>
+    <footer>Ayncode LLC &middot; <a href="{{ url_for('company') }}">ayncode.com</a></footer>
+  </main>
+</body>
+</html>

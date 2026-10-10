@@ -1662,6 +1662,11 @@ def vocalframe():
     return render_template("vocalframe.html", logged_in=current_user.is_authenticated)
 
 
+@app.route('/vocalframe/privacy')
+def vocalframe_privacy_policy():
+    return render_template("vocalframe_privacy_policy.html")
+
+
 @app.route('/getreep')
 def getreep():
     return render_template("getreep.html", logged_in=current_user.is_authenticated)
