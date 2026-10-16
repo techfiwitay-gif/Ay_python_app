@@ -1,5 +1,37 @@
 [
   {
+    "slug": "2026-10-16-github-star-history-aggregate-api",
+    "title": "GitHub's star-history API: aggregate only what the chart needs",
+    "generated_title": "GitHub's star-history API: aggregate only what the chart needs",
+    "subtitle": "A new endpoint shows how narrower data access and better query order can improve both privacy and performance.",
+    "date": "October 16, 2026",
+    "published_at": "October 16, 2026 09:21 AM",
+    "topic": "GitHub's repository star-history API and aggregate-first data design",
+    "audience": "software founders and engineering teams",
+    "author": "Ayotunde Oyeniyi",
+    "img_url": "/static/img/journal-github-star-history-aggregate-api-2026-10-16.png",
+    "image_prompt": "Original conceptual editorial illustration showing anonymous activity narrowed to a date range, grouped into weekly and daily totals, then visualized as a trend line; no logos or product interface.",
+    "image_query": "privacy-preserving aggregate activity API indexed date range before grouping",
+    "image_source_url": "",
+    "image_credit": "Original AI-generated editorial illustration for AyNcode",
+    "body": "<p><strong>GitHub published a repository star-history endpoint on October 14 that returns daily totals instead of a list of people.</strong> It addresses a mismatch: chart tools do not need names, and sending fewer fields does not always mean less database work. The engineering lesson is to define the result first, then make the database examine only the records needed for it. <a href=\"https://github.blog/engineering/architecture-optimization/from-2500-requests-to-24-rebuilding-star-history-without-the-stargazers/\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub's engineering account</a> describes the design and its reported performance figures.</p>\n\n<h2>From people to a trend</h2>\n<p>Previously, a tool reconstructing a star chart had to page through stargazer records, retain their timestamps, and discard user details. The new <a href=\"https://docs.github.com/en/rest/activity/starring\" target=\"_blank\" rel=\"noopener noreferrer\">REST endpoint</a> returns up to 30 calendar weeks of daily counts per page, with pages moving backward through repository history. A public repository's history can be requested without authentication. The response includes a week timestamp, a weekly total, and seven daily values.</p>\n<p>This is data minimization in practice: the caller gets chart data without a roster of people. It removes identities from this response; it does not guarantee aggregate data is anonymous in every context.</p>\n\n<h2>Why query order matters</h2>\n<p>GitHub says one tempting design was to group every star into daily buckets and then paginate those buckets. That reduces the JSON returned, but the database may still do expensive grouping and sorting for the full history on every page. Instead, GitHub says it converts the requested page into an indexed date range, filters matching rows, and only then groups them by day.</p>\n<p>In GitHub's example for <code>react/react</code>, the previous pattern would examine roughly six million rows across 24 requests. Its shipped approach examines about 251,000 rows across those requests and cuts history retrieval from roughly 2,511 calls to 24. These are GitHub-reported figures for its system, not an independent benchmark or a promise for another database. The transferable idea is the ordering: narrow rows using an index before aggregation; applying <code>LIMIT</code> after a broad <code>GROUP BY</code> may shrink the response, not the work.</p>\n\n<h2>A decision you can use in your own product</h2>\n<p><strong>Worked example, not a GitHub measurement:</strong> suppose an admin dashboard needs two years of weekly activity, not a list of users. Two years is about 104 weeks; at a maximum of 30 weeks per request, the client needs four pages (104 divided by 30, rounded up). Keep daily response data if operators need to spot launch-day changes, but let the chart roll those values up to weeks for the two-year view.</p>\n<p>Before implementation, write down the question the screen answers. If it is “did usage rise after release?”, return a bounded range of counts, not user records. Confirm an index supports the range predicate, inspect the query plan, and measure rows scanned as well as response size. Cache stable historical ranges and refresh the current range separately. Set a maximum range and test a dense interval, since an unusually busy week can still make a query expensive.</p>\n\n<h2>Read the chart carefully</h2>\n<p>This is not a complete star/un-star event ledger: GitHub's current stargazer model omits a star after its owner removes it. Documentation says weeks are returned newest first, daily values begin with Sunday, and week/day boundaries are not guaranteed to be UTC. State what the curve represents, avoid silently labeling buckets as UTC days, and reverse pages before assembling a chronological chart.</p>\n<p><em>Image: original AI-generated editorial illustration for AyNcode. It depicts date-range filtering and aggregation, not a GitHub interface or measured result.</em></p>\n\n<h2>Sources</h2>\n<ul><li><a href=\"https://github.blog/engineering/architecture-optimization/from-2500-requests-to-24-rebuilding-star-history-without-the-stargazers/\" target=\"_blank\" rel=\"noopener noreferrer\">From 2,500 requests to 24: Rebuilding star history without the stargazers - GitHub Engineering</a></li><li><a href=\"https://docs.github.com/en/rest/activity/starring\" target=\"_blank\" rel=\"noopener noreferrer\">REST API endpoints for starring - GitHub Docs</a></li></ul>",
+    "editorial_review": {
+      "backend": "codex",
+      "sources": [
+        "https://github.blog/engineering/architecture-optimization/from-2500-requests-to-24-rebuilding-star-history-without-the-stargazers/",
+        "https://docs.github.com/en/rest/activity/starring"
+      ],
+      "image_type": "original-ai-generated-editorial-illustration",
+      "facts_supported": true,
+      "specific_and_useful": true,
+      "sources_match_story": true,
+      "issues": [],
+      "factual_review": "Separate review checked the Oct. 14 announcement, endpoint path and weekly/daily response shape, public repository access, maximum 30-week page size, Sunday-first day array, newest-first page order, non-UTC-guaranteed boundaries, and the current-star limitation against GitHub's primary engineering article and REST docs. Performance counts are explicitly attributed to GitHub, not presented as an independent benchmark. The hypothetical calculation was checked: ceil(104/30)=4.",
+      "usefulness_review": "Explains why a smaller payload can still trigger broad database work, gives a practical range-filter-before-aggregation design checklist, identifies caching and dense-range checks, and includes a clearly labeled pagination example. It distinguishes product analysis from GitHub-reported facts and does not claim results for AyNcode.",
+      "image_review": "Inspected the actual 1536x1024 raster. It shows anonymous activity narrowed to a highlighted date range, grouped into daily buckets, and plotted as a line. Original conceptual illustration; contains no logo, text, or product UI and is labeled as an illustration in the article."
+    }
+  },
+  {
     "slug": "2026-10-02-introducing-dots",
     "title": "Introducing dots (2026-10-02)",
     "generated_title": "OpenAI Dots: What Always-On Agents Change",
