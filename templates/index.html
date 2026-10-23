@@ -60,7 +60,10 @@
         <h2><a href="{{ url_for('show_post', post_id=post.id) }}">{{ post.title }}</a></h2>
         <p class="journal-row-excerpt">{{ post.subtitle }}</p>
         <div class="journal-row-meta">
-          <span>{{ post.author.name }}</span>
+          <span class="journal-author-line">
+            <span class="journal-author-avatar" aria-hidden="true"></span>
+            <span>{{ post.author.name }}</span>
+          </span>
           <i aria-hidden="true"></i>
           <span>{{ post.published_at or post.date }}</span>
           <i aria-hidden="true"></i>

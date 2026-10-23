@@ -40,7 +40,10 @@
         <h2 class="post-title"><a href="{{ url_for('show_post', post_id=post.id) }}">{{ post.title }}</a></h2>
         <p class="post-subtitle">{{ post.subtitle }}</p>
         <div class="post-meta">
-          <span>{{ post.author.name }}</span>
+          <span class="journal-author-line">
+            <span class="journal-author-avatar" aria-hidden="true"></span>
+            <span>{{ post.author.name }}</span>
+          </span>
           <span>{{ post.published_at or post.date }}</span>
         </div>
         <div class="post-stats">

@@ -529,6 +529,27 @@ p {
     padding-top: 0.85rem;
 }
 
+.journal-author-line {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.45rem;
+}
+
+.journal-author-avatar {
+    aspect-ratio: 1;
+    background-color: #05070a;
+    background-image: url("../img/ayotunde-founder-side-profile-v2.png");
+    background-position: 62% 25%;
+    background-repeat: no-repeat;
+    background-size: auto 92px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    display: inline-block;
+    flex: 0 0 28px;
+    height: 28px;
+    width: 28px;
+}
+
 .post-stats {
     margin-top: 0.8rem;
 }
@@ -1179,16 +1200,18 @@ textarea.form-control {
     padding-top: 1.4rem;
 }
 
-.article-author-card img {
+.article-author-photo {
     aspect-ratio: 1;
     background: #05070a;
+    background-image: url("../img/ayotunde-founder-side-profile-v2.png");
+    background-position: 62% 25%;
+    background-repeat: no-repeat;
+    background-size: auto 250px;
     border: 2px solid #05070a;
     border-radius: 999px;
     box-shadow: 0 0 0 1px var(--line), var(--shadow-sm);
     display: block;
     height: 76px;
-    object-fit: cover;
-    object-position: center top;
     width: 76px;
 }
 
@@ -1779,9 +1802,10 @@ footer a:hover {
         grid-template-columns: 64px 1fr;
     }
 
-    .article-author-card img {
+    .article-author-photo {
         height: 64px;
         width: 64px;
+        background-size: auto 210px;
     }
 
     .button-row,

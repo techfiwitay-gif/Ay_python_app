@@ -21,7 +21,7 @@
       {{ post.body|safe }}
 
       <aside class="article-author-card" aria-label="About the author">
-        <img src="{{ url_for('static', filename='img/ayotunde-article-base.png') }}" alt="Ayotunde Oyeniyi">
+        <div class="article-author-photo" aria-hidden="true"></div>
         <div>
           <h2>Ayotunde Oyeniyi, founder of AyNcode</h2>
           <p>I build AI software, automation, and digital products, then share practical lessons for founders and technical operators.</p>
@@ -30,7 +30,10 @@
     </div>
 
     <div class="article-meta">
-      <span><i class="fas fa-user"></i> {{ post.author.name }}</span>
+      <span class="journal-author-line">
+        <span class="journal-author-avatar" aria-hidden="true"></span>
+        <span>{{ post.author.name }}</span>
+      </span>
       <span><i class="far fa-calendar"></i> {{ post.published_at or post.date }}</span>
       {% if post.reading_time %}
       <span><i class="far fa-clock"></i> {{ post.reading_time }} min read</span>
