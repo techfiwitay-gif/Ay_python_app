@@ -539,9 +539,9 @@ p {
     aspect-ratio: 1;
     background-color: #05070a;
     background-image: url("../img/ayotunde-founder-side-profile-v2.png");
-    background-position: 62% 25%;
+    background-position: 68% 7%;
     background-repeat: no-repeat;
-    background-size: auto 92px;
+    background-size: auto 56px;
     border: 1px solid var(--line);
     border-radius: 50%;
     display: inline-block;
@@ -1204,9 +1204,9 @@ textarea.form-control {
     aspect-ratio: 1;
     background: #05070a;
     background-image: url("../img/ayotunde-founder-side-profile-v2.png");
-    background-position: 62% 25%;
+    background-position: 68% 7%;
     background-repeat: no-repeat;
-    background-size: auto 250px;
+    background-size: auto 150px;
     border: 2px solid #05070a;
     border-radius: 999px;
     box-shadow: 0 0 0 1px var(--line), var(--shadow-sm);
@@ -1805,7 +1805,7 @@ footer a:hover {
     .article-author-photo {
         height: 64px;
         width: 64px;
-        background-size: auto 210px;
+        background-size: auto 126px;
     }
 
     .button-row,
