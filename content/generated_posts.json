@@ -1,5 +1,38 @@
 [
   {
+    "slug": "2026-11-13-github-actions-workflow-log-secret-scanning-preview",
+    "title": "GitHub secret scanning now reaches Actions logs, with important gaps",
+    "generated_title": "GitHub secret scanning now reaches Actions logs, with important gaps",
+    "subtitle": "The new preview can surface provider credentials printed by completed workflows, but it is enterprise-only, incomplete by design, and easy to miss without a review routine.",
+    "date": "November 13, 2026",
+    "published_at": "November 13, 2026 09:15 AM",
+    "topic": "GitHub Actions workflow log secret scanning preview",
+    "audience": "software teams using CI automation",
+    "author": "Ayotunde Oyeniyi",
+    "img_url": "/static/img/github-actions-log-secret-scanning-2026-11-13.png",
+    "image_prompt": "Original editorial illustration showing a completed CI workflow log moving through a secret scanner, one exposed credential being flagged, an alert pointing to a log line, and a separate credential rotation action. No text, brands, or real credentials.",
+    "image_query": "GitHub Actions workflow logs secret scanning alert credential rotation",
+    "image_source_url": "",
+    "image_credit": "Original AI-generated editorial illustration for AyNcode; conceptual artwork, not a GitHub product screenshot.",
+    "body": "<p>Build logs are easy to overlook as a place where credentials escape. A debugging statement, a verbose test, or a tool dumping its environment can put a token into a workflow log even when the repository itself contains no key. On November 9, GitHub announced a public preview that extends secret scanning to GitHub Actions workflow logs. It adds a useful detection surface, but it is not a general-purpose log auditor or a substitute for careful CI design.</p>\n\n<h2>What the preview actually scans</h2>\n<p>After a workflow run completes, GitHub scans its logs for supported provider-secret patterns. Findings appear in the repository's existing secret-scanning alerts and link back to the workflow log. Supported secret types can receive validity checks, and GitHub says an alert remains available even if the underlying log is later deleted. These details come from <a href=\"https://github.blog/changelog/2026-11-09-secret-scanning-detects-secrets-in-github-actions-workflow-logs/\">GitHub's launch note</a> and its <a href=\"https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/secret-security/secret-scanning\">current documentation</a>.</p>\n<p>This is post-run detection, not a live interruption: it cannot prevent the workflow from printing a value or stop someone who can read the log from seeing it first. And a finding is not remediation. If an active credential appears in output, revoke or rotate it at the issuing service immediately; deleting the log alone does not invalidate the credential.</p>\n\n<h2>Three limits change the rollout</h2>\n<p>First, access is narrow. The feature is in public preview for GitHub Enterprise Cloud enterprises with GitHub Secret Protection or GitHub Advanced Security. An enterprise owner must enable the policy; it is disabled by default and applies to repositories where secret scanning is enabled. The <a href=\"https://docs.github.com/en/enterprise-cloud@latest/admin/enforcing-policies/enforcing-policies-for-your-enterprise/enforcing-policies-for-code-security-and-analysis-for-your-enterprise\">enterprise policy guide</a> describes the control.</p>\n<p>Second, workflow logs use provider patterns only. Generic patterns, custom patterns, AI-detected secrets, and values masked by GitHub Actions are excluded. Old runs are not backfilled: only runs completed after enablement are scanned. Third, alerts do not send notifications during the preview, so teams must deliberately check the alert list. Those are material coverage and response gaps, not fine print.</p>\n\n<h2>A practical pilot</h2>\n<p>For an eligible team, enable the policy for a small set of repositories that run builds with third-party actions or deployment credentials. Before switching it on, name an owner and add a daily check of secret-scanning alerts to the existing CI or security routine; without notifications, an alert can sit unnoticed. For each new finding, record the affected workflow, credential type, whether it was valid, time to revoke it, and how it reached the log. Then remove the output path and rotate the credential. Do not create a real leak as a test; use the preview period to evaluate naturally occurring findings and inspect existing logging practices.</p>\n<p>After two weeks, compare the findings with incident reports and a manual review of high-risk workflow output. The useful question is not simply whether the scanner found something: it is which credential paths it covered, how quickly a person acted, and what still escaped detection. Keep push protection, least-privilege workflow permissions, short-lived credentials where available, and log hygiene in place. This feature is an additional net, not the floor.</p>\n\n<h2>Source context: a limited extra net</h2>\n<p>The product change is GitHub's; the rollout advice here is AyNcode's analysis. If your repositories are outside the eligible enterprise plans, this preview is not an immediate control you can turn on. Either way, treat workflow output as sensitive: avoid printing environment values, restrict log access, and make credential revocation part of the incident checklist. Detection after a run helps most when the response path is already clear.</p>\n<p><em>Illustration: original AI-generated editorial artwork for AyNcode showing a completed workflow log moving through detection to an alert and credential rotation; it is not a GitHub interface.</em></p>",
+    "editorial_review": {
+      "backend": "codex",
+      "sources": [
+        "https://github.blog/changelog/2026-11-09-secret-scanning-detects-secrets-in-github-actions-workflow-logs/",
+        "https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/secret-security/secret-scanning",
+        "https://docs.github.com/en/enterprise-cloud@latest/admin/enforcing-policies/enforcing-policies-for-your-enterprise/enforcing-policies-for-code-security-and-analysis-for-your-enterprise"
+      ],
+      "image_type": "original-ai-generated-editorial-illustration",
+      "facts_supported": true,
+      "specific_and_useful": true,
+      "sources_match_story": true,
+      "issues": [],
+      "factual_review": "Separate review checked the November 9 launch date, completed-run scan timing, supported provider patterns, alert behavior, validity checks, absence of historical backfill and notifications, excluded pattern types, preview state, and enterprise entitlement against GitHub's launch note and current docs. The text distinguishes post-run detection from prevention and directs active leaked credentials to immediate rotation.",
+      "usefulness_review": "The pilot names an owner, alert-review cadence, incident fields, remediation, and a two-week assessment. It avoids proposing an intentional credential leak as a test and keeps existing CI controls in place. Access limits are clear for teams without eligible enterprise plans.",
+      "image_review": "Inspected actual raster pixels: a completed workflow moves through log scanning to a linked alert and distinct credential-rotation action. Original conceptual illustration; no logos, legible secrets, or real product interface. Article labels it as illustration."
+    }
+  },
+  {
     "slug": "2026-11-06-openai-pando-git-backend-agent-scale-source-control",
     "title": "OpenAI's Pando shows the tradeoff behind Git at agent scale",
     "generated_title": "OpenAI's Pando shows the tradeoff behind Git at agent scale",
